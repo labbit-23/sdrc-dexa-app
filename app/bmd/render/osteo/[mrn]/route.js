@@ -31,7 +31,9 @@ export async function GET(req, { params }) {
     )
   }
 
+  console.log('[osteo] image_paths raw:', JSON.stringify(scan.image_paths))
   const imageUrls = await buildImageUrls(scan.image_paths)
+  console.log('[osteo] imageUrls:', JSON.stringify(imageUrls))
 
   // raw_json is stored as TEXT — parse it to an object before computing
   let rawData = scan.raw_json
