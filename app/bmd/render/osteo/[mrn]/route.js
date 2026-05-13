@@ -32,7 +32,6 @@ export async function GET(req, { params }) {
   }
 
   const imageUrls = buildImageUrls(scan.image_paths)
-  process.stderr.write(`[IMG] paths=${JSON.stringify(scan.image_paths)} urls=${JSON.stringify(imageUrls)}\n`)
 
   // raw_json is stored as TEXT — parse it to an object before computing.
   // Some legacy rows were double-encoded (json.dumps called twice), so we
