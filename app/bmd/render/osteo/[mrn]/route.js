@@ -33,7 +33,21 @@ export async function GET(req, { params }) {
 
   const imageUrls = await buildImageUrls(scan.image_paths)
 
-  const reportData = computeOsteoData(scan.raw_json, mrn, '')
+  // raw_json is stored as TEXT — parse it to an object before computing
+  let rawData = scan.raw_json
+  if (typeof rawData === 'string') {
+    try { rawData = JSON.parse(rawData) } catch (e) {
+      return new NextResponse(
+        `<html><body style="font-family:sans-serif;padding:40px">
+          <h2>Malformed scan data for MRN <code>${mrn}</code></h2>
+          <pre>${e.message}</pre>
+        </body></html>`,
+        { status: 500, headers: { 'Content-Type': 'text/html' } },
+      )
+    }
+  }
+
+  const reportData = computeOsteoData(rawData, mrn, '')
   reportData.images = {
     spine_url:       imageUrls.spine_url,
     left_femur_url:  imageUrls.left_femur_url,
