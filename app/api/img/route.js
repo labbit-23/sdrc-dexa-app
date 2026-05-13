@@ -34,7 +34,7 @@ export async function GET(req) {
   return new NextResponse(buf, {
     headers: {
       'Content-Type': res.headers.get('Content-Type') || 'image/png',
-      'Cache-Control': 'private, max-age=3600',
+      'Cache-Control': 'private, max-age=60',
     },
   })
 }
