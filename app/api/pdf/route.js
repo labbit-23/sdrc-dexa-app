@@ -3,13 +3,12 @@
  * GET /api/pdf?mrn=MRN123&lh=1   (letterhead)
  *
  * Generates a PDF for the patient's latest osteo scan using Puppeteer.
- * The render route at /bmd/render/osteo/[mrn] provides the HTML.
  */
 
-import { NextRequest, NextResponse } from 'next/server'
+import { NextResponse } from 'next/server'
 import puppeteer from 'puppeteer'
 
-export async function GET(req: NextRequest) {
+export async function GET(req) {
   const mrn = req.nextUrl.searchParams.get('mrn')
   if (!mrn || !/^[\w-]+$/.test(mrn)) {
     return NextResponse.json({ error: 'Missing or invalid ?mrn= param' }, { status: 400 })
@@ -29,7 +28,6 @@ export async function GET(req: NextRequest) {
     const page = await browser.newPage()
     await page.goto(renderUrl, { waitUntil: 'networkidle0', timeout: 30_000 })
 
-    // Wait for all images (signed URLs) to load
     await page.evaluate(() =>
       Promise.all(
         Array.from(document.images).map(img =>

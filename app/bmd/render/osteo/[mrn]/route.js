@@ -1,22 +1,19 @@
 /**
  * GET /bmd/render/osteo/[mrn]
- * GET /bmd/render/osteo/[mrn]?lh=1   (letterhead variant)
+ * GET /bmd/render/osteo/[mrn]?lh=1   (letterhead)
  *
  * Returns the full HTML report for a patient's latest osteo scan.
  * Puppeteer (in /api/pdf) navigates to this URL to generate the PDF.
  */
 
-import { NextRequest, NextResponse } from 'next/server'
-import { computeOsteoData }          from '@/lib/osteo-compute'
-import { generateOsteoHtml }         from '@/lib/osteo-html-template'
-import { fetchLatestOsteoScan, buildImageUrls } from '@/lib/fetch-scan'
+import { NextResponse }      from 'next/server'
+import { computeOsteoData }  from '@/lib/osteo-compute.js'
+import { generateOsteoHtml } from '@/lib/osteo-html-template.js'
+import { fetchLatestOsteoScan, buildImageUrls } from '@/lib/fetch-scan.js'
 
 export const dynamic = 'force-dynamic'
 
-export async function GET(
-  req: NextRequest,
-  { params }: { params: { mrn: string } },
-) {
+export async function GET(req, { params }) {
   const { mrn } = params
 
   if (!mrn || !/^[\w-]+$/.test(mrn)) {
@@ -34,17 +31,9 @@ export async function GET(
     )
   }
 
-  // Build signed image URLs from Storage
   const imageUrls = await buildImageUrls(scan.image_paths)
 
-  // Compute report data from raw JSON
-  const reportData = computeOsteoData(
-    scan.raw_json,
-    mrn,
-    '',   // imageBaseUrl unused — we pass urls directly below
-  )
-
-  // Override image URLs with the signed Storage URLs
+  const reportData = computeOsteoData(scan.raw_json, mrn, '')
   reportData.images = {
     spine_url:       imageUrls.spine_url,
     left_femur_url:  imageUrls.left_femur_url,

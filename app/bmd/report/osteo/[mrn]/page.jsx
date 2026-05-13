@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 
-export default function OsteoReportPage({ params }: { params: { mrn: string } }) {
+export default function OsteoReportPage({ params }) {
   const { mrn } = params
   const [lh, setLh] = useState(false)
 
@@ -23,8 +23,6 @@ export default function OsteoReportPage({ params }: { params: { mrn: string } })
         </div>
 
         <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-
-          {/* Letterhead toggle */}
           <button
             onClick={() => setLh(l => !l)}
             style={{
@@ -38,7 +36,6 @@ export default function OsteoReportPage({ params }: { params: { mrn: string } })
             {lh ? '✕ Exit letterhead' : '📄 Letterhead preview'}
           </button>
 
-          {/* Open in new tab */}
           <a href={renderUrl} target="_blank" rel="noopener noreferrer" style={{
             padding: '5px 14px', borderRadius: 5, fontSize: 12, fontWeight: 600,
             background: '#f5f7fa', color: '#374151',
@@ -47,7 +44,6 @@ export default function OsteoReportPage({ params }: { params: { mrn: string } })
             Open in new tab
           </a>
 
-          {/* PDF downloads */}
           <a href={`/api/pdf?mrn=${mrn}`} style={{
             padding: '5px 14px', borderRadius: 5, fontSize: 12, fontWeight: 700,
             background: '#0D7377', color: '#fff', textDecoration: 'none',
@@ -60,11 +56,9 @@ export default function OsteoReportPage({ params }: { params: { mrn: string } })
           }}>
             ↓ PDF (Letterhead)
           </a>
-
         </div>
       </div>
 
-      {/* Report iframe */}
       <iframe
         key={renderUrl}
         src={renderUrl}
