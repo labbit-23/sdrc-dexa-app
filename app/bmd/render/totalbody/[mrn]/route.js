@@ -33,9 +33,11 @@ export async function GET(req, { params }) {
 
   const imageUrls = buildTotalbodyImageUrls(scan.image_paths)
 
-  // raw_json is stored as TEXT — parse it to an object before computing
+  // raw_json is stored as TEXT — parse it to an object before computing.
+  // Some legacy rows were double-encoded (json.dumps called twice), so we
+  // keep parsing until we have an object.
   let rawData = scan.raw_json
-  if (typeof rawData === 'string') {
+  for (let i = 0; i < 2 && typeof rawData === 'string'; i++) {
     try { rawData = JSON.parse(rawData) } catch (e) {
       return new NextResponse(
         `<html><body style="font-family:sans-serif;padding:40px">
