@@ -1,0 +1,76 @@
+'use client'
+
+import { useState } from 'react'
+
+export default function OsteoReportPage({ params }: { params: { mrn: string } }) {
+  const { mrn } = params
+  const [lh, setLh] = useState(false)
+
+  const renderUrl = lh ? `/bmd/render/osteo/${mrn}?lh=1` : `/bmd/render/osteo/${mrn}`
+
+  return (
+    <div style={{ position: 'fixed', inset: 0, background: '#f0f4f8', display: 'flex', flexDirection: 'column' }}>
+
+      {/* Toolbar */}
+      <div style={{
+        height: 44, background: '#fff', borderBottom: '1px solid #d0dce8',
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+        padding: '0 16px', flexShrink: 0,
+      }}>
+        <div style={{ fontSize: 12, color: '#6b7280' }}>
+          <span style={{ color: '#0D7377', fontWeight: 700 }}>SDRC</span>
+          {' '}· Bone Density Report · MRN {mrn}
+        </div>
+
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+
+          {/* Letterhead toggle */}
+          <button
+            onClick={() => setLh(l => !l)}
+            style={{
+              padding: '5px 14px', borderRadius: 5, fontSize: 12, fontWeight: 600,
+              background: lh ? '#fff3e0' : '#f5f7fa',
+              color:      lh ? '#b45309' : '#374151',
+              border: `1px solid ${lh ? '#f59e0b88' : '#d0dce8'}`,
+              cursor: 'pointer',
+            }}
+          >
+            {lh ? '✕ Exit letterhead' : '📄 Letterhead preview'}
+          </button>
+
+          {/* Open in new tab */}
+          <a href={renderUrl} target="_blank" rel="noopener noreferrer" style={{
+            padding: '5px 14px', borderRadius: 5, fontSize: 12, fontWeight: 600,
+            background: '#f5f7fa', color: '#374151',
+            border: '1px solid #d0dce8', textDecoration: 'none',
+          }}>
+            Open in new tab
+          </a>
+
+          {/* PDF downloads */}
+          <a href={`/api/pdf?mrn=${mrn}`} style={{
+            padding: '5px 14px', borderRadius: 5, fontSize: 12, fontWeight: 700,
+            background: '#0D7377', color: '#fff', textDecoration: 'none',
+          }}>
+            ↓ PDF
+          </a>
+          <a href={`/api/pdf?mrn=${mrn}&lh=1`} style={{
+            padding: '5px 14px', borderRadius: 5, fontSize: 12, fontWeight: 700,
+            background: '#92400e', color: '#fef3c7', textDecoration: 'none',
+          }}>
+            ↓ PDF (Letterhead)
+          </a>
+
+        </div>
+      </div>
+
+      {/* Report iframe */}
+      <iframe
+        key={renderUrl}
+        src={renderUrl}
+        style={{ flex: 1, border: 'none', width: '100%' }}
+        title="Bone Density Report"
+      />
+    </div>
+  )
+}
