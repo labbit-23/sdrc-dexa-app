@@ -1,5 +1,6 @@
 /**
  * GET /api/img?p=raw-osteo/MRN/ts/img_spine.png
+ * GET /api/img?p=raw-totalbody/MRN/ts/img_fat_lean.png
  *
  * Proxy for Supabase Storage scan images.
  * The browser can only reach the Next.js server (via Tailscale);
@@ -14,7 +15,7 @@ export const dynamic = 'force-dynamic'
 
 export async function GET(req) {
   const p = req.nextUrl.searchParams.get('p')
-  if (!p || !/^raw-osteo\/[\w\-./]+$/.test(p)) {
+  if (!p || !/^raw-(osteo|totalbody)\/[\w\-./]+$/.test(p)) {
     return new NextResponse('Bad path', { status: 400 })
   }
 
