@@ -51,9 +51,12 @@ export async function GET(req, { params }) {
 
   const reportData = computeOsteoData(rawData, mrn, '')
   reportData.images = {
-    spine_url:       imageUrls.spine_url,
-    left_femur_url:  imageUrls.left_femur_url,
-    right_femur_url: imageUrls.right_femur_url,
+    spine_url:             imageUrls.spine_url,
+    left_femur_url:        imageUrls.left_femur_url,
+    right_femur_url:       imageUrls.right_femur_url,
+    spine_overlay_url:     imageUrls.spine_overlay_url,
+    left_femur_overlay_url:  imageUrls.left_femur_overlay_url,
+    right_femur_overlay_url: imageUrls.right_femur_overlay_url,
   }
 
   const letterhead = req.nextUrl.searchParams.get('lh') === '1'
