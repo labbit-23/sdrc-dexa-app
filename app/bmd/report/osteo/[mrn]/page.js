@@ -10,9 +10,10 @@ export default function OsteoReportPage({ params }) {
 
   return (
     <div style={{ position: 'fixed', inset: 0, background: '#f0f4f8', display: 'flex', flexDirection: 'column' }}>
+      <style>{`@media print{#report-toolbar{display:none!important}.report-frame{position:static!important;height:100vh!important}}`}</style>
 
       {/* Toolbar */}
-      <div style={{
+      <div id="report-toolbar" style={{
         height: 44, background: '#fff', borderBottom: '1px solid #d0dce8',
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
         padding: '0 16px', flexShrink: 0,
@@ -62,6 +63,7 @@ export default function OsteoReportPage({ params }) {
       <iframe
         key={renderUrl}
         src={renderUrl}
+        className="report-frame"
         style={{ flex: 1, border: 'none', width: '100%' }}
         title="Bone Density Report"
       />

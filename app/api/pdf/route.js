@@ -20,7 +20,7 @@ export async function GET(req) {
   const lh       = req.nextUrl.searchParams.get('lh') === '1'
   const scanType = req.nextUrl.searchParams.get('type') === 'totalbody' ? 'totalbody' : 'osteo'
   const host     = req.headers.get('host') ?? 'localhost:3010'
-  const proto    = process.env.NODE_ENV === 'production' ? 'https' : 'http'
+  const proto    = process.env.RENDER_PROTO ?? 'http'
   const renderUrl = `${proto}://${host}/bmd/render/${scanType}/${mrn}${lh ? '?lh=1' : ''}`
 
   const browser = await puppeteer.launch({
