@@ -366,13 +366,7 @@ function PatientCard({ info, uploaded, isUploading, progressLog, onUpload }) {
             <Btn label="📊 Total Body" color={C.purple} href={`/bmd/report/totalbody/${pid}`} />
             <Btn label="↓ Osteo PDF"   color="#374151"  href={`/api/pdf?mrn=${pid}`} />
             <Btn label="↓ Total PDF"   color="#374151"  href={`/api/pdf?mrn=${pid}&type=totalbody`} />
-            <Btn
-              label="📱 WhatsApp"
-              color={C.gray}
-              textColor="#555"
-              disabled
-              title="Coming soon — awaiting API docs"
-            />
+            <WaBtn mrn={pid} patientName={name} />
           </>
         )}
       </div>
@@ -866,6 +860,123 @@ function PatientRow({ info, highlight, selected, onClick, onDoubleClick }) {
       <div style={{ color: C.gray }}>{dob}</div>
       <div style={{ color: C.gray }}>{gender}</div>
       <div style={{ color: C.gray }}>{dateStr}</div>
+    </div>
+  )
+}
+
+
+// ── WhatsApp send ─────────────────────────────────────────────────────────────
+
+function WaBtn({ mrn, patientName }) {
+  const [open, setOpen] = useState(false)
+  return (
+    <>
+      <button
+        onClick={() => setOpen(true)}
+        style={{ background: '#1a5c2a', color: '#4ade80', border: '1px solid #2d6a3f', borderRadius: 4, padding: '5px 12px', fontSize: 11, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap' }}
+      >
+        📱 WhatsApp
+      </button>
+      {open && <WaSendModal mrn={mrn} patientName={patientName} onClose={() => setOpen(false)} />}
+    </>
+  )
+}
+
+function WaSendModal({ mrn, patientName, onClose }) {
+  const [phone,      setPhone]      = useState('')
+  const [name,       setName]       = useState(patientName || '')
+  const [scanType,   setScanType]   = useState('osteo')
+  const [sending,    setSending]    = useState(false)
+  const [result,     setResult]     = useState(null)   // {ok, error, pdfUrl}
+
+  const send = async () => {
+    if (!phone.trim()) return
+    setSending(true)
+    setResult(null)
+    try {
+      const res  = await fetch('/api/wa-send', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phone, mrn, scanType, patientName: name }),
+      })
+      const data = await res.json()
+      setResult(res.ok ? { ok: true, pdfUrl: data.pdfUrl } : { error: data.error ?? 'Send failed' })
+    } catch (e) {
+      setResult({ error: e.message })
+    } finally {
+      setSending(false)
+    }
+  }
+
+  const overlay = { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 200 }
+  const modal   = { background: C.dark, border: `1px solid ${C.border}`, borderRadius: 8, width: 400, padding: 28 }
+  const inp     = { width: '100%', background: C.card, border: `1px solid ${C.border}`, borderRadius: 5, padding: '8px 12px', color: C.white, fontSize: 13, outline: 'none', boxSizing: 'border-box', marginTop: 6 }
+  const lbl     = { color: C.gray, fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1, marginTop: 14, display: 'block' }
+
+  return (
+    <div style={overlay}>
+      <div style={modal}>
+        <div style={{ fontWeight: 700, fontSize: 15, color: '#4ade80', marginBottom: 16 }}>📱 Send Report via WhatsApp</div>
+
+        {result ? (
+          <div style={{ textAlign: 'center', padding: '20px 0' }}>
+            {result.ok ? (
+              <>
+                <div style={{ fontSize: 36 }}>✅</div>
+                <div style={{ color: '#4ade80', fontWeight: 700, marginTop: 10 }}>Sent successfully</div>
+                <div style={{ color: C.gray, fontSize: 12, marginTop: 6 }}>Report dispatched to {phone}</div>
+              </>
+            ) : (
+              <>
+                <div style={{ fontSize: 36 }}>❌</div>
+                <div style={{ color: C.red, fontWeight: 700, marginTop: 10 }}>Send failed</div>
+                <div style={{ color: '#ef9a9a', fontSize: 12, marginTop: 6 }}>{result.error}</div>
+              </>
+            )}
+            <div style={{ display: 'flex', gap: 10, justifyContent: 'center', marginTop: 20 }}>
+              {result.ok && <Btn label="Send Another" color={C.teal} onClick={() => { setResult(null); setPhone('') }} />}
+              <Btn label="Close" color="transparent" textColor={C.gray} border={C.border} onClick={onClose} />
+            </div>
+          </div>
+        ) : (
+          <>
+            <span style={lbl}>Patient Name</span>
+            <input style={inp} value={name} onChange={e => setName(e.target.value)} placeholder="Full name as on report" />
+
+            <span style={lbl}>Mobile Number</span>
+            <input style={inp} value={phone} onChange={e => setPhone(e.target.value)} placeholder="9949099249  or  919949099249" />
+
+            <span style={lbl}>Report Type</span>
+            <div style={{ display: 'flex', gap: 8, marginTop: 6 }}>
+              {[['osteo', '🦴 Bone Density'], ['totalbody', '🧬 Total Body']].map(([val, label]) => (
+                <button
+                  key={val}
+                  onClick={() => setScanType(val)}
+                  style={{ flex: 1, padding: '8px 0', borderRadius: 5, fontSize: 12, fontWeight: 600, cursor: 'pointer', border: `1px solid ${scanType === val ? C.teal : C.border}`, background: scanType === val ? '#0d3a3c' : C.card, color: scanType === val ? '#80DEEA' : C.gray }}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+
+            <div style={{ color: C.gray, fontSize: 10, marginTop: 10 }}>
+              PDF: /api/pdf?mrn={mrn}&type={scanType}&lh=1
+            </div>
+
+            <div style={{ display: 'flex', gap: 10, marginTop: 20 }}>
+              <Btn
+                label={sending ? 'Sending…' : '📤 Send'}
+                color="#1a5c2a"
+                textColor="#4ade80"
+                disabled={sending || !phone.trim()}
+                onClick={send}
+                bold
+              />
+              <Btn label="Cancel" color="transparent" textColor={C.gray} border={C.border} onClick={onClose} />
+            </div>
+          </>
+        )}
+      </div>
     </div>
   )
 }

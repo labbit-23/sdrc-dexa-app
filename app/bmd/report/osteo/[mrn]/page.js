@@ -1,10 +1,12 @@
 'use client'
 
 import { useState } from 'react'
+import WaSendModal from '@/components/WaSendModal'
 
 export default function OsteoReportPage({ params }) {
   const { mrn } = params
-  const [lh, setLh] = useState(false)
+  const [lh,    setLh]    = useState(false)
+  const [waOpen, setWaOpen] = useState(false)
 
   const renderUrl = lh ? `/bmd/render/osteo/${mrn}?lh=1` : `/bmd/render/osteo/${mrn}`
 
@@ -57,6 +59,17 @@ export default function OsteoReportPage({ params }) {
           }}>
             ↓ PDF (Letterhead)
           </a>
+
+          <button
+            onClick={() => setWaOpen(true)}
+            style={{
+              padding: '5px 14px', borderRadius: 5, fontSize: 12, fontWeight: 700,
+              background: '#1a5c2a', color: '#4ade80',
+              border: '1px solid #2d6a3f', cursor: 'pointer',
+            }}
+          >
+            📱 WhatsApp
+          </button>
         </div>
       </div>
 
@@ -67,6 +80,14 @@ export default function OsteoReportPage({ params }) {
         style={{ flex: 1, border: 'none', width: '100%' }}
         title="Bone Density Report"
       />
+
+      {waOpen && (
+        <WaSendModal
+          mrn={mrn}
+          scanType="osteo"
+          onClose={() => setWaOpen(false)}
+        />
+      )}
     </div>
   )
 }
