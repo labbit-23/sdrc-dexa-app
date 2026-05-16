@@ -14,7 +14,7 @@ export default async function ListPage() {
           <img src="https://www.sdrc.in/assets/sdrc-logo-full.png" alt="SDRC" style={{ height: 32, width: 'auto', borderRadius: 4, background: 'rgba(255,255,255,0.92)', padding: '2px 6px' }} />
           <span style={{ color: '#b2dfdb', fontSize: 13 }}>Bone Density &amp; Body Composition Reports</span>
         </div>
-        <Link href="/bmd/fetch" style={{ background: 'rgba(255,255,255,0.15)', color: '#fff', textDecoration: 'none', padding: '6px 14px', borderRadius: 5, fontSize: 12, fontWeight: 600, border: '1px solid rgba(255,255,255,0.25)' }}>
+        <Link href="/fetch" style={{ background: 'rgba(255,255,255,0.15)', color: '#fff', textDecoration: 'none', padding: '6px 14px', borderRadius: 5, fontSize: 12, fontWeight: 600, border: '1px solid rgba(255,255,255,0.25)' }}>
           ⟳ Fetch Studies
         </Link>
       </div>

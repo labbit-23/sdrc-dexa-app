@@ -95,10 +95,10 @@ export default function PatientTable({ patients }) {
                 <td style={{ ...td, textAlign: 'right' }}>
                   <div style={{ display: 'flex', gap: 6, justifyContent: 'flex-end' }}>
                     {(p.scan_types ?? []).includes('osteo') && (
-                      <Link href={`/bmd/report/osteo/${p.mrn}`} style={btn('#0D7377')}>Osteo</Link>
+                      <Link href={`/report/osteo/${p.mrn}`} style={btn('#0D7377')}>Osteo</Link>
                     )}
                     {(p.scan_types ?? []).includes('total_body') && (
-                      <Link href={`/bmd/report/totalbody/${p.mrn}`} style={btn('#166534')}>Total Body</Link>
+                      <Link href={`/report/totalbody/${p.mrn}`} style={btn('#166534')}>Total Body</Link>
                     )}
                   </div>
                 </td>

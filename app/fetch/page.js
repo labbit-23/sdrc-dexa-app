@@ -362,8 +362,8 @@ function PatientCard({ info, uploaded, isUploading, progressLog, onUpload }) {
 
         {showActions && (
           <>
-            <Btn label="📋 Osteo"      color={C.teal}   href={`/bmd/report/osteo/${pid}`} />
-            <Btn label="📊 Total Body" color={C.purple} href={`/bmd/report/totalbody/${pid}`} />
+            <Btn label="📋 Osteo"      color={C.teal}   href={`/report/osteo/${pid}`} />
+            <Btn label="📊 Total Body" color={C.purple} href={`/report/totalbody/${pid}`} />
             <Btn label="↓ Osteo PDF"   color="#374151"  href={`/api/pdf?mrn=${pid}`} />
             <Btn label="↓ Total PDF"   color="#374151"  href={`/api/pdf?mrn=${pid}&type=totalbody`} />
             <WaBtn mrn={pid} patientName={name} />
@@ -605,8 +605,8 @@ function BrowseMdbModal({ onClose, onUploaded }) {
                   {done && <span style={{ color: C.green, fontWeight: 700, fontSize: 13 }}>✓ Upload complete</span>}
                   {(alreadyInDb || done) && (
                     <>
-                      <Btn label="📋 Osteo Report"      color={C.teal}   href={`/bmd/report/osteo/${pid}`} />
-                      <Btn label="📊 Total Body Report"  color={C.purple} href={`/bmd/report/totalbody/${pid}`} />
+                      <Btn label="📋 Osteo Report"      color={C.teal}   href={`/report/osteo/${pid}`} />
+                      <Btn label="📊 Total Body Report"  color={C.purple} href={`/report/totalbody/${pid}`} />
                       <Btn label="↓ Osteo PDF"           color="#374151"  href={`/api/pdf?mrn=${pid}`} />
                       <Btn label="↓ Total Body PDF"      color="#374151"  href={`/api/pdf?mrn=${pid}&type=totalbody`} />
                     </>

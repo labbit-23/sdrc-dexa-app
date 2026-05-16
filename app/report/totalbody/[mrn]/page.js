@@ -3,26 +3,27 @@
 import { useState } from 'react'
 import WaSendModal from '@/components/WaSendModal'
 
-export default function OsteoReportPage({ params }) {
+export default function TotalbodyReportPage({ params }) {
   const { mrn } = params
-  const [lh,    setLh]    = useState(false)
+  const [lh,     setLh]    = useState(false)
   const [waOpen, setWaOpen] = useState(false)
 
-  const renderUrl = lh ? `/bmd/render/osteo/${mrn}?lh=1` : `/bmd/render/osteo/${mrn}`
+  const renderUrl = lh
+    ? `/render/totalbody/${mrn}?lh=1`
+    : `/render/totalbody/${mrn}`
 
   return (
     <div style={{ position: 'fixed', inset: 0, background: '#f0f4f8', display: 'flex', flexDirection: 'column' }}>
-      <style>{`@media print{#report-toolbar{display:none!important}.report-frame{position:static!important;height:100vh!important}}`}</style>
 
       {/* Toolbar */}
-      <div id="report-toolbar" style={{
+      <div style={{
         height: 44, background: '#fff', borderBottom: '1px solid #d0dce8',
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
         padding: '0 16px', flexShrink: 0,
       }}>
         <div style={{ fontSize: 12, color: '#6b7280' }}>
           <span style={{ color: '#0D7377', fontWeight: 700 }}>SDRC</span>
-          {' '}· Bone Density Report · MRN {mrn}
+          {' '}· Total Body Composition Report · MRN {mrn}
         </div>
 
         <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
@@ -47,13 +48,13 @@ export default function OsteoReportPage({ params }) {
             Open in new tab
           </a>
 
-          <a href={`/api/pdf?mrn=${mrn}`} style={{
+          <a href={`/api/pdf?mrn=${mrn}&type=totalbody`} style={{
             padding: '5px 14px', borderRadius: 5, fontSize: 12, fontWeight: 700,
             background: '#0D7377', color: '#fff', textDecoration: 'none',
           }}>
             ↓ PDF
           </a>
-          <a href={`/api/pdf?mrn=${mrn}&lh=1`} style={{
+          <a href={`/api/pdf?mrn=${mrn}&type=totalbody&lh=1`} style={{
             padding: '5px 14px', borderRadius: 5, fontSize: 12, fontWeight: 700,
             background: '#92400e', color: '#fef3c7', textDecoration: 'none',
           }}>
@@ -76,15 +77,14 @@ export default function OsteoReportPage({ params }) {
       <iframe
         key={renderUrl}
         src={renderUrl}
-        className="report-frame"
         style={{ flex: 1, border: 'none', width: '100%' }}
-        title="Bone Density Report"
+        title="Total Body Composition Report"
       />
 
       {waOpen && (
         <WaSendModal
           mrn={mrn}
-          scanType="osteo"
+          scanType="totalbody"
           onClose={() => setWaOpen(false)}
         />
       )}
