@@ -4,6 +4,28 @@ import { useState } from 'react'
 import WaSendModal from '@/components/WaSendModal'
 import BASE from '@/lib/basepath'
 
+function PdfBtn({ href, label, bg, color = '#fff', faint }) {
+  const [busy, setBusy] = useState(false)
+  const download = () => {
+    setBusy(true)
+    window.location.href = href
+    setTimeout(() => setBusy(false), 8000)
+  }
+  return (
+    <button
+      onClick={download}
+      disabled={busy}
+      style={{
+        padding: '5px 14px', borderRadius: 5, fontSize: 12, fontWeight: 700,
+        background: busy ? '#6b7280' : bg, color: busy ? '#d1d5db' : (faint ?? color),
+        border: 'none', cursor: busy ? 'default' : 'pointer', whiteSpace: 'nowrap',
+      }}
+    >
+      {busy ? '⏳ Generating…' : label}
+    </button>
+  )
+}
+
 export default function TotalbodyReportPage({ params }) {
   const { mrn } = params
   const [lh,     setLh]    = useState(false)
@@ -49,18 +71,8 @@ export default function TotalbodyReportPage({ params }) {
             Open in new tab
           </a>
 
-          <a href={`${BASE}/api/pdf?mrn=${mrn}&type=totalbody`} style={{
-            padding: '5px 14px', borderRadius: 5, fontSize: 12, fontWeight: 700,
-            background: '#0D7377', color: '#fff', textDecoration: 'none',
-          }}>
-            ↓ PDF
-          </a>
-          <a href={`${BASE}/api/pdf?mrn=${mrn}&type=totalbody&lh=1`} style={{
-            padding: '5px 14px', borderRadius: 5, fontSize: 12, fontWeight: 700,
-            background: '#92400e', color: '#fef3c7', textDecoration: 'none',
-          }}>
-            ↓ PDF (Letterhead)
-          </a>
+          <PdfBtn href={`${BASE}/api/pdf?mrn=${mrn}&type=totalbody`}      label="↓ PDF"              bg="#0D7377" />
+          <PdfBtn href={`${BASE}/api/pdf?mrn=${mrn}&type=totalbody&lh=1`} label="↓ PDF (Letterhead)" bg="#92400e" faint="#fef3c7" />
 
           <button
             onClick={() => setWaOpen(true)}

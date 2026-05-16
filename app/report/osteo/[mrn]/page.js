@@ -4,6 +4,28 @@ import { useState } from 'react'
 import WaSendModal from '@/components/WaSendModal'
 import BASE from '@/lib/basepath'
 
+function PdfBtn({ href, label, bg, faint }) {
+  const [busy, setBusy] = useState(false)
+  const download = () => {
+    setBusy(true)
+    window.location.href = href
+    setTimeout(() => setBusy(false), 8000)
+  }
+  return (
+    <button
+      onClick={download}
+      disabled={busy}
+      style={{
+        padding: '5px 14px', borderRadius: 5, fontSize: 12, fontWeight: 700,
+        background: busy ? '#6b7280' : bg, color: busy ? '#d1d5db' : (faint ?? '#fff'),
+        border: 'none', cursor: busy ? 'default' : 'pointer', whiteSpace: 'nowrap',
+      }}
+    >
+      {busy ? '⏳ Generating…' : label}
+    </button>
+  )
+}
+
 export default function OsteoReportPage({ params }) {
   const { mrn } = params
   const [lh,    setLh]    = useState(false)
@@ -15,7 +37,6 @@ export default function OsteoReportPage({ params }) {
     <div style={{ position: 'fixed', inset: 0, background: '#f0f4f8', display: 'flex', flexDirection: 'column' }}>
       <style>{`@media print{#report-toolbar{display:none!important}.report-frame{position:static!important;height:100vh!important}}`}</style>
 
-      {/* Toolbar */}
       <div id="report-toolbar" style={{
         height: 44, background: '#fff', borderBottom: '1px solid #d0dce8',
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
@@ -48,18 +69,8 @@ export default function OsteoReportPage({ params }) {
             Open in new tab
           </a>
 
-          <a href={`${BASE}/api/pdf?mrn=${mrn}`} style={{
-            padding: '5px 14px', borderRadius: 5, fontSize: 12, fontWeight: 700,
-            background: '#0D7377', color: '#fff', textDecoration: 'none',
-          }}>
-            ↓ PDF
-          </a>
-          <a href={`${BASE}/api/pdf?mrn=${mrn}&lh=1`} style={{
-            padding: '5px 14px', borderRadius: 5, fontSize: 12, fontWeight: 700,
-            background: '#92400e', color: '#fef3c7', textDecoration: 'none',
-          }}>
-            ↓ PDF (Letterhead)
-          </a>
+          <PdfBtn href={`${BASE}/api/pdf?mrn=${mrn}`}      label="↓ PDF"              bg="#0D7377" />
+          <PdfBtn href={`${BASE}/api/pdf?mrn=${mrn}&lh=1`} label="↓ PDF (Letterhead)" bg="#92400e" faint="#fef3c7" />
 
           <button
             onClick={() => setWaOpen(true)}
