@@ -48,13 +48,13 @@ export default function TotalbodyReportPage({ params }) {
             Open in new tab
           </a>
 
-          <a href={`/api/pdf?mrn=${mrn}&type=totalbody`} style={{
+          <a href={`/bmd/api/pdf?mrn=${mrn}&type=totalbody`} style={{
             padding: '5px 14px', borderRadius: 5, fontSize: 12, fontWeight: 700,
             background: '#0D7377', color: '#fff', textDecoration: 'none',
           }}>
             ↓ PDF
           </a>
-          <a href={`/api/pdf?mrn=${mrn}&type=totalbody&lh=1`} style={{
+          <a href={`/bmd/api/pdf?mrn=${mrn}&type=totalbody&lh=1`} style={{
             padding: '5px 14px', borderRadius: 5, fontSize: 12, fontWeight: 700,
             background: '#92400e', color: '#fef3c7', textDecoration: 'none',
           }}>

@@ -62,7 +62,7 @@ export default function FetchStudiesPage() {
     setOffline(false)
     setBmdOffline(false)
     try {
-      const res = await fetch('/api/collector/recent')
+      const res = await fetch('/bmd/api/collector/recent')
 
       if (!res.ok) {
         // Try to parse a structured error from the sidecar
@@ -98,7 +98,7 @@ export default function FetchStudiesPage() {
 
   // Check archive availability once on mount
   useEffect(() => {
-    fetch('/api/collector/archive/status')
+    fetch('/bmd/api/collector/archive/status')
       .then(r => r.json())
       .then(d => setArchiveAvail(d))
       .catch(() => setArchiveAvail({ available: false, reason: 'Sidecar offline' }))
@@ -112,7 +112,7 @@ export default function FetchStudiesPage() {
       setProgress(p => ({ ...p, [pid]: [...(p[pid] ?? []), msg] }))
 
     try {
-      const res = await fetch(`/api/collector/upload/${pid}`, {
+      const res = await fetch(`/bmd/api/collector/upload/${pid}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ xps_paths: xpsPaths }),
@@ -364,8 +364,8 @@ function PatientCard({ info, uploaded, isUploading, progressLog, onUpload }) {
           <>
             <Btn label="📋 Osteo"      color={C.teal}   href={`/report/osteo/${pid}`} />
             <Btn label="📊 Total Body" color={C.purple} href={`/report/totalbody/${pid}`} />
-            <Btn label="↓ Osteo PDF"   color="#374151"  href={`/api/pdf?mrn=${pid}`} />
-            <Btn label="↓ Total PDF"   color="#374151"  href={`/api/pdf?mrn=${pid}&type=totalbody`} />
+            <Btn label="↓ Osteo PDF"   color="#374151"  href={`/bmd/api/pdf?mrn=${pid}`} />
+            <Btn label="↓ Total PDF"   color="#374151"  href={`/bmd/api/pdf?mrn=${pid}&type=totalbody`} />
             <WaBtn mrn={pid} patientName={name} />
           </>
         )}
@@ -393,8 +393,8 @@ function BrowseMdbModal({ onClose, onUploaded }) {
   // Load all MDB patients + Supabase MRNs in parallel
   useEffect(() => {
     Promise.all([
-      fetch('/api/collector/all?max_count=500').then(r => r.json()).catch(() => []),
-      fetch('/api/collector/db-mrns').then(r => r.json()).catch(() => ({ mrns: [] })),
+      fetch('/bmd/api/collector/all?max_count=500').then(r => r.json()).catch(() => []),
+      fetch('/bmd/api/collector/db-mrns').then(r => r.json()).catch(() => ({ mrns: [] })),
     ]).then(([patients, dbData]) => {
       setAll(patients)
       setDbMrns(new Set(dbData.mrns ?? []))
@@ -410,7 +410,7 @@ function BrowseMdbModal({ onClose, onUploaded }) {
     setXpsLoading(true)
     setProgress([])
     setDone(false)
-    fetch(`/api/collector/xps/${pid}`)
+    fetch(`/bmd/api/collector/xps/${pid}`)
       .then(r => r.json())
       .then(d => { setXpsFiles(d.xps_files ?? []); setXpsLoading(false) })
       .catch(() => setXpsLoading(false))
@@ -437,7 +437,7 @@ function BrowseMdbModal({ onClose, onUploaded }) {
     setUploading(true)
     setProgress(['Starting upload…'])
     try {
-      const res = await fetch(`/api/collector/upload/${pid}`, {
+      const res = await fetch(`/bmd/api/collector/upload/${pid}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ xps_paths: xpsFiles }),
@@ -607,8 +607,8 @@ function BrowseMdbModal({ onClose, onUploaded }) {
                     <>
                       <Btn label="📋 Osteo Report"      color={C.teal}   href={`/report/osteo/${pid}`} />
                       <Btn label="📊 Total Body Report"  color={C.purple} href={`/report/totalbody/${pid}`} />
-                      <Btn label="↓ Osteo PDF"           color="#374151"  href={`/api/pdf?mrn=${pid}`} />
-                      <Btn label="↓ Total Body PDF"      color="#374151"  href={`/api/pdf?mrn=${pid}&type=totalbody`} />
+                      <Btn label="↓ Osteo PDF"           color="#374151"  href={`/bmd/api/pdf?mrn=${pid}`} />
+                      <Btn label="↓ Total Body PDF"      color="#374151"  href={`/bmd/api/pdf?mrn=${pid}&type=totalbody`} />
                     </>
                   )}
                 </div>
@@ -634,9 +634,9 @@ function LinkOlderStudyModal({ currentPids, onClose, archiveMode = false }) {
   const [result,    setResult]    = useState(null)   // {ok, pid, scanType, error}
 
   const listUrl = archiveMode
-    ? '/api/collector/archive/all?max_count=500'
-    : '/api/collector/all?max_count=200'
-  const trendBase = archiveMode ? '/api/collector/archive/trend' : '/api/collector/trend'
+    ? '/bmd/api/collector/archive/all?max_count=500'
+    : '/bmd/api/collector/all?max_count=200'
+  const trendBase = archiveMode ? '/bmd/api/collector/archive/trend' : '/bmd/api/collector/trend'
 
   useEffect(() => {
     fetch(listUrl)
@@ -894,7 +894,7 @@ function WaSendModal({ mrn, patientName, onClose }) {
     setSending(true)
     setResult(null)
     try {
-      const res  = await fetch('/api/wa-send', {
+      const res  = await fetch('/bmd/api/wa-send', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ phone, mrn, scanType, patientName: name }),

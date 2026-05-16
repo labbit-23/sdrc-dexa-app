@@ -21,7 +21,7 @@ export default function WaSendModal({ mrn, scanType = 'osteo', patientName = '',
     setBusy(true)
     setResult(null)
     try {
-      const res  = await fetch('/api/wa-send', {
+      const res  = await fetch('/bmd/api/wa-send', {
         method:  'POST',
         headers: { 'Content-Type': 'application/json' },
         body:    JSON.stringify({ phone, mrn, scanType: type, patientName: name }),
