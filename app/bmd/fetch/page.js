@@ -142,11 +142,14 @@ export default function FetchStudiesPage() {
     <div style={{ minHeight: '100vh', background: C.dark, fontFamily: 'system-ui, sans-serif', color: C.white }}>
 
       {/* ── Header ── */}
-      <div style={{ background: C.teal, height: 48, display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 20px', flexShrink: 0 }}>
-        <span style={{ fontWeight: 700, fontSize: 15, letterSpacing: 2 }}>
-          SDRC &nbsp; DATA &nbsp; COLLECTOR
-        </span>
-        <span style={{ color: '#B2DFDB', fontSize: 11 }}>SDRC Diagnostics</span>
+      <div style={{ background: C.teal, height: 52, display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 20px', flexShrink: 0 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+          <img src="https://www.sdrc.in/assets/sdrc-logo-full.png" alt="SDRC" style={{ height: 32, width: 'auto', borderRadius: 4, background: 'rgba(255,255,255,0.92)', padding: '2px 6px' }} />
+          <span style={{ color: '#B2DFDB', fontSize: 12, letterSpacing: 1 }}>Data Collector</span>
+        </div>
+        <a href="/list" style={{ background: 'rgba(255,255,255,0.15)', color: C.white, textDecoration: 'none', padding: '6px 14px', borderRadius: 5, fontSize: 12, fontWeight: 600, border: '1px solid rgba(255,255,255,0.25)' }}>
+          📋 Patient List
+        </a>
       </div>
 
       {/* ── Toolbar ── */}
