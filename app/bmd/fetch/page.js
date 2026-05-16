@@ -50,6 +50,7 @@ export default function FetchStudiesPage() {
   const [uploaded,   setUploaded]   = useState(() => new Set())
   const [uploading,  setUploading]  = useState(() => new Set())
   const [linkOpen,   setLinkOpen]   = useState(false)
+  const [browseOpen, setBrowseOpen] = useState(false)
   const [offline,    setOffline]    = useState(false)
   const [bmdOffline, setBmdOffline] = useState(false)
 
@@ -162,6 +163,12 @@ export default function FetchStudiesPage() {
           bold
         />
         <Btn
+          label="🔍  Browse MDB"
+          color={C.teal}
+          onClick={() => setBrowseOpen(true)}
+          bold
+        />
+        <Btn
           label="🔗  Link Older Study"
           color="transparent"
           textColor={C.pink}
@@ -218,6 +225,14 @@ export default function FetchStudiesPage() {
           />
         ))}
       </div>
+
+      {/* ── Browse MDB modal ── */}
+      {browseOpen && (
+        <BrowseMdbModal
+          onClose={() => setBrowseOpen(false)}
+          onUploaded={(pid) => setUploaded(u => new Set([...u, pid]))}
+        />
+      )}
 
       {/* ── Link Older Study modal ── */}
       {linkOpen && (
@@ -325,6 +340,253 @@ function PatientCard({ info, uploaded, isUploading, progressLog, onUpload }) {
             />
           </>
         )}
+      </div>
+    </div>
+  )
+}
+
+
+// ── Browse MDB modal ──────────────────────────────────────────────────────────
+
+function BrowseMdbModal({ onClose, onUploaded }) {
+  const [all,       setAll]       = useState([])
+  const [dbMrns,    setDbMrns]    = useState(new Set())
+  const [q,         setQ]         = useState('')
+  const [loading,   setLoading]   = useState(true)
+  const [selected,  setSelected]  = useState(null)
+  const [xpsFiles,  setXpsFiles]  = useState([])
+  const [xpsLoading,setXpsLoading]= useState(false)
+  const [progress,  setProgress]  = useState([])
+  const [uploading, setUploading] = useState(false)
+  const [done,      setDone]      = useState(false)
+  const logEnd = useRef(null)
+
+  // Load all MDB patients + Supabase MRNs in parallel
+  useEffect(() => {
+    Promise.all([
+      fetch('/api/collector/all?max_count=500').then(r => r.json()).catch(() => []),
+      fetch('/api/collector/db-mrns').then(r => r.json()).catch(() => ({ mrns: [] })),
+    ]).then(([patients, dbData]) => {
+      setAll(patients)
+      setDbMrns(new Set(dbData.mrns ?? []))
+      setLoading(false)
+    })
+  }, [])
+
+  // When patient selected, check XPS availability
+  useEffect(() => {
+    if (!selected) { setXpsFiles([]); return }
+    const pid = selected.patient?.patient_id
+    if (!pid) return
+    setXpsLoading(true)
+    setProgress([])
+    setDone(false)
+    fetch(`/api/collector/xps/${pid}`)
+      .then(r => r.json())
+      .then(d => { setXpsFiles(d.xps_files ?? []); setXpsLoading(false) })
+      .catch(() => setXpsLoading(false))
+  }, [selected])
+
+  useEffect(() => {
+    logEnd.current?.scrollIntoView({ behavior: 'smooth' })
+  }, [progress.length])
+
+  const filtered = q
+    ? all.filter(p => {
+        const ql = q.toLowerCase()
+        return (p.patient?.patient_id ?? '').toLowerCase().includes(ql)
+            || (p.patient?.name ?? '').toLowerCase().includes(ql)
+      })
+    : all
+
+  const inDb    = pid => dbMrns.has(pid)
+  const addLine = msg => setProgress(p => [...p, msg])
+
+  const doUpload = async () => {
+    const pid = selected?.patient?.patient_id
+    if (!pid) return
+    setUploading(true)
+    setProgress(['Starting upload…'])
+    try {
+      const res = await fetch(`/api/collector/upload/${pid}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ xps_paths: xpsFiles }),
+      })
+      const reader = res.body.getReader()
+      const dec    = new TextDecoder()
+      let   buf    = ''
+      while (true) {
+        const { done: d, value } = await reader.read()
+        if (d) break
+        buf += dec.decode(value, { stream: true })
+        const lines = buf.split('\n'); buf = lines.pop()
+        for (const line of lines) {
+          if (!line.startsWith('data: ')) continue
+          try {
+            const evt = JSON.parse(line.slice(6))
+            if (evt.msg)   addLine(evt.msg)
+            if (evt.done)  { setDone(true); setDbMrns(s => new Set([...s, pid])); onUploaded(pid) }
+            if (evt.error) addLine(`✗ ${evt.error}`)
+          } catch {}
+        }
+      }
+    } catch (e) {
+      addLine(`✗ ${e.message}`)
+    } finally {
+      setUploading(false)
+    }
+  }
+
+  const p    = selected?.patient ?? {}
+  const pid  = p.patient_id ?? ''
+  const name = `${p.title ?? ''} ${p.name ?? ''}`.trim()
+  const alreadyInDb = inDb(pid)
+
+  const overlay = { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 }
+  const modal   = { background: C.dark, border: `1px solid ${C.border}`, borderRadius: 8, width: 860, height: '85vh', display: 'flex', flexDirection: 'column', overflow: 'hidden' }
+
+  return (
+    <div style={overlay}>
+      <div style={modal}>
+
+        {/* Header */}
+        <div style={{ background: C.teal, padding: '12px 18px', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <div>
+            <div style={{ fontWeight: 700, fontSize: 14 }}>Browse MDB — All Patients</div>
+            <div style={{ color: '#B2DFDB', fontSize: 11, marginTop: 2 }}>Search any patient from MDB, upload or refresh their data in Supabase</div>
+          </div>
+          <button onClick={onClose} style={{ background: 'none', border: 'none', color: '#B2DFDB', fontSize: 18, cursor: 'pointer', padding: '0 4px' }}>✕</button>
+        </div>
+
+        {/* Body: list + detail pane */}
+        <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
+
+          {/* Left: patient list */}
+          <div style={{ width: 420, borderRight: `1px solid ${C.border}`, display: 'flex', flexDirection: 'column', flexShrink: 0 }}>
+            <div style={{ padding: '10px 12px', borderBottom: `1px solid ${C.border}`, flexShrink: 0 }}>
+              <input
+                value={q}
+                onChange={e => setQ(e.target.value)}
+                placeholder="Search MRN or name…"
+                autoFocus
+                style={{ width: '100%', background: C.card, border: `1px solid ${C.border}`, borderRadius: 5, padding: '7px 12px', color: C.white, fontSize: 13, outline: 'none', boxSizing: 'border-box' }}
+              />
+            </div>
+            <div style={{ padding: '4px 12px', color: C.gray, fontSize: 11, flexShrink: 0 }}>
+              {loading ? 'Loading MDB…' : `${filtered.length} patient(s)`}
+            </div>
+            <div style={{ overflowY: 'auto', flex: 1 }}>
+              {filtered.map(info => {
+                const ip   = info.patient ?? {}
+                const ipid = ip.patient_id ?? ''
+                const iname = `${ip.title ?? ''} ${ip.name ?? ''}`.trim() || '—'
+                const iinDb = inDb(ipid)
+                const isel  = selected?.patient?.patient_id === ipid
+                return (
+                  <div
+                    key={ipid}
+                    onClick={() => setSelected(info)}
+                    style={{
+                      display: 'grid', gridTemplateColumns: '16px 80px 1fr 90px', gap: 8,
+                      padding: '9px 12px', cursor: 'pointer',
+                      borderBottom: `1px solid #0f2030`,
+                      background: isel ? '#1a3a55' : 'transparent',
+                      fontSize: 12,
+                    }}
+                    onMouseEnter={e => { if (!isel) e.currentTarget.style.background = '#0f2030' }}
+                    onMouseLeave={e => { if (!isel) e.currentTarget.style.background = 'transparent' }}
+                  >
+                    <div style={{ color: iinDb ? C.green : '#3a4a5a', fontSize: 10, paddingTop: 2 }}>●</div>
+                    <div style={{ color: C.lt, fontFamily: 'monospace', fontSize: 11 }}>{ipid}</div>
+                    <div style={{ color: isel ? C.white : C.lt, fontWeight: isel ? 600 : 400, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{iname}</div>
+                    <div style={{ color: C.gray, fontSize: 10, textAlign: 'right' }}>{fmtDateShort(info.scan_date)}</div>
+                  </div>
+                )
+              })}
+              {!loading && filtered.length === 0 && (
+                <div style={{ color: C.gray, textAlign: 'center', padding: 30 }}>No patients found</div>
+              )}
+            </div>
+            {/* Legend */}
+            <div style={{ padding: '6px 12px', borderTop: `1px solid ${C.border}`, display: 'flex', gap: 16, flexShrink: 0 }}>
+              <span style={{ fontSize: 10, color: C.green }}>● In Supabase</span>
+              <span style={{ fontSize: 10, color: '#3a4a5a' }}>● Not uploaded</span>
+            </div>
+          </div>
+
+          {/* Right: detail pane */}
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', padding: 20, overflowY: 'auto' }}>
+            {!selected ? (
+              <div style={{ color: C.gray, textAlign: 'center', marginTop: 60, fontSize: 13 }}>
+                ← Select a patient to see actions
+              </div>
+            ) : (
+              <>
+                {/* Patient info */}
+                <div style={{ background: C.card, borderRadius: 6, padding: '14px 16px', marginBottom: 14 }}>
+                  <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 6 }}>{name || pid}</div>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '4px 16px', fontSize: 12, color: C.lt }}>
+                    <div><span style={{ color: C.gray }}>MRN </span>{pid}</div>
+                    <div><span style={{ color: C.gray }}>DOB </span>{String(p.dob ?? '').slice(0, 10) || '—'}</div>
+                    <div><span style={{ color: C.gray }}>Gender </span>{p.gender ?? '—'}</div>
+                    <div><span style={{ color: C.gray }}>Scan </span>{fmtDateShort(selected.scan_date)}</div>
+                  </div>
+                  <div style={{ marginTop: 10, display: 'flex', alignItems: 'center', gap: 8 }}>
+                    {alreadyInDb
+                      ? <span style={{ background: '#1a3a1a', color: C.green, border: `1px solid ${C.green}`, borderRadius: 4, padding: '3px 10px', fontSize: 11, fontWeight: 700 }}>✓ In Supabase</span>
+                      : <span style={{ background: '#1a2030', color: C.gray, border: `1px solid #2a3a4a`, borderRadius: 4, padding: '3px 10px', fontSize: 11 }}>Not yet uploaded</span>
+                    }
+                  </div>
+                </div>
+
+                {/* XPS status */}
+                <div style={{ background: '#0a1624', borderRadius: 6, padding: '10px 14px', marginBottom: 14, fontSize: 12 }}>
+                  <div style={{ color: C.gray, fontWeight: 700, fontSize: 10, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 6 }}>XPS Files in Watch Dir</div>
+                  {xpsLoading ? (
+                    <span style={{ color: C.gray }}>Checking…</span>
+                  ) : xpsFiles.length > 0 ? (
+                    xpsFiles.map((x, i) => <div key={i} style={{ color: C.cyan }}>✓ {basename(x)}</div>)
+                  ) : (
+                    <span style={{ color: C.amber }}>⚠ No XPS found — MDB data only will be uploaded</span>
+                  )}
+                </div>
+
+                {/* Progress log */}
+                {progress.length > 0 && (
+                  <div style={{ background: '#080e18', borderRadius: 5, padding: '8px 10px', marginBottom: 14, maxHeight: 140, overflowY: 'auto', fontSize: 10, fontFamily: 'monospace' }}>
+                    {progress.map((msg, i) => (
+                      <div key={i} style={{ color: msg.startsWith('✗') ? '#ef9a9a' : '#80DEEA', lineHeight: 1.7 }}>{msg}</div>
+                    ))}
+                    <div ref={logEnd} />
+                  </div>
+                )}
+
+                {/* Action buttons */}
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                  {!done && (
+                    <Btn
+                      label={uploading ? 'Uploading…' : alreadyInDb ? '↻ Refresh Data' : '↑ Upload to Supabase'}
+                      color={alreadyInDb ? C.amber : C.green}
+                      disabled={uploading}
+                      onClick={doUpload}
+                      bold
+                    />
+                  )}
+                  {done && <span style={{ color: C.green, fontWeight: 700, fontSize: 13 }}>✓ Upload complete</span>}
+                  {(alreadyInDb || done) && (
+                    <>
+                      <Btn label="📋 Osteo Report"      color={C.teal}   href={`/bmd/report/osteo/${pid}`} />
+                      <Btn label="📊 Total Body Report"  color={C.purple} href={`/bmd/report/totalbody/${pid}`} />
+                      <Btn label="↓ Osteo PDF"           color="#374151"  href={`/api/pdf?mrn=${pid}`} />
+                      <Btn label="↓ Total Body PDF"      color="#374151"  href={`/api/pdf?mrn=${pid}&type=totalbody`} />
+                    </>
+                  )}
+                </div>
+              </>
+            )}
+          </div>
+        </div>
       </div>
     </div>
   )
