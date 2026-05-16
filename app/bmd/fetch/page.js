@@ -51,14 +51,30 @@ export default function FetchStudiesPage() {
   const [uploading,  setUploading]  = useState(() => new Set())
   const [linkOpen,   setLinkOpen]   = useState(false)
   const [offline,    setOffline]    = useState(false)
+  const [bmdOffline, setBmdOffline] = useState(false)
 
   const gather = useCallback(async () => {
     setLoading(true)
     setStatus('Scanning MDB…')
     setOffline(false)
+    setBmdOffline(false)
     try {
-      const res  = await fetch('/api/collector/recent')
-      if (res.status === 503) { setOffline(true); setStatus('Collector API is offline — is the sidecar running?'); return }
+      const res = await fetch('/api/collector/recent')
+
+      if (!res.ok) {
+        // Try to parse a structured error from the sidecar
+        let detail = {}
+        try { const body = await res.json(); detail = body.detail ?? body } catch {}
+        if (detail.bmd_offline || res.status === 503) {
+          setBmdOffline(true)
+          setStatus('BMD PC unreachable.')
+        } else {
+          setOffline(true)
+          setStatus(`Collector error: ${detail.error ?? res.statusText}`)
+        }
+        return
+      }
+
       const data = await res.json()
       setPatients(data)
       const missing = data.filter(p => p.xps_missing).length
@@ -151,11 +167,25 @@ export default function FetchStudiesPage() {
         />
         {offline && (
           <span style={{ color: C.amber, fontSize: 12, fontWeight: 600 }}>
-            ⚠ Collector API offline
+            ⚠ Collector API offline — is the sidecar running?
           </span>
         )}
         <span style={{ color: C.gray, fontSize: 12, marginLeft: 4 }}>{status}</span>
       </div>
+
+      {/* ── BMD PC offline banner ── */}
+      {bmdOffline && (
+        <div style={{ margin: '12px 12px 0', background: '#2a1400', border: `1px solid ${C.amber}`, borderLeft: `4px solid ${C.amber}`, borderRadius: 6, padding: '14px 18px' }}>
+          <div style={{ color: C.amber, fontWeight: 700, fontSize: 14 }}>
+            ⚠ BMD PC is not reachable
+          </div>
+          <div style={{ color: '#ffcc80', fontSize: 13, marginTop: 6, lineHeight: 1.7 }}>
+            The GE Lunar scanner PC (<strong>192.168.134.55</strong>) appears to be <strong>off or disconnected</strong>.
+            <br />
+            Please make sure the BMD PC is <strong>turned on</strong> and connected to the network, then click Gather Data again.
+          </div>
+        </div>
+      )}
 
       {/* ── Column headers ── */}
       {patients.length > 0 && (
@@ -169,9 +199,9 @@ export default function FetchStudiesPage() {
 
       {/* ── Patient cards ── */}
       <div style={{ padding: '0 10px 40px' }}>
-        {patients.length === 0 && !loading && (
+        {patients.length === 0 && !loading && !bmdOffline && (
           <div style={{ color: C.gray, textAlign: 'center', padding: 60, fontSize: 14 }}>
-            {offline ? 'Start the collector sidecar: python3 collector_api.py' : 'No patients found in MDB for the last 48 hours.'}
+            {offline ? 'Start the collector sidecar: pm2 start ecosystem.config.js' : 'No patients found in MDB for the last 48 hours.'}
           </div>
         )}
         {patients.map(info => (
