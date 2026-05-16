@@ -10,8 +10,8 @@ export default function TotalbodyReportPage({ params }) {
   const [waOpen, setWaOpen] = useState(false)
 
   const renderUrl = lh
-    ? `/render/totalbody/${mrn}?lh=1`
-    : `/render/totalbody/${mrn}`
+    ? `${BASE}/render/totalbody/${mrn}?lh=1`
+    : `${BASE}/render/totalbody/${mrn}`
 
   return (
     <div style={{ position: 'fixed', inset: 0, background: '#f0f4f8', display: 'flex', flexDirection: 'column' }}>

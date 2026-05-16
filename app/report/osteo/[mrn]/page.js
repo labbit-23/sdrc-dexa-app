@@ -9,7 +9,7 @@ export default function OsteoReportPage({ params }) {
   const [lh,    setLh]    = useState(false)
   const [waOpen, setWaOpen] = useState(false)
 
-  const renderUrl = lh ? `/render/osteo/${mrn}?lh=1` : `/render/osteo/${mrn}`
+  const renderUrl = lh ? `${BASE}/render/osteo/${mrn}?lh=1` : `${BASE}/render/osteo/${mrn}`
 
   return (
     <div style={{ position: 'fixed', inset: 0, background: '#f0f4f8', display: 'flex', flexDirection: 'column' }}>
