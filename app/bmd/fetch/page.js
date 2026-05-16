@@ -49,8 +49,10 @@ export default function FetchStudiesPage() {
   const [progress,   setProgress]   = useState({})   // pid → string[]
   const [uploaded,   setUploaded]   = useState(() => new Set())
   const [uploading,  setUploading]  = useState(() => new Set())
-  const [linkOpen,   setLinkOpen]   = useState(false)
-  const [browseOpen, setBrowseOpen] = useState(false)
+  const [linkOpen,    setLinkOpen]   = useState(false)
+  const [browseOpen,  setBrowseOpen] = useState(false)
+  const [archiveOpen, setArchiveOpen]= useState(false)
+  const [archiveAvail,setArchiveAvail]=useState(null)  // null=loading, {available,reason}
   const [offline,    setOffline]    = useState(false)
   const [bmdOffline, setBmdOffline] = useState(false)
 
@@ -93,6 +95,14 @@ export default function FetchStudiesPage() {
   }, [])
 
   useEffect(() => { gather() }, [gather])
+
+  // Check archive availability once on mount
+  useEffect(() => {
+    fetch('/api/collector/archive/status')
+      .then(r => r.json())
+      .then(d => setArchiveAvail(d))
+      .catch(() => setArchiveAvail({ available: false, reason: 'Sidecar offline' }))
+  }, [])
 
   const uploadPatient = useCallback(async (pid, xpsPaths) => {
     setUploading(u => new Set([...u, pid]))
@@ -169,6 +179,15 @@ export default function FetchStudiesPage() {
           bold
         />
         <Btn
+          label="🗄️  Link Archived Study"
+          color="transparent"
+          textColor={archiveAvail?.available ? '#90CAF9' : C.gray}
+          border={archiveAvail?.available ? '#90CAF9' : '#2a3a4a'}
+          disabled={!archiveAvail?.available}
+          title={archiveAvail?.available ? 'Browse the archived MDB and link older studies as trend data' : (archiveAvail?.reason ?? 'Checking archive…')}
+          onClick={() => setArchiveOpen(true)}
+        />
+        <Btn
           label="🔗  Link Older Study"
           color="transparent"
           textColor={patients.length > 0 ? C.pink : C.gray}
@@ -232,6 +251,15 @@ export default function FetchStudiesPage() {
           />
         ))}
       </div>
+
+      {/* ── Archive MDB modal ── */}
+      {archiveOpen && (
+        <LinkOlderStudyModal
+          currentPids={currentPids}
+          onClose={() => setArchiveOpen(false)}
+          archiveMode
+        />
+      )}
 
       {/* ── Browse MDB modal ── */}
       {browseOpen && (
@@ -602,7 +630,7 @@ function BrowseMdbModal({ onClose, onUploaded }) {
 
 // ── Link Older Study modal ────────────────────────────────────────────────────
 
-function LinkOlderStudyModal({ currentPids, onClose }) {
+function LinkOlderStudyModal({ currentPids, onClose, archiveMode = false }) {
   const [all,       setAll]       = useState([])
   const [q,         setQ]         = useState('')
   const [loading,   setLoading]   = useState(true)
@@ -611,12 +639,17 @@ function LinkOlderStudyModal({ currentPids, onClose }) {
   const [uploading, setUploading] = useState(false)
   const [result,    setResult]    = useState(null)   // {ok, pid, scanType, error}
 
+  const listUrl = archiveMode
+    ? '/api/collector/archive/all?max_count=500'
+    : '/api/collector/all?max_count=200'
+  const trendBase = archiveMode ? '/api/collector/archive/trend' : '/api/collector/trend'
+
   useEffect(() => {
-    fetch('/api/collector/all?max_count=200')
+    fetch(listUrl)
       .then(r => r.json())
       .then(data => { setAll(data); setLoading(false) })
       .catch(() => setLoading(false))
-  }, [])
+  }, [listUrl])
 
   const filtered = q
     ? all.filter(p => {
@@ -633,7 +666,7 @@ function LinkOlderStudyModal({ currentPids, onClose }) {
     const pid = selected.patient?.patient_id
     setUploading(true)
     try {
-      const res  = await fetch(`/api/collector/trend/${pid}`, {
+      const res  = await fetch(`${trendBase}/${pid}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ scan_type: scanType }),
@@ -715,9 +748,13 @@ function LinkOlderStudyModal({ currentPids, onClose }) {
 
         {/* Header */}
         <div style={{ background: C.teal, padding: '12px 18px', flexShrink: 0 }}>
-          <div style={{ fontWeight: 700, fontSize: 14 }}>Link Older Study as Trend Data</div>
+          <div style={{ fontWeight: 700, fontSize: 14 }}>
+            {archiveMode ? '🗄️ Link Archived Study as Trend Data' : 'Link Older Study as Trend Data'}
+          </div>
           <div style={{ color: '#B2DFDB', fontSize: 11, marginTop: 2 }}>
-            Select a historical patient — MDB data uploads without XPS or images
+            {archiveMode
+              ? 'Browse the archive MDB — data uploads as trend history, no XPS needed'
+              : 'Select a historical patient — MDB data uploads without XPS or images'}
           </div>
         </div>
 
