@@ -6,12 +6,15 @@
  * attached by Labbit as a template header document.
  *
  * Body: { phone, mrn, scanType, patientName, reportLabel }
- * Env:  WHATSAPP_INTERNAL_SEND_TOKEN, WHATSAPP_LAB_ID, APP_PUBLIC_URL
+ * Env:  WHATSAPP_API_URL     — Labbit send endpoint
+ *       WHATSAPP_INTERNAL_SEND_TOKEN
+ *       WHATSAPP_LAB_ID
+ *       APP_PUBLIC_URL       — our own public base URL (so Labbit can fetch the PDF)
  */
 
 import { NextResponse } from 'next/server'
 
-const WA_API  = 'https://api.sdrc.in/api/internal/whatsapp/send'
+const WA_API  = process.env.WHATSAPP_API_URL ?? 'https://api.sdrc.in/api/internal/whatsapp/send'
 const TOKEN   = process.env.WHATSAPP_INTERNAL_SEND_TOKEN
 const LAB_ID  = process.env.WHATSAPP_LAB_ID
 
