@@ -171,10 +171,17 @@ export default function FetchStudiesPage() {
         <Btn
           label="🔗  Link Older Study"
           color="transparent"
-          textColor={C.pink}
-          border={C.pink}
+          textColor={patients.length > 0 ? C.pink : C.gray}
+          border={patients.length > 0 ? C.pink : '#2a3a4a'}
+          disabled={patients.length === 0}
+          title={patients.length === 0 ? 'Gather the latest study first — Link requires a current patient to be loaded' : undefined}
           onClick={() => setLinkOpen(true)}
         />
+        {!loading && patients.length === 0 && !offline && !bmdOffline && (
+          <span style={{ color: C.gray, fontSize: 11 }}>
+            ↑ Gather the latest study before linking history
+          </span>
+        )}
         {offline && (
           <span style={{ color: C.amber, fontSize: 12, fontWeight: 600 }}>
             ⚠ Collector API offline — is the sidecar running?
