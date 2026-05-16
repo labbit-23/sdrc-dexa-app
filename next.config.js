@@ -1,6 +1,6 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  basePath: '/bmd',
+  basePath: process.env.NEXT_PUBLIC_BASEPATH || '',
   images: {
     remotePatterns: [
       {

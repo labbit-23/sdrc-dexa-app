@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback, useRef } from 'react'
+import BASE from '@/lib/basepath'
 
 // ── Palette ───────────────────────────────────────────────────────────────────
 const C = {
@@ -62,7 +63,7 @@ export default function FetchStudiesPage() {
     setOffline(false)
     setBmdOffline(false)
     try {
-      const res = await fetch('/bmd/api/collector/recent')
+      const res = await fetch(`${BASE}/api/collector/recent`)
 
       if (!res.ok) {
         // Try to parse a structured error from the sidecar
@@ -98,7 +99,7 @@ export default function FetchStudiesPage() {
 
   // Check archive availability once on mount
   useEffect(() => {
-    fetch('/bmd/api/collector/archive/status')
+    fetch(`${BASE}/api/collector/archive/status`)
       .then(r => r.json())
       .then(d => setArchiveAvail(d))
       .catch(() => setArchiveAvail({ available: false, reason: 'Sidecar offline' }))
@@ -112,7 +113,7 @@ export default function FetchStudiesPage() {
       setProgress(p => ({ ...p, [pid]: [...(p[pid] ?? []), msg] }))
 
     try {
-      const res = await fetch(`/bmd/api/collector/upload/${pid}`, {
+      const res = await fetch(`${BASE}/api/collector/upload/${pid}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ xps_paths: xpsPaths }),
@@ -158,7 +159,7 @@ export default function FetchStudiesPage() {
           <img src="https://www.sdrc.in/assets/sdrc-logo-full.png" alt="SDRC" style={{ height: 32, width: 'auto', borderRadius: 4, background: 'rgba(255,255,255,0.92)', padding: '2px 6px' }} />
           <span style={{ color: '#B2DFDB', fontSize: 12, letterSpacing: 1 }}>Data Collector</span>
         </div>
-        <a href="/list" style={{ background: 'rgba(255,255,255,0.15)', color: C.white, textDecoration: 'none', padding: '6px 14px', borderRadius: 5, fontSize: 12, fontWeight: 600, border: '1px solid rgba(255,255,255,0.25)' }}>
+        <a href={`${BASE}/list`} style={{ background: 'rgba(255,255,255,0.15)', color: C.white, textDecoration: 'none', padding: '6px 14px', borderRadius: 5, fontSize: 12, fontWeight: 600, border: '1px solid rgba(255,255,255,0.25)' }}>
           📋 Patient List
         </a>
       </div>
@@ -364,8 +365,8 @@ function PatientCard({ info, uploaded, isUploading, progressLog, onUpload }) {
           <>
             <Btn label="📋 Osteo"      color={C.teal}   href={`/report/osteo/${pid}`} />
             <Btn label="📊 Total Body" color={C.purple} href={`/report/totalbody/${pid}`} />
-            <Btn label="↓ Osteo PDF"   color="#374151"  href={`/bmd/api/pdf?mrn=${pid}`} />
-            <Btn label="↓ Total PDF"   color="#374151"  href={`/bmd/api/pdf?mrn=${pid}&type=totalbody`} />
+            <Btn label="↓ Osteo PDF"   color="#374151"  href={`${BASE}/api/pdf?mrn=${pid}`} />
+            <Btn label="↓ Total PDF"   color="#374151"  href={`${BASE}/api/pdf?mrn=${pid}&type=totalbody`} />
             <WaBtn mrn={pid} patientName={name} />
           </>
         )}
@@ -393,8 +394,8 @@ function BrowseMdbModal({ onClose, onUploaded }) {
   // Load all MDB patients + Supabase MRNs in parallel
   useEffect(() => {
     Promise.all([
-      fetch('/bmd/api/collector/all?max_count=500').then(r => r.json()).catch(() => []),
-      fetch('/bmd/api/collector/db-mrns').then(r => r.json()).catch(() => ({ mrns: [] })),
+      fetch(`${BASE}/api/collector/all?max_count=500`).then(r => r.json()).catch(() => []),
+      fetch(`${BASE}/api/collector/db-mrns`).then(r => r.json()).catch(() => ({ mrns: [] })),
     ]).then(([patients, dbData]) => {
       setAll(patients)
       setDbMrns(new Set(dbData.mrns ?? []))
@@ -410,7 +411,7 @@ function BrowseMdbModal({ onClose, onUploaded }) {
     setXpsLoading(true)
     setProgress([])
     setDone(false)
-    fetch(`/bmd/api/collector/xps/${pid}`)
+    fetch(`${BASE}/api/collector/xps/${pid}`)
       .then(r => r.json())
       .then(d => { setXpsFiles(d.xps_files ?? []); setXpsLoading(false) })
       .catch(() => setXpsLoading(false))
@@ -437,7 +438,7 @@ function BrowseMdbModal({ onClose, onUploaded }) {
     setUploading(true)
     setProgress(['Starting upload…'])
     try {
-      const res = await fetch(`/bmd/api/collector/upload/${pid}`, {
+      const res = await fetch(`${BASE}/api/collector/upload/${pid}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ xps_paths: xpsFiles }),
@@ -607,8 +608,8 @@ function BrowseMdbModal({ onClose, onUploaded }) {
                     <>
                       <Btn label="📋 Osteo Report"      color={C.teal}   href={`/report/osteo/${pid}`} />
                       <Btn label="📊 Total Body Report"  color={C.purple} href={`/report/totalbody/${pid}`} />
-                      <Btn label="↓ Osteo PDF"           color="#374151"  href={`/bmd/api/pdf?mrn=${pid}`} />
-                      <Btn label="↓ Total Body PDF"      color="#374151"  href={`/bmd/api/pdf?mrn=${pid}&type=totalbody`} />
+                      <Btn label="↓ Osteo PDF"           color="#374151"  href={`${BASE}/api/pdf?mrn=${pid}`} />
+                      <Btn label="↓ Total Body PDF"      color="#374151"  href={`${BASE}/api/pdf?mrn=${pid}&type=totalbody`} />
                     </>
                   )}
                 </div>
@@ -634,9 +635,9 @@ function LinkOlderStudyModal({ currentPids, onClose, archiveMode = false }) {
   const [result,    setResult]    = useState(null)   // {ok, pid, scanType, error}
 
   const listUrl = archiveMode
-    ? '/bmd/api/collector/archive/all?max_count=500'
-    : '/bmd/api/collector/all?max_count=200'
-  const trendBase = archiveMode ? '/bmd/api/collector/archive/trend' : '/bmd/api/collector/trend'
+    ? '${BASE}/api/collector/archive/all?max_count=500'
+    : '${BASE}/api/collector/all?max_count=200'
+  const trendBase = archiveMode ? '${BASE}/api/collector/archive/trend' : '${BASE}/api/collector/trend'
 
   useEffect(() => {
     fetch(listUrl)
@@ -894,7 +895,7 @@ function WaSendModal({ mrn, patientName, onClose }) {
     setSending(true)
     setResult(null)
     try {
-      const res  = await fetch('/bmd/api/wa-send', {
+      const res  = await fetch(`${BASE}/api/wa-send`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ phone, mrn, scanType, patientName: name }),

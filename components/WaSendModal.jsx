@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import BASE from '@/lib/basepath'
 
 function normalizePhoneDisplay(raw) {
   const d = raw.replace(/\D/g, '')
@@ -21,7 +22,7 @@ export default function WaSendModal({ mrn, scanType = 'osteo', patientName = '',
     setBusy(true)
     setResult(null)
     try {
-      const res  = await fetch('/bmd/api/wa-send', {
+      const res  = await fetch(`${BASE}/api/wa-send`, {
         method:  'POST',
         headers: { 'Content-Type': 'application/json' },
         body:    JSON.stringify({ phone, mrn, scanType: type, patientName: name }),
