@@ -3,8 +3,6 @@
 import { useState, useEffect } from 'react'
 import BASE from '@/lib/basepath'
 
-const DICOM_URL = process.env.NEXT_PUBLIC_DICOM_SEND_URL ?? ''
-
 const C = {
   bg:     '#f0f4f8',
   white:  '#ffffff',
@@ -60,7 +58,7 @@ export default function DicomDashboard() {
     setStudyErr('')
     try {
       const d = date.replace(/-/g, '')
-      const res = await fetch(`${DICOM_URL}/studies?date=${d}`)
+      const res = await fetch(`${BASE}/api/dicom?date=${d}`)
       if (!res.ok) throw new Error(`HTTP ${res.status}`)
       const data = await res.json()
       setStudies(Array.isArray(data) ? data : (data.studies ?? []))
@@ -77,7 +75,7 @@ export default function DicomDashboard() {
     setSending(s => ({ ...s, [accession]: 'sending' }))
     setSendErr(e => ({ ...e, [accession]: '' }))
     try {
-      const res = await fetch(`${DICOM_URL}/manualsend/`, {
+      const res = await fetch(`${BASE}/api/dicom`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ accession, phone }),
@@ -98,7 +96,7 @@ export default function DicomDashboard() {
     setManSending(true)
     setManResult(null)
     try {
-      const res = await fetch(`${DICOM_URL}/manualsend/`, {
+      const res = await fetch(`${BASE}/api/dicom`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ accession: manAcc.trim(), phone: manPhone.trim() }),
@@ -177,7 +175,7 @@ export default function DicomDashboard() {
                 <div style={{ color: C.redTx, fontWeight: 700, fontSize: 13 }}>Failed to load studies</div>
                 <div style={{ color: C.redTx, fontSize: 12, marginTop: 4 }}>{studyErr}</div>
                 <div style={{ color: '#9f1239', fontSize: 11, marginTop: 4 }}>
-                  Is the DICOM bridge running at {DICOM_URL || '(NEXT_PUBLIC_DICOM_SEND_URL not set)'}?
+                  Is the DICOM bridge running? Check that DICOM_SEND_URL is set on the server.
                 </div>
               </div>
             )}
@@ -341,13 +339,9 @@ export default function DicomDashboard() {
               Bridge Status
             </div>
             <div style={{ fontSize: 12, color: C.lt, lineHeight: 2 }}>
-              <div><span style={{ color: C.gray }}>Endpoint </span><span style={{ fontFamily: 'monospace', fontSize: 11 }}>{DICOM_URL || '(not configured)'}</span></div>
+              Requests proxy through <code style={{ fontSize: 11 }}>/api/dicom</code> on the server.
+              Set <code style={{ fontSize: 11 }}>DICOM_SEND_URL</code> in the server&apos;s .env file.
             </div>
-            {!DICOM_URL && (
-              <div style={{ marginTop: 10, background: C.amberBg, borderRadius: 5, padding: '8px 10px', fontSize: 11, color: C.amberTx }}>
-                Set <code>NEXT_PUBLIC_DICOM_SEND_URL</code> in .env.local
-              </div>
-            )}
           </div>
         </div>
       </div>
