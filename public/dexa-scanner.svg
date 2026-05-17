@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 200" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+  <!-- Table legs -->
+  <line x1="60" y1="148" x2="60" y2="175" stroke-width="6"/>
+  <line x1="340" y1="148" x2="340" y2="175" stroke-width="6"/>
+
+  <!-- Table top -->
+  <rect x="40" y="132" width="320" height="16" rx="4" fill="currentColor" stroke="none"/>
+
+  <!-- Patient body (torso + legs) -->
+  <ellipse cx="190" cy="122" rx="110" ry="12" fill="currentColor" stroke="none"/>
+
+  <!-- Patient head -->
+  <circle cx="316" cy="118" r="16" fill="currentColor" stroke="none"/>
+  <!-- Neck -->
+  <rect x="296" y="116" width="20" height="10" rx="2" fill="currentColor" stroke="none"/>
+
+  <!-- Patient pillow/head rest bump -->
+  <ellipse cx="316" cy="132" rx="22" ry="6" fill="currentColor" stroke="none"/>
+
+  <!-- Arm outline subtle -->
+  <ellipse cx="185" cy="118" rx="95" ry="9" fill="#ffffff" stroke="none" opacity="0.3"/>
+
+  <!-- Scanner arm vertical post (left side) -->
+  <rect x="44" y="50" width="10" height="84" rx="3" fill="currentColor" stroke="none"/>
+
+  <!-- Scanner head (box on top) -->
+  <rect x="20" y="28" width="72" height="36" rx="6" fill="currentColor" stroke="none"/>
+  <!-- Scanner head detail - lens -->
+  <rect x="34" y="38" width="16" height="10" rx="2" fill="white" stroke="none"/>
+  <rect x="56" y="38" width="22" height="10" rx="2" fill="white" stroke="none" opacity="0.6"/>
+</svg>

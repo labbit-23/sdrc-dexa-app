@@ -206,6 +206,7 @@ export default function FetchStudiesPage() {
       <div style={{ background: C.teal, height: 52, display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 20px', flexShrink: 0 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
           <img src="https://www.sdrc.in/assets/sdrc-logo-full.png" alt="SDRC" style={{ height: 32, background: 'rgba(255,255,255,0.92)', borderRadius: 4, padding: '2px 6px' }} />
+          <img src={`${BASE}/dexa-scanner.png`} alt="" style={{ height: 28, opacity: 0.85, filter: 'brightness(0) invert(1)' }} />
           <span style={{ color: '#B2DFDB', fontSize: 12, letterSpacing: 1 }}>Data Collector</span>
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
