@@ -10,7 +10,7 @@ const cards = [
   },
   {
     href:  '/fetch',
-    icon:  '⬇️',
+    icon:  null,
     title: 'Data Collector',
     desc:  'Gather DEXA studies from scanner, upload to database',
     color: '#1565c0',
@@ -54,7 +54,12 @@ export default function HubPage() {
                 border: `1px solid #d0dce8`, cursor: 'pointer',
                 borderTop: `3px solid ${c.color}`,
               }}>
-                <div style={{ fontSize: 36, marginBottom: 14 }}>{c.icon}</div>
+                <div style={{ fontSize: 36, marginBottom: 14 }}>
+                  {c.icon
+                    ? c.icon
+                    : <img src="/dexa-scanner.png" alt="DEXA Scanner" style={{ height: 40, display: 'block' }} />
+                  }
+                </div>
                 <div style={{ fontWeight: 700, fontSize: 15, color: '#1a1a2e', marginBottom: 6 }}>{c.title}</div>
                 <div style={{ fontSize: 13, color: '#6b7280', lineHeight: 1.6 }}>{c.desc}</div>
               </div>
