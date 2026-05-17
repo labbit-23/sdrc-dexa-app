@@ -2,22 +2,21 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react'
 import BASE from '@/lib/basepath'
+import WaSendModal from '@/components/WaSendModal'
 
-// ── Palette ───────────────────────────────────────────────────────────────────
 const C = {
   dark:    '#0D1B2A',
   card:    '#1a2f45',
-  cardAlt: '#0a2a1a',
   teal:    '#0D7377',
   green:   '#2E7D32',
   amber:   '#E65100',
   red:     '#B71C1C',
-  pink:    '#E91E8C',
   purple:  '#6a1b9a',
   white:   '#FFFFFF',
   gray:    '#9E9E9E',
   lt:      '#B0BEC5',
   cyan:    '#4FC3F7',
+  pink:    '#E91E8C',
   border:  '#1e3a5a',
 }
 
@@ -36,68 +35,56 @@ function fmtDateShort(iso) {
   })
 }
 
-function basename(p) {
-  return (p || '').split(/[\\/]/).pop()
-}
-
-
-// ── Main page ─────────────────────────────────────────────────────────────────
+function basename(p) { return (p || '').split(/[\\/]/).pop() }
 
 export default function FetchStudiesPage() {
-  const [patients,   setPatients]   = useState([])
-  const [status,     setStatus]     = useState('Click Gather to scan MDB…')
-  const [loading,    setLoading]    = useState(false)
-  const [progress,   setProgress]   = useState({})   // pid → string[]
+  // Recent studies (right panel)
+  const [recent,     setRecent]     = useState([])
+  const [recentSt,   setRecentSt]   = useState('idle')  // idle | loading | done | error
+  const [recentErr,  setRecentErr]  = useState('')
   const [uploaded,   setUploaded]   = useState(() => new Set())
   const [uploading,  setUploading]  = useState(() => new Set())
-  const [linkOpen,    setLinkOpen]   = useState(false)
-  const [browseOpen,  setBrowseOpen] = useState(false)
-  const [archiveOpen, setArchiveOpen]= useState(false)
-  const [archiveAvail,setArchiveAvail]=useState(null)  // null=loading, {available,reason}
+  const [progress,   setProgress]   = useState({})
   const [offline,    setOffline]    = useState(false)
   const [bmdOffline, setBmdOffline] = useState(false)
 
-  const gather = useCallback(async () => {
-    setLoading(true)
-    setStatus('Scanning MDB…')
-    setOffline(false)
-    setBmdOffline(false)
-    try {
-      const res = await fetch(`${BASE}/api/collector/recent`)
+  // MDB browser (left panel)
+  const [mdbAll,     setMdbAll]     = useState([])
+  const [dbMrns,     setDbMrns]     = useState(new Set())
+  const [mdbQ,       setMdbQ]       = useState('')
+  const [mdbLoading, setMdbLoading] = useState(true)
+  const [selected,   setSelected]   = useState(null)
+  const [xpsFiles,   setXpsFiles]   = useState([])
+  const [xpsLoading, setXpsLoading] = useState(false)
+  const [mdbProgress,setMdbProgress]= useState([])
+  const [mdbUploading,setMdbUploading]=useState(false)
+  const [mdbDone,    setMdbDone]    = useState(false)
 
-      if (!res.ok) {
-        // Try to parse a structured error from the sidecar
-        let detail = {}
-        try { const body = await res.json(); detail = body.detail ?? body } catch {}
-        if (detail.bmd_offline || res.status === 503) {
-          setBmdOffline(true)
-          setStatus('BMD PC unreachable.')
-        } else {
-          setOffline(true)
-          setStatus(`Collector error: ${detail.error ?? res.statusText}`)
-        }
-        return
-      }
+  // Link older study modal
+  const [linkOpen,    setLinkOpen]   = useState(false)
+  const [archiveOpen, setArchiveOpen]= useState(false)
+  const [archiveAvail,setArchiveAvail]=useState(null)
 
-      const data = await res.json()
-      setPatients(data)
-      const missing = data.filter(p => p.xps_missing).length
-      const inDb    = data.filter(p => p.exists_in_db).length
-      setStatus(
-        `${data.length} patient(s) — ${data.length - missing} with XPS, ${missing} missing` +
-        (inDb ? `, ${inDb} already uploaded` : '') + '.',
-      )
-    } catch (e) {
-      setOffline(true)
-      setStatus(`Error: ${e.message}`)
-    } finally {
-      setLoading(false)
-    }
+  // WA modal
+  const [waOpen,     setWaOpen]     = useState(false)
+  const [waMrn,      setWaMrn]      = useState(null)
+  const [waName,     setWaName]     = useState('')
+
+  const mdbLogEnd = useRef(null)
+
+  // Load MDB all patients + DB mrns on mount
+  useEffect(() => {
+    Promise.all([
+      fetch(`${BASE}/api/collector/all?max_count=500`).then(r => r.json()).catch(() => []),
+      fetch(`${BASE}/api/collector/db-mrns`).then(r => r.json()).catch(() => ({ mrns: [] })),
+    ]).then(([patients, dbData]) => {
+      setMdbAll(patients)
+      setDbMrns(new Set(dbData.mrns ?? []))
+      setMdbLoading(false)
+    })
   }, [])
 
-  useEffect(() => { gather() }, [gather])
-
-  // Check archive availability once on mount
+  // Check archive availability
   useEffect(() => {
     fetch(`${BASE}/api/collector/archive/status`)
       .then(r => r.json())
@@ -105,312 +92,14 @@ export default function FetchStudiesPage() {
       .catch(() => setArchiveAvail({ available: false, reason: 'Sidecar offline' }))
   }, [])
 
-  const uploadPatient = useCallback(async (pid, xpsPaths) => {
-    setUploading(u => new Set([...u, pid]))
-    setProgress(p => ({ ...p, [pid]: ['Starting upload…'] }))
-
-    const addLine = msg =>
-      setProgress(p => ({ ...p, [pid]: [...(p[pid] ?? []), msg] }))
-
-    try {
-      const res = await fetch(`${BASE}/api/collector/upload/${pid}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ xps_paths: xpsPaths }),
-      })
-
-      const reader = res.body.getReader()
-      const dec    = new TextDecoder()
-      let   buf    = ''
-
-      while (true) {
-        const { done, value } = await reader.read()
-        if (done) break
-        buf += dec.decode(value, { stream: true })
-        const lines = buf.split('\n')
-        buf = lines.pop()            // keep partial line
-        for (const line of lines) {
-          if (!line.startsWith('data: ')) continue
-          try {
-            const evt = JSON.parse(line.slice(6))
-            if (evt.msg)   addLine(evt.msg)
-            if (evt.done)  { setUploaded(u => new Set([...u, pid])); addLine('✓ Done') }
-            if (evt.error) addLine(`✗ ${evt.error}`)
-          } catch { /* malformed SSE chunk */ }
-        }
-      }
-    } catch (e) {
-      addLine(`✗ ${e.message}`)
-    } finally {
-      setUploading(u => { const n = new Set(u); n.delete(pid); return n })
-    }
-  }, [])
-
-  const currentPids = new Set(
-    patients.map(p => p.patient?.patient_id).filter(Boolean),
-  )
-
-  return (
-    <div style={{ minHeight: '100vh', background: C.dark, fontFamily: 'system-ui, sans-serif', color: C.white }}>
-
-      {/* ── Header ── */}
-      <div style={{ background: C.teal, height: 52, display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 20px', flexShrink: 0 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
-          <img src="https://www.sdrc.in/assets/sdrc-logo-full.png" alt="SDRC" style={{ height: 32, width: 'auto', borderRadius: 4, background: 'rgba(255,255,255,0.92)', padding: '2px 6px' }} />
-          <span style={{ color: '#B2DFDB', fontSize: 12, letterSpacing: 1 }}>Data Collector</span>
-        </div>
-        <a href={`${BASE}/list`} style={{ background: 'rgba(255,255,255,0.15)', color: C.white, textDecoration: 'none', padding: '6px 14px', borderRadius: 5, fontSize: 12, fontWeight: 600, border: '1px solid rgba(255,255,255,0.25)' }}>
-          📋 Patient List
-        </a>
-      </div>
-
-      {/* ── Toolbar ── */}
-      <div style={{ padding: '10px 16px', display: 'flex', alignItems: 'center', gap: 10, borderBottom: `1px solid ${C.border}`, flexWrap: 'wrap' }}>
-        <Btn
-          label={loading ? '…  Scanning' : '⟳  Gather Data'}
-          color={C.teal}
-          disabled={loading}
-          onClick={gather}
-          bold
-        />
-        <Btn
-          label="🔍  Browse MDB"
-          color={C.teal}
-          onClick={() => setBrowseOpen(true)}
-          bold
-        />
-        <Btn
-          label="🗄️  Link Archived Study"
-          color="transparent"
-          textColor={archiveAvail?.available ? '#90CAF9' : C.gray}
-          border={archiveAvail?.available ? '#90CAF9' : '#2a3a4a'}
-          disabled={!archiveAvail?.available}
-          title={archiveAvail?.available ? 'Browse the archived MDB and link older studies as trend data' : (archiveAvail?.reason ?? 'Checking archive…')}
-          onClick={() => setArchiveOpen(true)}
-        />
-        <Btn
-          label="🔗  Link Older Study"
-          color="transparent"
-          textColor={patients.length > 0 ? C.pink : C.gray}
-          border={patients.length > 0 ? C.pink : '#2a3a4a'}
-          disabled={patients.length === 0}
-          title={patients.length === 0 ? 'Gather the latest study first — Link requires a current patient to be loaded' : undefined}
-          onClick={() => setLinkOpen(true)}
-        />
-        {!loading && patients.length === 0 && !offline && !bmdOffline && (
-          <span style={{ color: C.gray, fontSize: 11 }}>
-            ↑ Gather the latest study before linking history
-          </span>
-        )}
-        {offline && (
-          <span style={{ color: C.amber, fontSize: 12, fontWeight: 600 }}>
-            ⚠ Collector API offline — is the sidecar running?
-          </span>
-        )}
-        <span style={{ color: C.gray, fontSize: 12, marginLeft: 4 }}>{status}</span>
-      </div>
-
-      {/* ── BMD PC offline banner ── */}
-      {bmdOffline && (
-        <div style={{ margin: '12px 12px 0', background: '#2a1400', border: `1px solid ${C.amber}`, borderLeft: `4px solid ${C.amber}`, borderRadius: 6, padding: '14px 18px' }}>
-          <div style={{ color: C.amber, fontWeight: 700, fontSize: 14 }}>
-            ⚠ BMD PC is not reachable
-          </div>
-          <div style={{ color: '#ffcc80', fontSize: 13, marginTop: 6, lineHeight: 1.7 }}>
-            The GE Lunar scanner PC (<strong>192.168.134.55</strong>) appears to be <strong>off or disconnected</strong>.
-            <br />
-            Please make sure the BMD PC is <strong>turned on</strong> and connected to the network, then click Gather Data again.
-          </div>
-        </div>
-      )}
-
-      {/* ── Column headers ── */}
-      {patients.length > 0 && (
-        <div style={{ display: 'grid', gridTemplateColumns: '28px 1fr 200px 300px', gap: 8, padding: '6px 18px 2px', color: C.gray, fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1 }}>
-          <div />
-          <div>Patient</div>
-          <div>XPS Files</div>
-          <div>Actions</div>
-        </div>
-      )}
-
-      {/* ── Patient cards ── */}
-      <div style={{ padding: '0 10px 40px' }}>
-        {patients.length === 0 && !loading && !bmdOffline && (
-          <div style={{ color: C.gray, textAlign: 'center', padding: 60, fontSize: 14 }}>
-            {offline ? 'Start the collector sidecar: pm2 start ecosystem.config.js' : 'No patients found in MDB for the last 48 hours.'}
-          </div>
-        )}
-        {patients.map(info => (
-          <PatientCard
-            key={info.patient?.patient_id}
-            info={info}
-            uploaded={uploaded.has(info.patient?.patient_id)}
-            isUploading={uploading.has(info.patient?.patient_id)}
-            progressLog={progress[info.patient?.patient_id] ?? []}
-            onUpload={uploadPatient}
-          />
-        ))}
-      </div>
-
-      {/* ── Archive MDB modal ── */}
-      {archiveOpen && (
-        <LinkOlderStudyModal
-          currentPids={currentPids}
-          onClose={() => setArchiveOpen(false)}
-          archiveMode
-        />
-      )}
-
-      {/* ── Browse MDB modal ── */}
-      {browseOpen && (
-        <BrowseMdbModal
-          onClose={() => setBrowseOpen(false)}
-          onUploaded={(pid) => setUploaded(u => new Set([...u, pid]))}
-        />
-      )}
-
-      {/* ── Link Older Study modal ── */}
-      {linkOpen && (
-        <LinkOlderStudyModal
-          currentPids={currentPids}
-          onClose={() => setLinkOpen(false)}
-        />
-      )}
-    </div>
-  )
-}
-
-
-// ── Patient card ──────────────────────────────────────────────────────────────
-
-function PatientCard({ info, uploaded, isUploading, progressLog, onUpload }) {
-  const p       = info.patient ?? {}
-  const pid     = p.patient_id ?? ''
-  const name    = `${p.title ?? ''} ${p.name ?? ''}`.trim() || pid
-  const xpsList = info.xps_files ?? []
-  const hasXps  = xpsList.length > 0
-  const inDb    = info.exists_in_db
-  const logEnd  = useRef(null)
-
-  useEffect(() => {
-    logEnd.current?.scrollIntoView({ behavior: 'smooth' })
-  }, [progressLog.length])
-
-  let dotCol = C.red;  let cardBg = '#2a1010'
-  if (uploaded)    { dotCol = C.green; cardBg = C.cardAlt }
-  else if (isUploading) { dotCol = C.cyan;  cardBg = '#091e35' }
-  else if (hasXps) { dotCol = C.teal; cardBg = C.card }
-
-  const showActions = uploaded || inDb
-
-  return (
-    <div style={{ background: cardBg, border: `1px solid ${C.border}`, borderRadius: 6, margin: '4px 2px', padding: '10px 14px', display: 'grid', gridTemplateColumns: '28px 1fr 200px 300px', gap: 10, alignItems: 'start' }}>
-
-      {/* Status dot */}
-      <div style={{ paddingTop: 3, fontSize: 18, color: dotCol, textAlign: 'center' }}>
-        {uploaded ? '✓' : '●'}
-      </div>
-
-      {/* Patient info + progress log */}
-      <div>
-        <div style={{ fontWeight: 700, fontSize: 14 }}>{name}</div>
-        <div style={{ color: C.gray, fontSize: 11, marginTop: 2 }}>
-          MRN: <strong style={{ color: C.lt }}>{pid}</strong>
-          &nbsp;·&nbsp; Scan: {fmtDate(info.scan_date)}
-        </div>
-        {inDb && !uploaded && (
-          <div style={{ color: C.amber, fontSize: 10, fontWeight: 600, marginTop: 3 }}>
-            ⚠ Already in Supabase — re-upload only if data changed
-          </div>
-        )}
-
-        {progressLog.length > 0 && (
-          <div style={{ marginTop: 6, background: '#080e18', borderRadius: 4, padding: '5px 8px', maxHeight: 90, overflowY: 'auto', fontSize: 10, fontFamily: 'monospace' }}>
-            {progressLog.map((msg, i) => (
-              <div key={i} style={{ color: msg.startsWith('✗') ? '#ef9a9a' : '#80DEEA', lineHeight: 1.7 }}>
-                {msg}
-              </div>
-            ))}
-            <div ref={logEnd} />
-          </div>
-        )}
-      </div>
-
-      {/* XPS files */}
-      <div style={{ paddingTop: 3 }}>
-        {uploaded ? (
-          <span style={{ color: C.green, fontSize: 12, fontWeight: 600 }}>Uploaded ✓</span>
-        ) : hasXps ? (
-          xpsList.map((x, i) => (
-            <div key={i} style={{ color: C.cyan, fontSize: 11 }}>✓ {basename(x)}</div>
-          ))
-        ) : (
-          <span style={{ color: C.red, fontSize: 12, fontWeight: 600 }}>✗ XPS not found</span>
-        )}
-      </div>
-
-      {/* Actions */}
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5, paddingTop: 2 }}>
-        {!uploaded && hasXps && (
-          <Btn
-            label={isUploading ? 'Uploading…' : '↑ Upload'}
-            color={C.green}
-            disabled={isUploading}
-            onClick={() => onUpload(pid, xpsList)}
-          />
-        )}
-
-        {showActions && (
-          <>
-            <Btn label="📋 Osteo"      color={C.teal}   href={`/report/osteo/${pid}`} />
-            <Btn label="📊 Total Body" color={C.purple} href={`/report/totalbody/${pid}`} />
-            <Btn label="↓ Osteo PDF"   color="#374151"  href={`${BASE}/api/pdf?mrn=${pid}`} />
-            <Btn label="↓ Total PDF"   color="#374151"  href={`${BASE}/api/pdf?mrn=${pid}&type=totalbody`} />
-            <WaBtn mrn={pid} patientName={name} />
-          </>
-        )}
-      </div>
-    </div>
-  )
-}
-
-
-// ── Browse MDB modal ──────────────────────────────────────────────────────────
-
-function BrowseMdbModal({ onClose, onUploaded }) {
-  const [all,       setAll]       = useState([])
-  const [dbMrns,    setDbMrns]    = useState(new Set())
-  const [q,         setQ]         = useState('')
-  const [loading,   setLoading]   = useState(true)
-  const [selected,  setSelected]  = useState(null)
-  const [xpsFiles,  setXpsFiles]  = useState([])
-  const [xpsLoading,setXpsLoading]= useState(false)
-  const [progress,  setProgress]  = useState([])
-  const [uploading, setUploading] = useState(false)
-  const [done,      setDone]      = useState(false)
-  const logEnd = useRef(null)
-
-  // Load all MDB patients + Supabase MRNs in parallel
-  useEffect(() => {
-    Promise.all([
-      fetch(`${BASE}/api/collector/all?max_count=500`).then(r => r.json()).catch(() => []),
-      fetch(`${BASE}/api/collector/db-mrns`).then(r => r.json()).catch(() => ({ mrns: [] })),
-    ]).then(([patients, dbData]) => {
-      setAll(patients)
-      setDbMrns(new Set(dbData.mrns ?? []))
-      setLoading(false)
-    })
-  }, [])
-
-  // When patient selected, check XPS availability
+  // When MDB patient selected, fetch XPS
   useEffect(() => {
     if (!selected) { setXpsFiles([]); return }
     const pid = selected.patient?.patient_id
     if (!pid) return
     setXpsLoading(true)
-    setProgress([])
-    setDone(false)
+    setMdbProgress([])
+    setMdbDone(false)
     fetch(`${BASE}/api/collector/xps/${pid}`)
       .then(r => r.json())
       .then(d => { setXpsFiles(d.xps_files ?? []); setXpsLoading(false) })
@@ -418,206 +107,421 @@ function BrowseMdbModal({ onClose, onUploaded }) {
   }, [selected])
 
   useEffect(() => {
-    logEnd.current?.scrollIntoView({ behavior: 'smooth' })
-  }, [progress.length])
+    mdbLogEnd.current?.scrollIntoView({ behavior: 'smooth' })
+  }, [mdbProgress.length])
 
-  const filtered = q
-    ? all.filter(p => {
-        const ql = q.toLowerCase()
-        return (p.patient?.patient_id ?? '').toLowerCase().includes(ql)
-            || (p.patient?.name ?? '').toLowerCase().includes(ql)
-      })
-    : all
+  const gather = useCallback(async () => {
+    setRecentSt('loading')
+    setOffline(false)
+    setBmdOffline(false)
+    try {
+      const res = await fetch(`${BASE}/api/collector/recent`)
+      if (!res.ok) {
+        let detail = {}
+        try { const b = await res.json(); detail = b.detail ?? b } catch {}
+        if (detail.bmd_offline || res.status === 503) { setBmdOffline(true) }
+        else { setOffline(true) }
+        setRecentErr(detail.error ?? res.statusText)
+        setRecentSt('error')
+        return
+      }
+      const data = await res.json()
+      setRecent(data)
+      setRecentSt('done')
+    } catch (e) {
+      setOffline(true)
+      setRecentErr(e.message)
+      setRecentSt('error')
+    }
+  }, [])
 
-  const inDb    = pid => dbMrns.has(pid)
-  const addLine = msg => setProgress(p => [...p, msg])
+  useEffect(() => { gather() }, [gather])
 
-  const doUpload = async () => {
-    const pid = selected?.patient?.patient_id
-    if (!pid) return
-    setUploading(true)
-    setProgress(['Starting upload…'])
+  const uploadPatient = useCallback(async (pid, xpsPaths, fromMdb = false) => {
+    const addLine = msg => setProgress(p => ({ ...p, [pid]: [...(p[pid] ?? []), msg] }))
+    if (fromMdb) {
+      setMdbUploading(true)
+      setMdbProgress(['Starting upload…'])
+    } else {
+      setUploading(u => new Set([...u, pid]))
+      setProgress(p => ({ ...p, [pid]: ['Starting upload…'] }))
+    }
+
     try {
       const res = await fetch(`${BASE}/api/collector/upload/${pid}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ xps_paths: xpsFiles }),
+        body: JSON.stringify({ xps_paths: xpsPaths }),
       })
       const reader = res.body.getReader()
-      const dec    = new TextDecoder()
-      let   buf    = ''
+      const dec = new TextDecoder()
+      let buf = ''
       while (true) {
-        const { done: d, value } = await reader.read()
-        if (d) break
+        const { done, value } = await reader.read()
+        if (done) break
         buf += dec.decode(value, { stream: true })
         const lines = buf.split('\n'); buf = lines.pop()
         for (const line of lines) {
           if (!line.startsWith('data: ')) continue
           try {
             const evt = JSON.parse(line.slice(6))
-            if (evt.msg)   addLine(evt.msg)
-            if (evt.done)  { setDone(true); setDbMrns(s => new Set([...s, pid])); onUploaded(pid) }
-            if (evt.error) addLine(`✗ ${evt.error}`)
+            if (fromMdb) {
+              if (evt.msg)   setMdbProgress(p => [...p, evt.msg])
+              if (evt.done)  { setMdbDone(true); setDbMrns(s => new Set([...s, pid])); setUploaded(u => new Set([...u, pid])); setMdbProgress(p => [...p, '✓ Done']) }
+              if (evt.error) setMdbProgress(p => [...p, `✗ ${evt.error}`])
+            } else {
+              if (evt.msg)   addLine(evt.msg)
+              if (evt.done)  { setUploaded(u => new Set([...u, pid])); setDbMrns(s => new Set([...s, pid])); addLine('✓ Done') }
+              if (evt.error) addLine(`✗ ${evt.error}`)
+            }
           } catch {}
         }
       }
     } catch (e) {
-      addLine(`✗ ${e.message}`)
+      if (fromMdb) setMdbProgress(p => [...p, `✗ ${e.message}`])
+      else setProgress(p => ({ ...p, [pid]: [...(p[pid] ?? []), `✗ ${e.message}`] }))
     } finally {
-      setUploading(false)
+      if (fromMdb) setMdbUploading(false)
+      else setUploading(u => { const n = new Set(u); n.delete(pid); return n })
     }
-  }
+  }, [])
 
-  const p    = selected?.patient ?? {}
-  const pid  = p.patient_id ?? ''
-  const name = `${p.title ?? ''} ${p.name ?? ''}`.trim()
-  const alreadyInDb = inDb(pid)
+  const mdbFiltered = mdbQ
+    ? mdbAll.filter(p => {
+        const ql = mdbQ.toLowerCase()
+        return (p.patient?.patient_id ?? '').toLowerCase().includes(ql)
+            || (p.patient?.name ?? '').toLowerCase().includes(ql)
+      })
+    : mdbAll
 
-  const overlay = { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 }
-  const modal   = { background: C.dark, border: `1px solid ${C.border}`, borderRadius: 8, width: 860, height: '85vh', display: 'flex', flexDirection: 'column', overflow: 'hidden' }
+  const selPid    = selected?.patient?.patient_id ?? ''
+  const selName   = `${selected?.patient?.title ?? ''} ${selected?.patient?.name ?? ''}`.trim()
+  const selInDb   = dbMrns.has(selPid)
+  const selUpd    = uploaded.has(selPid) || mdbDone
 
   return (
-    <div style={overlay}>
-      <div style={modal}>
+    <div style={{ position: 'fixed', inset: 0, background: C.dark, fontFamily: 'system-ui, sans-serif', color: C.white, display: 'flex', flexDirection: 'column' }}>
 
-        {/* Header */}
-        <div style={{ background: C.teal, padding: '12px 18px', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <div>
-            <div style={{ fontWeight: 700, fontSize: 14 }}>Browse MDB — All Patients</div>
-            <div style={{ color: '#B2DFDB', fontSize: 11, marginTop: 2 }}>Search any patient from MDB, upload or refresh their data in Supabase</div>
-          </div>
-          <button onClick={onClose} style={{ background: 'none', border: 'none', color: '#B2DFDB', fontSize: 18, cursor: 'pointer', padding: '0 4px' }}>✕</button>
+      {/* Header */}
+      <div style={{ background: C.teal, height: 52, display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 20px', flexShrink: 0 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+          <img src="https://www.sdrc.in/assets/sdrc-logo-full.png" alt="SDRC" style={{ height: 32, background: 'rgba(255,255,255,0.92)', borderRadius: 4, padding: '2px 6px' }} />
+          <span style={{ color: '#B2DFDB', fontSize: 12, letterSpacing: 1 }}>Data Collector</span>
         </div>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <a href={`${BASE}/`} style={{ background: 'rgba(255,255,255,0.15)', color: C.white, textDecoration: 'none', padding: '6px 14px', borderRadius: 5, fontSize: 12, fontWeight: 600, border: '1px solid rgba(255,255,255,0.25)' }}>
+            ← Hub
+          </a>
+          <a href={`${BASE}/list`} style={{ background: 'rgba(255,255,255,0.15)', color: C.white, textDecoration: 'none', padding: '6px 14px', borderRadius: 5, fontSize: 12, fontWeight: 600, border: '1px solid rgba(255,255,255,0.25)' }}>
+            📋 Patient List
+          </a>
+        </div>
+      </div>
 
-        {/* Body: list + detail pane */}
-        <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
+      {/* Two-panel body */}
+      <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
 
-          {/* Left: patient list */}
-          <div style={{ width: 420, borderRight: `1px solid ${C.border}`, display: 'flex', flexDirection: 'column', flexShrink: 0 }}>
-            <div style={{ padding: '10px 12px', borderBottom: `1px solid ${C.border}`, flexShrink: 0 }}>
-              <input
-                value={q}
-                onChange={e => setQ(e.target.value)}
-                placeholder="Search MRN or name…"
-                autoFocus
-                style={{ width: '100%', background: C.card, border: `1px solid ${C.border}`, borderRadius: 5, padding: '7px 12px', color: C.white, fontSize: 13, outline: 'none', boxSizing: 'border-box' }}
-              />
+        {/* LEFT PANEL: MDB Browser */}
+        <div style={{ width: 400, flexShrink: 0, borderRight: `1px solid ${C.border}`, display: 'flex', flexDirection: 'column', background: '#0a1624' }}>
+          <div style={{ padding: '10px 14px', borderBottom: `1px solid ${C.border}`, flexShrink: 0 }}>
+            <div style={{ fontWeight: 700, fontSize: 12, color: C.lt, textTransform: 'uppercase', letterSpacing: .8, marginBottom: 8 }}>
+              MDB Browser
             </div>
-            <div style={{ padding: '4px 12px', color: C.gray, fontSize: 11, flexShrink: 0 }}>
-              {loading ? 'Loading MDB…' : `${filtered.length} patient(s)`}
-            </div>
-            <div style={{ overflowY: 'auto', flex: 1 }}>
-              {filtered.map(info => {
-                const ip   = info.patient ?? {}
-                const ipid = ip.patient_id ?? ''
-                const iname = `${ip.title ?? ''} ${ip.name ?? ''}`.trim() || '—'
-                const iinDb = inDb(ipid)
-                const isel  = selected?.patient?.patient_id === ipid
-                return (
-                  <div
-                    key={ipid}
-                    onClick={() => setSelected(info)}
-                    style={{
-                      display: 'grid', gridTemplateColumns: '16px 80px 1fr 90px', gap: 8,
-                      padding: '9px 12px', cursor: 'pointer',
-                      borderBottom: `1px solid #0f2030`,
-                      background: isel ? '#1a3a55' : 'transparent',
-                      fontSize: 12,
-                    }}
-                    onMouseEnter={e => { if (!isel) e.currentTarget.style.background = '#0f2030' }}
-                    onMouseLeave={e => { if (!isel) e.currentTarget.style.background = 'transparent' }}
-                  >
-                    <div style={{ color: iinDb ? C.green : '#3a4a5a', fontSize: 10, paddingTop: 2 }}>●</div>
-                    <div style={{ color: C.lt, fontFamily: 'monospace', fontSize: 11 }}>{ipid}</div>
-                    <div style={{ color: isel ? C.white : C.lt, fontWeight: isel ? 600 : 400, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{iname}</div>
-                    <div style={{ color: C.gray, fontSize: 10, textAlign: 'right' }}>{fmtDateShort(info.scan_date)}</div>
-                  </div>
-                )
-              })}
-              {!loading && filtered.length === 0 && (
-                <div style={{ color: C.gray, textAlign: 'center', padding: 30 }}>No patients found</div>
-              )}
-            </div>
-            {/* Legend */}
-            <div style={{ padding: '6px 12px', borderTop: `1px solid ${C.border}`, display: 'flex', gap: 16, flexShrink: 0 }}>
-              <span style={{ fontSize: 10, color: C.green }}>● In Supabase</span>
+            <input
+              value={mdbQ}
+              onChange={e => setMdbQ(e.target.value)}
+              placeholder="Search MRN or name…"
+              style={{ width: '100%', background: C.card, border: `1px solid ${C.border}`, borderRadius: 5, padding: '7px 11px', color: C.white, fontSize: 12, outline: 'none', boxSizing: 'border-box' }}
+            />
+            <div style={{ marginTop: 5, display: 'flex', gap: 14 }}>
+              <span style={{ fontSize: 10, color: C.gray }}>
+                {mdbLoading ? 'Loading MDB…' : `${mdbFiltered.length} patient(s)`}
+              </span>
+              <span style={{ fontSize: 10, color: '#2E7D32' }}>● In DB</span>
               <span style={{ fontSize: 10, color: '#3a4a5a' }}>● Not uploaded</span>
             </div>
           </div>
 
-          {/* Right: detail pane */}
-          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', padding: 20, overflowY: 'auto' }}>
-            {!selected ? (
-              <div style={{ color: C.gray, textAlign: 'center', marginTop: 60, fontSize: 13 }}>
-                ← Select a patient to see actions
-              </div>
-            ) : (
-              <>
-                {/* Patient info */}
-                <div style={{ background: C.card, borderRadius: 6, padding: '14px 16px', marginBottom: 14 }}>
-                  <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 6 }}>{name || pid}</div>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '4px 16px', fontSize: 12, color: C.lt }}>
-                    <div><span style={{ color: C.gray }}>MRN </span>{pid}</div>
-                    <div><span style={{ color: C.gray }}>DOB </span>{String(p.dob ?? '').slice(0, 10) || '—'}</div>
-                    <div><span style={{ color: C.gray }}>Gender </span>{p.gender ?? '—'}</div>
-                    <div><span style={{ color: C.gray }}>Scan </span>{fmtDateShort(selected.scan_date)}</div>
-                  </div>
-                  <div style={{ marginTop: 10, display: 'flex', alignItems: 'center', gap: 8 }}>
-                    {alreadyInDb
-                      ? <span style={{ background: '#1a3a1a', color: C.green, border: `1px solid ${C.green}`, borderRadius: 4, padding: '3px 10px', fontSize: 11, fontWeight: 700 }}>✓ In Supabase</span>
-                      : <span style={{ background: '#1a2030', color: C.gray, border: `1px solid #2a3a4a`, borderRadius: 4, padding: '3px 10px', fontSize: 11 }}>Not yet uploaded</span>
-                    }
-                  </div>
+          {/* Patient list */}
+          <div style={{ overflowY: 'auto', flex: 1 }}>
+            {mdbFiltered.map(info => {
+              const ip    = info.patient ?? {}
+              const ipid  = ip.patient_id ?? ''
+              const iname = `${ip.title ?? ''} ${ip.name ?? ''}`.trim() || '—'
+              const iinDb = dbMrns.has(ipid)
+              const isel  = selected?.patient?.patient_id === ipid
+              return (
+                <div
+                  key={ipid}
+                  onClick={() => { setSelected(info); setMdbDone(false); setMdbProgress([]) }}
+                  style={{
+                    display: 'grid', gridTemplateColumns: '14px 74px 1fr 80px', gap: 8,
+                    padding: '8px 14px', cursor: 'pointer',
+                    borderBottom: `1px solid #0f2030`,
+                    background: isel ? '#1a3a55' : 'transparent',
+                    fontSize: 12,
+                  }}
+                  onMouseEnter={e => { if (!isel) e.currentTarget.style.background = '#0f2030' }}
+                  onMouseLeave={e => { if (!isel) e.currentTarget.style.background = 'transparent' }}
+                >
+                  <div style={{ color: iinDb ? '#4ade80' : '#2a3a4a', fontSize: 9, paddingTop: 3 }}>●</div>
+                  <div style={{ color: C.lt, fontFamily: 'monospace', fontSize: 11, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{ipid}</div>
+                  <div style={{ color: isel ? C.white : C.lt, fontWeight: isel ? 600 : 400, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{iname}</div>
+                  <div style={{ color: C.gray, fontSize: 10, textAlign: 'right' }}>{fmtDateShort(info.scan_date)}</div>
                 </div>
-
-                {/* XPS status */}
-                <div style={{ background: '#0a1624', borderRadius: 6, padding: '10px 14px', marginBottom: 14, fontSize: 12 }}>
-                  <div style={{ color: C.gray, fontWeight: 700, fontSize: 10, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 6 }}>XPS Files in Watch Dir</div>
-                  {xpsLoading ? (
-                    <span style={{ color: C.gray }}>Checking…</span>
-                  ) : xpsFiles.length > 0 ? (
-                    xpsFiles.map((x, i) => <div key={i} style={{ color: C.cyan }}>✓ {basename(x)}</div>)
-                  ) : (
-                    <span style={{ color: C.amber }}>⚠ No XPS found — MDB data only will be uploaded</span>
-                  )}
-                </div>
-
-                {/* Progress log */}
-                {progress.length > 0 && (
-                  <div style={{ background: '#080e18', borderRadius: 5, padding: '8px 10px', marginBottom: 14, maxHeight: 140, overflowY: 'auto', fontSize: 10, fontFamily: 'monospace' }}>
-                    {progress.map((msg, i) => (
-                      <div key={i} style={{ color: msg.startsWith('✗') ? '#ef9a9a' : '#80DEEA', lineHeight: 1.7 }}>{msg}</div>
-                    ))}
-                    <div ref={logEnd} />
-                  </div>
-                )}
-
-                {/* Action buttons */}
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-                  {!done && (
-                    <Btn
-                      label={uploading ? 'Uploading…' : alreadyInDb ? '↻ Refresh Data' : '↑ Upload to Supabase'}
-                      color={alreadyInDb ? C.amber : C.green}
-                      disabled={uploading}
-                      onClick={doUpload}
-                      bold
-                    />
-                  )}
-                  {done && <span style={{ color: C.green, fontWeight: 700, fontSize: 13 }}>✓ Upload complete</span>}
-                  {(alreadyInDb || done) && (
-                    <>
-                      <Btn label="📋 Osteo Report"      color={C.teal}   href={`/report/osteo/${pid}`} />
-                      <Btn label="📊 Total Body Report"  color={C.purple} href={`/report/totalbody/${pid}`} />
-                      <Btn label="↓ Osteo PDF"           color="#374151"  href={`${BASE}/api/pdf?mrn=${pid}`} />
-                      <Btn label="↓ Total Body PDF"      color="#374151"  href={`${BASE}/api/pdf?mrn=${pid}&type=totalbody`} />
-                    </>
-                  )}
-                </div>
-              </>
+              )
+            })}
+            {!mdbLoading && mdbFiltered.length === 0 && (
+              <div style={{ color: C.gray, textAlign: 'center', padding: 30, fontSize: 12 }}>No patients found</div>
             )}
+          </div>
+
+          {/* Selected patient actions */}
+          {selected && (
+            <div style={{ borderTop: `1px solid ${C.border}`, padding: 14, flexShrink: 0, background: '#0d1f35' }}>
+              <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 2 }}>{selName || selPid}</div>
+              <div style={{ fontSize: 11, color: C.gray, marginBottom: 8 }}>
+                MRN: <span style={{ color: C.lt }}>{selPid}</span>
+                {' · '}Scan: {fmtDateShort(selected.scan_date)}
+                {selInDb && <span style={{ color: '#4ade80', marginLeft: 8 }}>✓ In DB</span>}
+              </div>
+
+              {/* XPS status */}
+              <div style={{ fontSize: 11, color: C.gray, marginBottom: 8 }}>
+                {xpsLoading ? 'Checking XPS…' : xpsFiles.length > 0
+                  ? xpsFiles.map((x, i) => <div key={i} style={{ color: C.cyan }}>✓ {basename(x)}</div>)
+                  : <span style={{ color: '#f59e0b' }}>⚠ No XPS (MDB data only)</span>
+                }
+              </div>
+
+              {/* Upload log */}
+              {mdbProgress.length > 0 && (
+                <div style={{ background: '#080e18', borderRadius: 4, padding: '5px 8px', maxHeight: 70, overflowY: 'auto', fontSize: 10, fontFamily: 'monospace', marginBottom: 8 }}>
+                  {mdbProgress.map((msg, i) => (
+                    <div key={i} style={{ color: msg.startsWith('✗') ? '#ef9a9a' : '#80DEEA', lineHeight: 1.7 }}>{msg}</div>
+                  ))}
+                  <div ref={mdbLogEnd} />
+                </div>
+              )}
+
+              {/* Action buttons */}
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                {!selUpd && (
+                  <Btn
+                    label={mdbUploading ? 'Uploading…' : selInDb ? '↻ Refresh' : '↑ Upload'}
+                    bg={selInDb ? '#92400e' : '#166534'}
+                    disabled={mdbUploading}
+                    onClick={() => uploadPatient(selPid, xpsFiles, true)}
+                  />
+                )}
+                {selUpd && <span style={{ color: '#4ade80', fontSize: 11, fontWeight: 700 }}>✓ Uploaded</span>}
+                {(selInDb || selUpd) && (
+                  <>
+                    <Btn label="🦴 Osteo"      bg={C.teal}   href={`${BASE}/report/osteo/${selPid}`} />
+                    <Btn label="📊 Total Body"  bg={C.purple} href={`${BASE}/report/totalbody/${selPid}`} />
+                    <Btn
+                      label="📱 WA"
+                      bg="#1a5c2a"
+                      textColor="#4ade80"
+                      onClick={() => { setWaMrn(selPid); setWaName(selName); setWaOpen(true) }}
+                    />
+                  </>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Bottom toolbar */}
+          <div style={{ borderTop: `1px solid ${C.border}`, padding: '8px 14px', flexShrink: 0, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+            <Btn
+              label="🗄️ Archive"
+              bg="transparent"
+              textColor={archiveAvail?.available ? '#90CAF9' : C.gray}
+              border={archiveAvail?.available ? '#90CAF9' : '#2a3a4a'}
+              disabled={!archiveAvail?.available}
+              title={archiveAvail?.available ? 'Link archived MDB study as trend data' : (archiveAvail?.reason ?? 'Checking…')}
+              onClick={() => setArchiveOpen(true)}
+            />
+            <Btn
+              label="🔗 Link Older"
+              bg="transparent"
+              textColor={recent.length > 0 ? C.pink : C.gray}
+              border={recent.length > 0 ? C.pink : '#2a3a4a'}
+              disabled={recent.length === 0}
+              onClick={() => setLinkOpen(true)}
+            />
+          </div>
+        </div>
+
+        {/* RIGHT PANEL: Recent studies */}
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+
+          {/* Toolbar */}
+          <div style={{ padding: '10px 16px', borderBottom: `1px solid ${C.border}`, display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0, flexWrap: 'wrap' }}>
+            <Btn
+              label={recentSt === 'loading' ? '… Scanning' : '⟳ Gather Data'}
+              bg={C.teal}
+              disabled={recentSt === 'loading'}
+              onClick={gather}
+              bold
+            />
+            <span style={{ fontSize: 12, color: C.gray }}>
+              {recentSt === 'done'    && `${recent.length} patient(s) from last 48h`}
+              {recentSt === 'loading' && 'Scanning MDB…'}
+              {recentSt === 'error'   && (bmdOffline ? '⚠ BMD PC unreachable' : `Error: ${recentErr}`)}
+            </span>
+            {offline && !bmdOffline && (
+              <span style={{ color: '#f59e0b', fontSize: 12, fontWeight: 600 }}>
+                ⚠ Collector API offline
+              </span>
+            )}
+          </div>
+
+          {/* BMD offline banner */}
+          {bmdOffline && (
+            <div style={{ margin: '12px 14px 0', background: '#2a1400', border: `1px solid ${C.amber}`, borderLeft: `4px solid ${C.amber}`, borderRadius: 6, padding: '12px 16px' }}>
+              <div style={{ color: C.amber, fontWeight: 700, fontSize: 13 }}>⚠ BMD PC unreachable (192.168.134.55)</div>
+              <div style={{ color: '#ffcc80', fontSize: 12, marginTop: 4 }}>Turn on the GE Lunar scanner PC and try Gather Data again.</div>
+            </div>
+          )}
+
+          {/* Patient cards */}
+          <div style={{ overflowY: 'auto', flex: 1, padding: '8px 10px 40px' }}>
+            {recentSt === 'idle' || (recentSt === 'done' && recent.length === 0 && !offline && !bmdOffline) ? (
+              <div style={{ color: C.gray, textAlign: 'center', padding: 60, fontSize: 13 }}>
+                {offline ? 'Start the collector: pm2 start ecosystem.config.js' : 'No patients in MDB for last 48h.'}
+              </div>
+            ) : null}
+
+            {recent.map(info => (
+              <RecentCard
+                key={info.patient?.patient_id}
+                info={info}
+                uploaded={uploaded.has(info.patient?.patient_id)}
+                isUploading={uploading.has(info.patient?.patient_id)}
+                progressLog={progress[info.patient?.patient_id] ?? []}
+                inDb={dbMrns.has(info.patient?.patient_id)}
+                onUpload={uploadPatient}
+                onUploaded={pid => { setUploaded(u => new Set([...u, pid])); setDbMrns(s => new Set([...s, pid])) }}
+                onWa={(mrn, name) => { setWaMrn(mrn); setWaName(name); setWaOpen(true) }}
+              />
+            ))}
           </div>
         </div>
       </div>
+
+      {/* Modals */}
+      {archiveOpen && (
+        <LinkOlderStudyModal
+          currentPids={new Set(recent.map(p => p.patient?.patient_id).filter(Boolean))}
+          onClose={() => setArchiveOpen(false)}
+          archiveMode
+        />
+      )}
+      {linkOpen && (
+        <LinkOlderStudyModal
+          currentPids={new Set(recent.map(p => p.patient?.patient_id).filter(Boolean))}
+          onClose={() => setLinkOpen(false)}
+        />
+      )}
+      {waOpen && waMrn && (
+        <WaSendModal
+          mrn={waMrn}
+          patientName={waName}
+          scanType="osteo"
+          onClose={() => { setWaOpen(false); setWaMrn(null) }}
+        />
+      )}
+    </div>
+  )
+}
+
+
+// ── Recent patient card ───────────────────────────────────────────────────────
+
+function RecentCard({ info, uploaded, isUploading, progressLog, inDb, onUpload, onWa }) {
+  const p       = info.patient ?? {}
+  const pid     = p.patient_id ?? ''
+  const name    = `${p.title ?? ''} ${p.name ?? ''}`.trim() || pid
+  const xpsList = info.xps_files ?? []
+  const hasXps  = xpsList.length > 0
+  const logEnd  = useRef(null)
+
+  useEffect(() => {
+    logEnd.current?.scrollIntoView({ behavior: 'smooth' })
+  }, [progressLog.length])
+
+  let dotCol = '#B71C1C', cardBg = '#2a1010'
+  if (uploaded)        { dotCol = '#4ade80'; cardBg = '#0a2a1a' }
+  else if (isUploading){ dotCol = C.cyan;   cardBg = '#091e35' }
+  else if (inDb)       { dotCol = '#f59e0b'; cardBg = '#1a1800' }
+  else if (hasXps)     { dotCol = C.teal;   cardBg = C.card }
+
+  const showActions = uploaded || inDb
+
+  return (
+    <div style={{ background: cardBg, border: `1px solid ${C.border}`, borderRadius: 6, margin: '4px 2px', padding: '10px 14px' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: '22px 1fr auto', gap: 10, alignItems: 'start' }}>
+
+        {/* Status dot */}
+        <div style={{ paddingTop: 2, fontSize: 16, color: dotCol, textAlign: 'center' }}>
+          {uploaded ? '✓' : '●'}
+        </div>
+
+        {/* Patient info */}
+        <div>
+          <div style={{ fontWeight: 700, fontSize: 13 }}>{name}</div>
+          <div style={{ color: C.gray, fontSize: 11, marginTop: 2 }}>
+            MRN: <strong style={{ color: C.lt }}>{pid}</strong>
+            {' · '}Scan: {fmtDate(info.scan_date)}
+          </div>
+          {inDb && !uploaded && (
+            <div style={{ color: '#f59e0b', fontSize: 10, fontWeight: 600, marginTop: 2 }}>
+              ⚠ Already in Supabase — re-upload only if data changed
+            </div>
+          )}
+          {/* XPS */}
+          <div style={{ marginTop: 4 }}>
+            {uploaded ? (
+              <span style={{ color: '#4ade80', fontSize: 11, fontWeight: 600 }}>Uploaded ✓</span>
+            ) : hasXps ? (
+              xpsList.map((x, i) => <span key={i} style={{ color: C.cyan, fontSize: 11, marginRight: 8 }}>✓ {basename(x)}</span>)
+            ) : (
+              <span style={{ color: '#f87171', fontSize: 11 }}>✗ XPS not found</span>
+            )}
+          </div>
+        </div>
+
+        {/* Actions column */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 5, alignItems: 'flex-end', minWidth: 110 }}>
+          {!uploaded && hasXps && (
+            <Btn
+              label={isUploading ? 'Uploading…' : '↑ Upload'}
+              bg="#166534"
+              disabled={isUploading}
+              onClick={() => onUpload(pid, xpsList, false)}
+              bold
+            />
+          )}
+          {showActions && (
+            <>
+              <Btn label="🦴 Osteo"     bg={C.teal}   href={`${BASE}/report/osteo/${pid}`} />
+              <Btn label="📊 Total Body" bg={C.purple} href={`${BASE}/report/totalbody/${pid}`} />
+              <Btn label="📱 WhatsApp"   bg="#1a5c2a"  textColor="#4ade80" onClick={() => onWa(pid, name)} />
+            </>
+          )}
+        </div>
+      </div>
+
+      {/* Progress log */}
+      {progressLog.length > 0 && (
+        <div style={{ marginTop: 8, background: '#080e18', borderRadius: 4, padding: '5px 8px', maxHeight: 80, overflowY: 'auto', fontSize: 10, fontFamily: 'monospace' }}>
+          {progressLog.map((msg, i) => (
+            <div key={i} style={{ color: msg.startsWith('✗') ? '#ef9a9a' : '#80DEEA', lineHeight: 1.7 }}>{msg}</div>
+          ))}
+          <div ref={logEnd} />
+        </div>
+      )}
     </div>
   )
 }
@@ -629,21 +533,16 @@ function LinkOlderStudyModal({ currentPids, onClose, archiveMode = false }) {
   const [all,       setAll]       = useState([])
   const [q,         setQ]         = useState('')
   const [loading,   setLoading]   = useState(true)
-  const [selected,  setSelected]  = useState(null)   // patient info dict
-  const [confirm,   setConfirm]   = useState(false)  // show type-selector
+  const [selected,  setSelected]  = useState(null)
+  const [confirm,   setConfirm]   = useState(false)
   const [uploading, setUploading] = useState(false)
-  const [result,    setResult]    = useState(null)   // {ok, pid, scanType, error}
+  const [result,    setResult]    = useState(null)
 
-  const listUrl = archiveMode
-    ? '${BASE}/api/collector/archive/all?max_count=500'
-    : '${BASE}/api/collector/all?max_count=200'
-  const trendBase = archiveMode ? '${BASE}/api/collector/archive/trend' : '${BASE}/api/collector/trend'
+  const listUrl  = archiveMode ? `${BASE}/api/collector/archive/all?max_count=500` : `${BASE}/api/collector/all?max_count=200`
+  const trendBase= archiveMode ? `${BASE}/api/collector/archive/trend` : `${BASE}/api/collector/trend`
 
   useEffect(() => {
-    fetch(listUrl)
-      .then(r => r.json())
-      .then(data => { setAll(data); setLoading(false) })
-      .catch(() => setLoading(false))
+    fetch(listUrl).then(r => r.json()).then(data => { setAll(data); setLoading(false) }).catch(() => setLoading(false))
   }, [listUrl])
 
   const filtered = q
@@ -675,319 +574,131 @@ function LinkOlderStudyModal({ currentPids, onClose, archiveMode = false }) {
     }
   }
 
-  const overlay = {
-    position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)',
-    display: 'flex', alignItems: 'center', justifyContent: 'center',
-    zIndex: 100,
-  }
-  const modal = {
-    background: C.dark, border: `1px solid ${C.border}`,
-    borderRadius: 8, width: 700, maxHeight: '85vh',
-    display: 'flex', flexDirection: 'column', overflow: 'hidden',
-  }
+  const overlay = { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 }
+  const modal   = { background: C.dark, border: `1px solid ${C.border}`, borderRadius: 8, width: 700, maxHeight: '85vh', display: 'flex', flexDirection: 'column', overflow: 'hidden' }
 
-  // Done state
-  if (result) {
-    return (
-      <div style={overlay}>
-        <div style={{ ...modal, width: 420, padding: 32, textAlign: 'center' }}>
-          <div style={{ fontSize: 40 }}>{result.ok ? '✓' : '✗'}</div>
-          <div style={{ fontSize: 16, fontWeight: 700, marginTop: 12, color: result.ok ? C.green : C.red }}>
-            {result.ok ? 'Linked successfully' : 'Link failed'}
-          </div>
-          <div style={{ color: C.gray, fontSize: 13, marginTop: 8 }}>
-            {result.pid} → {result.scanType}
-            {result.error && <div style={{ color: C.red, marginTop: 6 }}>{result.error}</div>}
-          </div>
-          <Btn label="Close" color={C.teal} onClick={onClose} style={{ marginTop: 20 }} />
+  if (result) return (
+    <div style={overlay}>
+      <div style={{ ...modal, width: 400, padding: 32, textAlign: 'center' }}>
+        <div style={{ fontSize: 40 }}>{result.ok ? '✓' : '✗'}</div>
+        <div style={{ fontSize: 16, fontWeight: 700, marginTop: 12, color: result.ok ? '#4ade80' : '#f87171' }}>
+          {result.ok ? 'Linked successfully' : 'Link failed'}
         </div>
+        <div style={{ color: C.gray, fontSize: 13, marginTop: 8 }}>
+          {result.pid} → {result.scanType}
+          {result.error && <div style={{ color: '#f87171', marginTop: 6 }}>{result.error}</div>}
+        </div>
+        <Btn label="Close" bg={C.teal} onClick={onClose} style={{ marginTop: 20 }} />
       </div>
-    )
-  }
+    </div>
+  )
 
-  // Confirm / type-selector state
   if (confirm && selected) {
-    const p    = selected.patient ?? {}
-    const name = `${p.title ?? ''} ${p.name ?? ''}`.trim()
+    const p = selected.patient ?? {}
+    const nm = `${p.title ?? ''} ${p.name ?? ''}`.trim()
     return (
       <div style={overlay}>
         <div style={{ ...modal, width: 440, padding: 28 }}>
           <div style={{ fontWeight: 700, fontSize: 15, color: C.teal, marginBottom: 16 }}>Confirm Link</div>
           <div style={{ background: C.card, borderRadius: 6, padding: '12px 16px', fontSize: 13, lineHeight: 2, marginBottom: 20 }}>
-            <div><span style={{ color: C.gray, width: 70, display: 'inline-block' }}>Name</span> <strong>{name}</strong></div>
+            <div><span style={{ color: C.gray, width: 70, display: 'inline-block' }}>Name</span> <strong>{nm}</strong></div>
             <div><span style={{ color: C.gray, width: 70, display: 'inline-block' }}>MRN</span> {p.patient_id}</div>
-            <div><span style={{ color: C.gray, width: 70, display: 'inline-block' }}>DOB</span> {String(p.dob ?? '').slice(0, 10) || '—'}</div>
-            <div><span style={{ color: C.gray, width: 70, display: 'inline-block' }}>Gender</span> {p.gender ?? '—'}</div>
             <div><span style={{ color: C.gray, width: 70, display: 'inline-block' }}>Scan</span> {fmtDateShort(selected.scan_date)}</div>
           </div>
-          <div style={{ color: C.lt, fontSize: 12, marginBottom: 16 }}>
-            Confirm this is the <strong>same patient</strong> as in your current system.
+          <div style={{ color: C.lt, fontSize: 12, marginBottom: 14 }}>
             Their MDB data will be uploaded as trend history — no images required.
           </div>
-          <div style={{ color: C.gray, fontSize: 11, marginBottom: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1 }}>Link as:</div>
-          <div style={{ display: 'flex', gap: 10, marginBottom: 16 }}>
-            <Btn label="🦴 Bone Density (Osteo)"     color={C.teal}   disabled={uploading} onClick={() => doLink('osteo_trend')}      bold />
-            <Btn label="🧬 Total Body Composition"   color={C.purple} disabled={uploading} onClick={() => doLink('total_body_trend')} bold />
+          <div style={{ display: 'flex', gap: 10, marginBottom: 14 }}>
+            <Btn label="🦴 Bone Density"   bg={C.teal}   disabled={uploading} onClick={() => doLink('osteo_trend')} bold />
+            <Btn label="🧬 Total Body"      bg={C.purple} disabled={uploading} onClick={() => doLink('total_body_trend')} bold />
           </div>
           {uploading && <div style={{ color: C.cyan, fontSize: 12 }}>Uploading…</div>}
-          <Btn label="← Back" color="transparent" textColor={C.gray} border={C.border} onClick={() => setConfirm(false)} />
+          <Btn label="← Back" bg="transparent" textColor={C.gray} border={C.border} onClick={() => setConfirm(false)} />
         </div>
       </div>
     )
   }
 
-  // Main list state
   return (
     <div style={overlay}>
       <div style={modal}>
-
-        {/* Header */}
-        <div style={{ background: C.teal, padding: '12px 18px', flexShrink: 0 }}>
-          <div style={{ fontWeight: 700, fontSize: 14 }}>
-            {archiveMode ? '🗄️ Link Archived Study as Trend Data' : 'Link Older Study as Trend Data'}
+        <div style={{ background: C.teal, padding: '12px 18px', flexShrink: 0, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div>
+            <div style={{ fontWeight: 700, fontSize: 14 }}>
+              {archiveMode ? '🗄️ Link Archived Study' : 'Link Older Study as Trend Data'}
+            </div>
+            <div style={{ color: '#B2DFDB', fontSize: 11, marginTop: 2 }}>
+              MDB data uploads as trend history — no XPS needed
+            </div>
           </div>
-          <div style={{ color: '#B2DFDB', fontSize: 11, marginTop: 2 }}>
-            {archiveMode
-              ? 'Browse the archive MDB — data uploads as trend history, no XPS needed'
-              : 'Select a historical patient — MDB data uploads without XPS or images'}
-          </div>
+          <button onClick={onClose} style={{ background: 'none', border: 'none', color: '#B2DFDB', fontSize: 18, cursor: 'pointer' }}>✕</button>
         </div>
 
-        {/* Search */}
         <div style={{ padding: '10px 14px', borderBottom: `1px solid ${C.border}`, flexShrink: 0 }}>
           <input
             value={q}
             onChange={e => setQ(e.target.value)}
             placeholder="Search MRN or name…"
+            autoFocus
             style={{ width: '100%', background: C.card, border: `1px solid ${C.border}`, borderRadius: 5, padding: '7px 12px', color: C.white, fontSize: 13, outline: 'none', boxSizing: 'border-box' }}
           />
         </div>
 
-        {/* Status */}
         <div style={{ padding: '4px 14px', color: C.gray, fontSize: 11, flexShrink: 0 }}>
-          {loading
-            ? 'Searching MDB…'
-            : `${matches.length ? `${matches.length} quick match(es) · ` : ''}${filtered.length} patient(s)`
-          }
+          {loading ? 'Loading MDB…' : `${filtered.length} patient(s)`}
         </div>
 
-        {/* List */}
         <div style={{ overflowY: 'auto', flex: 1 }}>
           {matches.length > 0 && (
             <>
-              <SectionHeader label="Current session — same patient" color={C.teal} />
-              {matches.map(info => (
-                <PatientRow
-                  key={info.patient?.patient_id}
-                  info={info}
-                  highlight
-                  selected={selected?.patient?.patient_id === info.patient?.patient_id}
-                  onClick={() => setSelected(info)}
-                  onDoubleClick={() => { setSelected(info); setConfirm(true) }}
-                />
-              ))}
+              <div style={{ padding: '4px 14px', background: '#0a1624', color: C.teal, fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1 }}>Current session match</div>
+              {matches.map(info => <PatientRow key={info.patient?.patient_id} info={info} highlight selected={selected?.patient?.patient_id === info.patient?.patient_id} onClick={() => setSelected(info)} onDoubleClick={() => { setSelected(info); setConfirm(true) }} />)}
             </>
           )}
           {others.length > 0 && (
             <>
-              {matches.length > 0 && <SectionHeader label="All patients in MDB" color={C.gray} />}
-              {others.map(info => (
-                <PatientRow
-                  key={info.patient?.patient_id}
-                  info={info}
-                  selected={selected?.patient?.patient_id === info.patient?.patient_id}
-                  onClick={() => setSelected(info)}
-                  onDoubleClick={() => { setSelected(info); setConfirm(true) }}
-                />
-              ))}
+              {matches.length > 0 && <div style={{ padding: '4px 14px', background: '#0a1624', color: C.gray, fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1 }}>All MDB patients</div>}
+              {others.map(info => <PatientRow key={info.patient?.patient_id} info={info} selected={selected?.patient?.patient_id === info.patient?.patient_id} onClick={() => setSelected(info)} onDoubleClick={() => { setSelected(info); setConfirm(true) }} />)}
             </>
           )}
-          {!loading && filtered.length === 0 && (
-            <div style={{ color: C.gray, textAlign: 'center', padding: 40 }}>No patients found</div>
-          )}
+          {!loading && filtered.length === 0 && <div style={{ color: C.gray, textAlign: 'center', padding: 40 }}>No patients found</div>}
         </div>
 
-        {/* Footer */}
         <div style={{ padding: '10px 14px', borderTop: `1px solid ${C.border}`, display: 'flex', gap: 10, flexShrink: 0 }}>
-          <Btn
-            label="Select & Confirm →"
-            color={C.pink}
-            disabled={!selected}
-            onClick={() => setConfirm(true)}
-            bold
-          />
-          <Btn label="Cancel" color="transparent" textColor={C.gray} border={C.border} onClick={onClose} />
+          <Btn label="Select & Confirm →" bg={C.pink} disabled={!selected} onClick={() => setConfirm(true)} bold />
+          <Btn label="Cancel" bg="transparent" textColor={C.gray} border={C.border} onClick={onClose} />
         </div>
       </div>
-    </div>
-  )
-}
-
-function SectionHeader({ label, color }) {
-  return (
-    <div style={{ padding: '5px 14px', background: '#0a1624', color, fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1, borderTop: `1px solid ${C.border}` }}>
-      {label}
     </div>
   )
 }
 
 function PatientRow({ info, highlight, selected, onClick, onDoubleClick }) {
-  const p       = info.patient ?? {}
-  const pid     = p.patient_id ?? '?'
-  const name    = `${p.title ?? ''} ${p.name ?? ''}`.trim() || '—'
-  const dob     = String(p.dob ?? '').slice(0, 10) || '—'
-  const gender  = (p.gender ?? '').slice(0, 1).toUpperCase() || '—'
-  const dateStr = fmtDateShort(info.scan_date)
-
+  const p      = info.patient ?? {}
+  const pid    = p.patient_id ?? '?'
+  const name   = `${p.title ?? ''} ${p.name ?? ''}`.trim() || '—'
+  const gender = (p.gender ?? '').slice(0, 1).toUpperCase() || '—'
   return (
     <div
-      onClick={onClick}
-      onDoubleClick={onDoubleClick}
-      style={{
-        display: 'grid',
-        gridTemplateColumns: '90px 1fr 100px 60px 110px',
-        gap: 8,
-        padding: '8px 14px',
-        cursor: 'pointer',
-        borderBottom: `1px solid #0f2030`,
-        background: selected ? '#1a3a55' : 'transparent',
-        fontSize: 12,
-      }}
+      onClick={onClick} onDoubleClick={onDoubleClick}
+      style={{ display: 'grid', gridTemplateColumns: '90px 1fr 50px 100px', gap: 8, padding: '8px 14px', cursor: 'pointer', borderBottom: `1px solid #0f2030`, background: selected ? '#1a3a55' : 'transparent', fontSize: 12 }}
       onMouseEnter={e => { if (!selected) e.currentTarget.style.background = '#0f2030' }}
       onMouseLeave={e => { if (!selected) e.currentTarget.style.background = 'transparent' }}
     >
-      <div style={{ color: highlight ? C.cyan : C.lt,  fontFamily: 'monospace' }}>{pid}</div>
-      <div style={{ color: highlight ? C.white : C.lt, fontWeight: highlight ? 600 : 400 }}>{name}</div>
-      <div style={{ color: C.gray }}>{dob}</div>
+      <div style={{ color: highlight ? C.cyan : C.lt, fontFamily: 'monospace' }}>{pid}</div>
+      <div style={{ color: highlight ? C.white : C.lt, fontWeight: highlight ? 600 : 400, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{name}</div>
       <div style={{ color: C.gray }}>{gender}</div>
-      <div style={{ color: C.gray }}>{dateStr}</div>
+      <div style={{ color: C.gray }}>{fmtDateShort(info.scan_date)}</div>
     </div>
   )
 }
 
 
-// ── WhatsApp send ─────────────────────────────────────────────────────────────
+// ── Button ────────────────────────────────────────────────────────────────────
 
-function WaBtn({ mrn, patientName }) {
-  const [open, setOpen] = useState(false)
-  return (
-    <>
-      <button
-        onClick={() => setOpen(true)}
-        style={{ background: '#1a5c2a', color: '#4ade80', border: '1px solid #2d6a3f', borderRadius: 4, padding: '5px 12px', fontSize: 11, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap' }}
-      >
-        📱 WhatsApp
-      </button>
-      {open && <WaSendModal mrn={mrn} patientName={patientName} onClose={() => setOpen(false)} />}
-    </>
-  )
-}
-
-function WaSendModal({ mrn, patientName, onClose }) {
-  const [phone,      setPhone]      = useState('')
-  const [name,       setName]       = useState(patientName || '')
-  const [scanType,   setScanType]   = useState('osteo')
-  const [sending,    setSending]    = useState(false)
-  const [result,     setResult]     = useState(null)   // {ok, error, pdfUrl}
-
-  const send = async () => {
-    if (!phone.trim()) return
-    setSending(true)
-    setResult(null)
-    try {
-      const res  = await fetch(`${BASE}/api/wa-send`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ phone, mrn, scanType, patientName: name }),
-      })
-      const data = await res.json()
-      setResult(res.ok ? { ok: true, pdfUrl: data.pdfUrl } : { error: data.error ?? 'Send failed' })
-    } catch (e) {
-      setResult({ error: e.message })
-    } finally {
-      setSending(false)
-    }
-  }
-
-  const overlay = { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 200 }
-  const modal   = { background: C.dark, border: `1px solid ${C.border}`, borderRadius: 8, width: 400, padding: 28 }
-  const inp     = { width: '100%', background: C.card, border: `1px solid ${C.border}`, borderRadius: 5, padding: '8px 12px', color: C.white, fontSize: 13, outline: 'none', boxSizing: 'border-box', marginTop: 6 }
-  const lbl     = { color: C.gray, fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1, marginTop: 14, display: 'block' }
-
-  return (
-    <div style={overlay}>
-      <div style={modal}>
-        <div style={{ fontWeight: 700, fontSize: 15, color: '#4ade80', marginBottom: 16 }}>📱 Send Report via WhatsApp</div>
-
-        {result ? (
-          <div style={{ textAlign: 'center', padding: '20px 0' }}>
-            {result.ok ? (
-              <>
-                <div style={{ fontSize: 36 }}>✅</div>
-                <div style={{ color: '#4ade80', fontWeight: 700, marginTop: 10 }}>Sent successfully</div>
-                <div style={{ color: C.gray, fontSize: 12, marginTop: 6 }}>Report dispatched to {phone}</div>
-              </>
-            ) : (
-              <>
-                <div style={{ fontSize: 36 }}>❌</div>
-                <div style={{ color: C.red, fontWeight: 700, marginTop: 10 }}>Send failed</div>
-                <div style={{ color: '#ef9a9a', fontSize: 12, marginTop: 6 }}>{result.error}</div>
-              </>
-            )}
-            <div style={{ display: 'flex', gap: 10, justifyContent: 'center', marginTop: 20 }}>
-              {result.ok && <Btn label="Send Another" color={C.teal} onClick={() => { setResult(null); setPhone('') }} />}
-              <Btn label="Close" color="transparent" textColor={C.gray} border={C.border} onClick={onClose} />
-            </div>
-          </div>
-        ) : (
-          <>
-            <span style={lbl}>Patient Name</span>
-            <input style={inp} value={name} onChange={e => setName(e.target.value)} placeholder="Full name as on report" />
-
-            <span style={lbl}>Mobile Number</span>
-            <input style={inp} value={phone} onChange={e => setPhone(e.target.value)} placeholder="9949099249  or  919949099249" />
-
-            <span style={lbl}>Report Type</span>
-            <div style={{ display: 'flex', gap: 8, marginTop: 6 }}>
-              {[['osteo', '🦴 Bone Density'], ['totalbody', '🧬 Total Body']].map(([val, label]) => (
-                <button
-                  key={val}
-                  onClick={() => setScanType(val)}
-                  style={{ flex: 1, padding: '8px 0', borderRadius: 5, fontSize: 12, fontWeight: 600, cursor: 'pointer', border: `1px solid ${scanType === val ? C.teal : C.border}`, background: scanType === val ? '#0d3a3c' : C.card, color: scanType === val ? '#80DEEA' : C.gray }}
-                >
-                  {label}
-                </button>
-              ))}
-            </div>
-
-            <div style={{ color: C.gray, fontSize: 10, marginTop: 10 }}>
-              PDF: /api/pdf?mrn={mrn}&type={scanType}&lh=1
-            </div>
-
-            <div style={{ display: 'flex', gap: 10, marginTop: 20 }}>
-              <Btn
-                label={sending ? 'Sending…' : '📤 Send'}
-                color="#1a5c2a"
-                textColor="#4ade80"
-                disabled={sending || !phone.trim()}
-                onClick={send}
-                bold
-              />
-              <Btn label="Cancel" color="transparent" textColor={C.gray} border={C.border} onClick={onClose} />
-            </div>
-          </>
-        )}
-      </div>
-    </div>
-  )
-}
-
-
-// ── Shared button ─────────────────────────────────────────────────────────────
-
-function Btn({ label, color, textColor, border, href, onClick, disabled, title, bold, style: extraStyle }) {
-  const base = {
-    background:  disabled ? '#1a2a3a' : color,
+function Btn({ label, bg, textColor, border, href, onClick, disabled, title, bold, style: extra }) {
+  const s = {
+    background:  disabled ? '#1a2a3a' : bg,
     color:       disabled ? '#4a6a8a' : (textColor ?? C.white),
     border:      border ? `1px solid ${border}` : 'none',
     borderRadius: 4,
@@ -998,19 +709,10 @@ function Btn({ label, color, textColor, border, href, onClick, disabled, title, 
     textDecoration: 'none',
     display:     'inline-block',
     whiteSpace:  'nowrap',
-    opacity:     disabled ? 0.55 : 1,
-    ...extraStyle,
+    opacity:     disabled ? 0.5 : 1,
+    ...extra,
   }
-  if (href && !disabled) {
-    return (
-      <a href={href} target="_blank" rel="noopener noreferrer" style={base} title={title}>
-        {label}
-      </a>
-    )
-  }
-  return (
-    <button onClick={disabled ? undefined : onClick} style={base} title={title}>
-      {label}
-    </button>
-  )
+  if (href && !disabled)
+    return <a href={href} target="_blank" rel="noopener noreferrer" style={s} title={title}>{label}</a>
+  return <button onClick={disabled ? undefined : onClick} style={s} title={title}>{label}</button>
 }
