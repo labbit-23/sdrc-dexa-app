@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import BASE from '@/lib/basepath'
 
 const cards = [
   {
@@ -57,7 +58,7 @@ export default function HubPage() {
                 <div style={{ fontSize: 36, marginBottom: 14 }}>
                   {c.icon
                     ? c.icon
-                    : <img src="/dexa-scanner.png" alt="DEXA Scanner" style={{ height: 40, display: 'block' }} />
+                    : <img src={`${BASE}/dexa-scanner.png`} alt="DEXA Scanner" style={{ height: 40, display: 'block' }} />
                   }
                 </div>
                 <div style={{ fontWeight: 700, fontSize: 15, color: '#1a1a2e', marginBottom: 6 }}>{c.title}</div>
