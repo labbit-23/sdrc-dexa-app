@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>SDRC DICOM Dashboard</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="icon" type="image/x-icon" href="favicon.ico">
+
+    <style>
+        body {
+            font-family: 'Segoe UI', Arial, sans-serif;
+            margin: 0;
+            background: #f5f7fa;
+            color: #333;
+        }
+
+        .header {
+            background: #ffffff;
+            padding: 20px 40px;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.05);
+            display: flex;
+            align-items: center;
+        }
+
+        .header img {
+            height: 50px;
+        }
+
+        .container {
+            padding: 40px;
+            max-width: 1100px;
+            margin: auto;
+        }
+
+        h2 {
+            margin-top: 0;
+            color: #008f82;
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        label {
+            font-weight: 600;
+            display: block;
+            margin-bottom: 5px;
+        }
+
+        input {
+            padding: 10px;
+            width: 320px;
+            border-radius: 6px;
+            border: 1px solid #ccc;
+        }
+
+        button {
+            padding: 10px 20px;
+            border-radius: 6px;
+            border: none;
+            cursor: pointer;
+            font-weight: 600;
+        }
+
+        .primary-btn {
+            background: #008f82;
+            color: white;
+        }
+
+        .secondary-btn {
+            background: #f26939;
+            color: white;
+            margin-left: 10px;
+        }
+
+        .primary-btn:hover {
+            background: #00776d;
+        }
+
+        .secondary-btn:hover {
+            background: #e45725;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 30px;
+            background: white;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+        }
+
+        th {
+            background: #008f82;
+            color: white;
+            padding: 12px;
+            text-align: left;
+        }
+
+        td {
+            padding: 10px;
+            border-bottom: 1px solid #eee;
+        }
+
+        tr:hover {
+            background: #f2f9f8;
+        }
+
+        .status {
+            margin-top: 20px;
+            font-weight: bold;
+        }
+
+        .success { color: #008f82; }
+        .error { color: red; }
+
+    </style>
+</head>
+
+<body>
+
+<div class="header">
+    <img src="https://sdrc.in/assets/sdrc-logo.png" alt="SDRC Logo">
+</div>
+
+<div class="container">
+
+    <h2>SDRC DICOM Dashboard</h2>
+    <table>
+    <tr>
+    <td><h3>Manual WhatsApp Trigger</h3></td>
+    <td><h3>Check Study Status</h3></td>
+    </tr>
+
+    <tr>
+    <td>
+    <div class="form-group">
+        <label>Accession Number:</label>
+        <input type="text" id="accession" placeholder="20260212077">
+    </div>
+
+    <div class="form-group">
+        <label>Phone (91XXXXXXXXXX):</label>
+        <input type="text" id="phone" placeholder="919849025601">
+    </div>
+
+    <button class="primary-btn" onclick="sendManual()">Send</button>
+    </td>
+    <td>
+    <div class="form-group">
+        <label>Date:</label>
+        <input type="date" id="studyDate" max="">
+    </div>
+
+    <button class="secondary-btn" onclick="loadStudies()">Load Studies</button>
+    <h5 id="loadingMsg" style="display:none; color:#f26939;">
+        Click only once. Please wait while list loads...
+    </h5>
+    </td>
+    </tr>
+    </table>
+
+    <table>
+        <thead>
+            <tr>
+                <th>Accession</th>
+                <th>Patient</th>
+                <th>Status</th>
+                <th>Attempts</th>
+                <th>Phone</th>
+                <th>Timestamp</th>
+            </tr>
+        </thead>
+        <tbody id="studyTable"></tbody>
+    </table>
+
+    <div class="status" id="status"></div>
+
+</div>
+
+<script>
+
+function formatDateToYYYYMMDD(dateStr) {
+    if (!dateStr) return null;
+    return dateStr.replaceAll("-", "");
+}
+
+function loadStudies() {
+
+    const dateInput = document.getElementById("studyDate").value;
+    const loadingMsg = document.getElementById("loadingMsg");
+    const loadBtn = document.querySelector(".secondary-btn");
+
+    if (!dateInput) {
+        alert("Please select a date.");
+        return;
+    }
+
+    const selectedDate = new Date(dateInput);
+    const today = new Date();
+
+    if (selectedDate > today) {
+        alert("Future dates are not allowed.");
+        return;
+    }
+
+    // ✅ SHOW loading message
+    loadingMsg.style.display = "block";
+
+    // ✅ Disable button to prevent double click
+    loadBtn.disabled = true;
+    loadBtn.innerText = "Loading...";
+
+    const formattedDate = formatDateToYYYYMMDD(dateInput);
+
+    fetch("http://100.103.168.62:8085/manualsend/", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+            action: "LIST",
+            date: formattedDate
+        })
+    })
+    .then(res => res.json())
+    .then(data => {
+
+        const table = document.getElementById("studyTable");
+        table.innerHTML = "";
+
+        data.forEach(study => {
+
+            if (!study.studyId) return;
+
+            const folderUrl = `https://files.sdrc.in/${study.studyId}/`;
+
+            table.innerHTML += `
+                <tr onclick="window.open('${folderUrl}', '_blank')" 
+                    style="cursor:pointer;">
+                    <td>${study.accession}</td>
+                    <td>${study.patientName}</td>
+                    <td>${study.status}</td>
+                    <td>${study.attempts}</td>
+                    <td>${study.phone}</td>
+                    <td>${study.timestamp}</td>
+                </tr>
+            `;
+        });
+
+    })
+    .catch(err => {
+        alert("Error loading studies");
+        console.error(err);
+    })
+    .finally(() => {
+        // ✅ Hide loading message
+        loadingMsg.style.display = "none";
+
+        // ✅ Re-enable button
+        loadBtn.disabled = false;
+        loadBtn.innerText = "Load Studies";
+    });
+}
+
+function sendManual() {
+
+    const accession = document.getElementById("accession").value.trim();
+    const phone = document.getElementById("phone").value.trim();
+
+    if (!accession || !phone) {
+        alert("Please fill both fields.");
+        return;
+    }
+
+    fetch("http://100.103.168.62:8085/manualsend/", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+            accession: accession,
+            phone: phone,
+            sendMode: "MANUAL"
+        })
+    })
+    .then(res => res.text())
+    .then(() => {
+        const statusDiv = document.getElementById("status");
+        statusDiv.className = "status success";
+        statusDiv.innerText = "Triggered successfully ✔";
+    })
+    .catch(err => {
+        const statusDiv = document.getElementById("status");
+        statusDiv.className = "status error";
+        statusDiv.innerText = "Error ❌ Check console";
+        console.error(err);
+    });
+}
+// Set today's date as default and prevent future selection
+(function setTodayDate() {
+    const today = new Date();
+    const formatted = today.toISOString().split('T')[0];
+
+    const dateInput = document.getElementById("studyDate");
+    dateInput.value = formatted;  // default today
+    dateInput.max = formatted;    // block future dates
+})();
+
+</script>
+
+</body>
+</html>

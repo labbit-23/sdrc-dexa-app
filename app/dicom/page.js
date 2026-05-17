@@ -2,7 +2,6 @@
 
 import BASE from '@/lib/basepath'
 
-const DICOM_URL = process.env.NEXT_PUBLIC_DICOM_SEND_URL ?? 'http://100.103.168.62:8085'
 
 export default function DicomDashboard() {
   return (
@@ -24,7 +23,7 @@ export default function DicomDashboard() {
         </a>
       </div>
       <iframe
-        src={DICOM_URL}
+        src={`${BASE}/dicom.html`}
         style={{ flex: 1, border: 'none', width: '100%' }}
         title="DICOM Dashboard"
       />
