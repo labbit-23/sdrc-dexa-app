@@ -43,9 +43,17 @@ export async function GET(req, { params }) {
     )
   }
 
+  // Deduplicate by scan_date — keep latest upload per date (scans are ordered oldest→newest)
+  const byDate = new Map()
+  for (const s of scans) {
+    const d = (s.scan_date ?? '').slice(0, 10)
+    byDate.set(d, s)
+  }
+  const dedupedScans = [...byDate.values()]
+
   // Most recent scan is the current; all prior are history
-  const scan = scans[scans.length - 1]
-  const priorScans = scans.slice(0, -1)
+  const scan = dedupedScans[dedupedScans.length - 1]
+  const priorScans = dedupedScans.slice(0, -1)
 
   const imageUrls = buildImageUrls(scan.image_paths)
 
