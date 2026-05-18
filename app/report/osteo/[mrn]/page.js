@@ -1,113 +1,13 @@
 'use client'
 
-import { useState } from 'react'
-import WaSendModal from '@/components/WaSendModal'
+import { useEffect } from 'react'
+import { useRouter } from 'next/navigation'
 import BASE from '@/lib/basepath'
 
-function PdfBtn({ href, label, bg, faint }) {
-  const [busy, setBusy] = useState(false)
-  const download = () => {
-    setBusy(true)
-    window.location.href = href
-    setTimeout(() => setBusy(false), 8000)
-  }
-  return (
-    <button
-      onClick={download}
-      disabled={busy}
-      style={{
-        padding: '5px 14px', borderRadius: 5, fontSize: 12, fontWeight: 700,
-        background: busy ? '#6b7280' : bg, color: busy ? '#d1d5db' : (faint ?? '#fff'),
-        border: 'none', cursor: busy ? 'default' : 'pointer', whiteSpace: 'nowrap',
-      }}
-    >
-      {busy ? '⏳ Generating…' : label}
-    </button>
-  )
-}
-
 export default function OsteoReportPage({ params }) {
-  const { mrn } = params
-  const [lh,    setLh]    = useState(false)
-  const [waOpen, setWaOpen] = useState(false)
-
-  const renderUrl = lh ? `${BASE}/render/osteo/${mrn}?lh=1` : `${BASE}/render/osteo/${mrn}`
-
-  return (
-    <div style={{ position: 'fixed', inset: 0, background: '#f0f4f8', display: 'flex', flexDirection: 'column' }}>
-      <style>{`@media print{#report-toolbar{display:none!important}.report-frame{position:static!important;height:100vh!important}}`}</style>
-
-      <div id="report-toolbar" style={{
-        height: 44, background: '#fff', borderBottom: '1px solid #d0dce8',
-        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        padding: '0 16px', flexShrink: 0,
-      }}>
-        <div style={{ fontSize: 12, color: '#6b7280' }}>
-          <span style={{ color: '#0D7377', fontWeight: 700 }}>SDRC</span>
-          {' '}· Bone Density Report · MRN {mrn}
-        </div>
-
-        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-          <button
-            onClick={() => setLh(l => !l)}
-            style={{
-              padding: '5px 14px', borderRadius: 5, fontSize: 12, fontWeight: 600,
-              background: lh ? '#fff3e0' : '#f5f7fa',
-              color:      lh ? '#b45309' : '#374151',
-              border: `1px solid ${lh ? '#f59e0b88' : '#d0dce8'}`,
-              cursor: 'pointer',
-            }}
-          >
-            {lh ? '✕ Exit letterhead' : '📄 Letterhead preview'}
-          </button>
-
-          <a href={renderUrl} target="_blank" rel="noopener noreferrer" style={{
-            padding: '5px 14px', borderRadius: 5, fontSize: 12, fontWeight: 600,
-            background: '#f5f7fa', color: '#374151',
-            border: '1px solid #d0dce8', textDecoration: 'none',
-          }}>
-            Open in new tab
-          </a>
-
-          <a href={`${BASE}/print/osteo/${mrn}`} style={{
-            padding: '5px 14px', borderRadius: 5, fontSize: 12, fontWeight: 600,
-            background: '#1a202c', color: '#a0aec0',
-            border: '1px solid #2d3748', textDecoration: 'none',
-          }}>
-            🖨 Print Preview
-          </a>
-
-          <PdfBtn href={`${BASE}/api/pdf?mrn=${mrn}`}      label="↓ PDF"              bg="#0D7377" />
-          <PdfBtn href={`${BASE}/api/pdf?mrn=${mrn}&lh=1`} label="↓ PDF (Letterhead)" bg="#92400e" faint="#fef3c7" />
-
-          <button
-            onClick={() => setWaOpen(true)}
-            style={{
-              padding: '5px 14px', borderRadius: 5, fontSize: 12, fontWeight: 700,
-              background: '#1a5c2a', color: '#4ade80',
-              border: '1px solid #2d6a3f', cursor: 'pointer',
-            }}
-          >
-            📱 WhatsApp
-          </button>
-        </div>
-      </div>
-
-      <iframe
-        key={renderUrl}
-        src={renderUrl}
-        className="report-frame"
-        style={{ flex: 1, border: 'none', width: '100%' }}
-        title="Bone Density Report"
-      />
-
-      {waOpen && (
-        <WaSendModal
-          mrn={mrn}
-          scanType="osteo"
-          onClose={() => setWaOpen(false)}
-        />
-      )}
-    </div>
-  )
+  const router = useRouter()
+  useEffect(() => {
+    router.replace(`${BASE}/print/osteo/${params.mrn}`)
+  }, [])
+  return null
 }

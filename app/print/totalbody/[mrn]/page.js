@@ -1,52 +1,72 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect } from 'react'
+import WaSendModal from '@/components/WaSendModal'
 import BASE from '@/lib/basepath'
+
+function PdfBtn({ href, label, bg, faint }) {
+  const [busy, setBusy] = useState(false)
+  const download = () => {
+    setBusy(true)
+    window.location.href = href
+    setTimeout(() => setBusy(false), 8000)
+  }
+  return (
+    <button
+      onClick={download}
+      disabled={busy}
+      style={{
+        padding: '5px 14px', borderRadius: 5, fontSize: 12, fontWeight: 700,
+        background: busy ? '#6b7280' : bg, color: busy ? '#d1d5db' : (faint ?? '#fff'),
+        border: 'none', cursor: busy ? 'default' : 'pointer', whiteSpace: 'nowrap',
+      }}
+    >
+      {busy ? '⏳ Generating…' : label}
+    </button>
+  )
+}
 
 export default function PrintPreviewTotalbody({ params }) {
   const { mrn } = params
   const [lh, setLh] = useState(false)
-  const [dialog, setDialog] = useState(false)
+  const [waOpen, setWaOpen] = useState(false)
 
   const previewUrl = lh
     ? `${BASE}/render/totalbody/${mrn}?lh=1&preview=1`
     : `${BASE}/render/totalbody/${mrn}?preview=1`
 
+  const pdfHref = lh
+    ? `${BASE}/api/pdf?mrn=${mrn}&type=totalbody&lh=1`
+    : `${BASE}/api/pdf?mrn=${mrn}&type=totalbody`
+
+  const doPrint = () => {
+    const win = window.open(previewUrl, '_blank')
+    if (!win) return
+    win.addEventListener('load', () => { setTimeout(() => { win.print() }, 400) })
+  }
+
   useEffect(() => {
     const handler = e => {
       if ((e.ctrlKey || e.metaKey) && e.key === 'p') {
         e.preventDefault()
-        setDialog(true)
+        doPrint()
       }
     }
     window.addEventListener('keydown', handler)
     return () => window.removeEventListener('keydown', handler)
-  }, [])
-
-  const doPrint = (withLh) => {
-    setDialog(false)
-    const printUrl = withLh
-      ? `${BASE}/render/totalbody/${mrn}?lh=1&preview=1`
-      : `${BASE}/render/totalbody/${mrn}?preview=1`
-    const win = window.open(printUrl, '_blank')
-    if (!win) return
-    win.addEventListener('load', () => { setTimeout(() => { win.print() }, 400) })
-  }
+  }, [lh])
 
   return (
     <div style={{ position: 'fixed', inset: 0, background: '#4a5568', display: 'flex', flexDirection: 'column', fontFamily: 'system-ui, sans-serif' }}>
 
       <div style={{
         height: 48, background: '#1a202c', display: 'flex', alignItems: 'center',
-        gap: 10, padding: '0 16px', flexShrink: 0, borderBottom: '1px solid #2d3748',
+        gap: 8, padding: '0 16px', flexShrink: 0, borderBottom: '1px solid #2d3748',
       }}>
-        <a href={`${BASE}/report/totalbody/${mrn}`} style={{ color: '#a0aec0', fontSize: 12, textDecoration: 'none', padding: '5px 12px', borderRadius: 4, border: '1px solid #4a5568' }}>
-          ← Report
-        </a>
-        <span style={{ color: '#718096', fontSize: 12, marginLeft: 4 }}>
-          Print Preview · MRN {mrn}
-        </span>
+        <span style={{ color: '#0D7377', fontWeight: 700, fontSize: 12 }}>SDRC</span>
+        <span style={{ color: '#718096', fontSize: 12 }}>· Total Body Composition Report · MRN {mrn}</span>
         <div style={{ flex: 1 }} />
+
         <button
           onClick={() => setLh(l => !l)}
           style={{
@@ -59,14 +79,28 @@ export default function PrintPreviewTotalbody({ params }) {
         >
           {lh ? '✕ Exit Letterhead' : '📄 Letterhead'}
         </button>
+
+        <PdfBtn href={pdfHref} label="↓ PDF" bg={lh ? '#92400e' : '#0D7377'} faint={lh ? '#fef3c7' : '#fff'} />
+
         <button
-          onClick={() => setDialog(true)}
+          onClick={doPrint}
           style={{
             padding: '5px 18px', borderRadius: 5, fontSize: 12, fontWeight: 700,
-            background: '#0D7377', color: '#fff', border: 'none', cursor: 'pointer',
+            background: '#374151', color: '#e5e7eb', border: '1px solid #4a5568', cursor: 'pointer',
           }}
         >
-          🖨 Print…
+          🖨 Print
+        </button>
+
+        <button
+          onClick={() => setWaOpen(true)}
+          style={{
+            padding: '5px 14px', borderRadius: 5, fontSize: 12, fontWeight: 700,
+            background: '#1a5c2a', color: '#4ade80',
+            border: '1px solid #2d6a3f', cursor: 'pointer',
+          }}
+        >
+          📱 WhatsApp
         </button>
       </div>
 
@@ -74,42 +108,15 @@ export default function PrintPreviewTotalbody({ params }) {
         key={previewUrl}
         src={previewUrl}
         style={{ flex: 1, border: 'none', width: '100%' }}
-        title="Print Preview"
+        title="Total Body Composition Report"
       />
 
-      {dialog && (
-        <div style={{
-          position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)',
-          display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100,
-        }}>
-          <div style={{
-            background: '#1a202c', border: '1px solid #2d3748', borderRadius: 10,
-            padding: '28px 32px', minWidth: 320, textAlign: 'center',
-          }}>
-            <div style={{ color: '#e2e8f0', fontWeight: 700, fontSize: 15, marginBottom: 6 }}>Print report as…</div>
-            <div style={{ color: '#718096', fontSize: 12, marginBottom: 24 }}>Choose layout for this print job</div>
-            <div style={{ display: 'flex', gap: 12 }}>
-              <button
-                onClick={() => doPrint(false)}
-                style={{ flex: 1, padding: '10px 0', borderRadius: 6, fontSize: 13, fontWeight: 700, background: '#0D7377', color: '#fff', border: 'none', cursor: 'pointer' }}
-              >
-                📄 Plain
-              </button>
-              <button
-                onClick={() => doPrint(true)}
-                style={{ flex: 1, padding: '10px 0', borderRadius: 6, fontSize: 13, fontWeight: 700, background: '#92400e', color: '#fef3c7', border: 'none', cursor: 'pointer' }}
-              >
-                🏥 Letterhead
-              </button>
-            </div>
-            <button
-              onClick={() => setDialog(false)}
-              style={{ marginTop: 14, color: '#718096', fontSize: 12, background: 'none', border: 'none', cursor: 'pointer' }}
-            >
-              Cancel
-            </button>
-          </div>
-        </div>
+      {waOpen && (
+        <WaSendModal
+          mrn={mrn}
+          scanType="totalbody"
+          onClose={() => setWaOpen(false)}
+        />
       )}
     </div>
   )
