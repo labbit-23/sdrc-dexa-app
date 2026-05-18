@@ -88,7 +88,8 @@ export async function GET(req, { params }) {
     .filter(Boolean)
 
   const letterhead = req.nextUrl.searchParams.get('lh') === '1'
-  const html = generateOsteoHtml(reportData, { dark: false, letterhead, history })
+  const preview    = req.nextUrl.searchParams.get('preview') === '1'
+  const html = generateOsteoHtml(reportData, { dark: false, letterhead, history, preview })
 
   return new NextResponse(html, {
     headers: { 'Content-Type': 'text/html; charset=utf-8' },

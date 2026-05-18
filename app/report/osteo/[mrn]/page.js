@@ -69,6 +69,14 @@ export default function OsteoReportPage({ params }) {
             Open in new tab
           </a>
 
+          <a href={`${BASE}/print/osteo/${mrn}`} style={{
+            padding: '5px 14px', borderRadius: 5, fontSize: 12, fontWeight: 600,
+            background: '#1a202c', color: '#a0aec0',
+            border: '1px solid #2d3748', textDecoration: 'none',
+          }}>
+            🖨 Print Preview
+          </a>
+
           <PdfBtn href={`${BASE}/api/pdf?mrn=${mrn}`}      label="↓ PDF"              bg="#0D7377" />
           <PdfBtn href={`${BASE}/api/pdf?mrn=${mrn}&lh=1`} label="↓ PDF (Letterhead)" bg="#92400e" faint="#fef3c7" />
 
