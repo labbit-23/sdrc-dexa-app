@@ -75,10 +75,10 @@ export default function FetchStudiesPage() {
   // Load MDB all patients + DB mrns on mount
   useEffect(() => {
     Promise.all([
-      fetch(`${BASE}/api/collector/all?max_count=500`).then(r => r.json()).catch(() => []),
-      fetch(`${BASE}/api/collector/db-mrns`).then(r => r.json()).catch(() => ({ mrns: [] })),
+      fetch(`${BASE}/api/collector/all?max_count=500`).then(r => r.ok ? r.json() : []).catch(() => []),
+      fetch(`${BASE}/api/collector/db-mrns`).then(r => r.ok ? r.json() : { mrns: [] }).catch(() => ({ mrns: [] })),
     ]).then(([patients, dbData]) => {
-      setMdbAll(patients)
+      setMdbAll(Array.isArray(patients) ? patients : [])
       setDbMrns(new Set(dbData.mrns ?? []))
       setMdbLoading(false)
     })
