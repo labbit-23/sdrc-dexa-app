@@ -37,12 +37,19 @@ function fmtDateShort(iso) {
 
 function basename(p) { return (p || '').split(/[\\/]/).pop() }
 
+// Derive scan type string from upload result (storage_prefix or scan_type field)
+function _scanType(result) {
+  const prefix = result?.storage_prefix ?? ''
+  if (prefix.startsWith('raw-totalbody') || result?.scan_type === 'total_body') return 'total_body'
+  return 'osteo'
+}
+
 export default function FetchStudiesPage() {
   // Recent studies (right panel)
   const [recent,     setRecent]     = useState([])
   const [recentSt,   setRecentSt]   = useState('idle')  // idle | loading | done | error
   const [recentErr,  setRecentErr]  = useState('')
-  const [uploaded,   setUploaded]   = useState(() => new Set())
+  const [uploaded,   setUploaded]   = useState(() => new Map()) // mrn → scanType
   const [uploading,  setUploading]  = useState(() => new Set())
   const [progress,   setProgress]   = useState({})
   const [offline,    setOffline]    = useState(false)
@@ -50,7 +57,7 @@ export default function FetchStudiesPage() {
 
   // MDB browser (left panel)
   const [mdbAll,     setMdbAll]     = useState([])
-  const [dbMrns,     setDbMrns]     = useState(new Set())
+  const [dbMrns,     setDbMrns]     = useState(new Map()) // mrn → scanType
   const [mdbQ,       setMdbQ]       = useState('')
   const [mdbLoading, setMdbLoading] = useState(true)
   const [selected,   setSelected]   = useState(null)
@@ -76,10 +83,10 @@ export default function FetchStudiesPage() {
   useEffect(() => {
     Promise.all([
       fetch(`${BASE}/api/collector/all?max_count=500`).then(r => r.ok ? r.json() : []).catch(() => []),
-      fetch(`${BASE}/api/collector/db-mrns`).then(r => r.ok ? r.json() : { mrns: [] }).catch(() => ({ mrns: [] })),
+      fetch(`${BASE}/api/collector/db-mrns`).then(r => r.ok ? r.json() : { by_mrn: {} }).catch(() => ({ by_mrn: {} })),
     ]).then(([patients, dbData]) => {
       setMdbAll(Array.isArray(patients) ? patients : [])
-      setDbMrns(new Set(dbData.mrns ?? []))
+      setDbMrns(new Map(Object.entries(dbData.by_mrn ?? {})))
       setMdbLoading(false)
     })
   }, [])
@@ -167,11 +174,11 @@ export default function FetchStudiesPage() {
             const evt = JSON.parse(line.slice(6))
             if (fromMdb) {
               if (evt.msg)   setMdbProgress(p => [...p, evt.msg])
-              if (evt.done)  { setMdbDone(true); setDbMrns(s => new Set([...s, pid])); setUploaded(u => new Set([...u, pid])); setMdbProgress(p => [...p, '✓ Done']) }
+              if (evt.done)  { const st = _scanType(evt.result); setMdbDone(true); setDbMrns(s => new Map([...s, [pid, st]])); setUploaded(u => new Map([...u, [pid, st]])); setMdbProgress(p => [...p, '✓ Done']) }
               if (evt.error) setMdbProgress(p => [...p, `✗ ${evt.error}`])
             } else {
               if (evt.msg)   addLine(evt.msg)
-              if (evt.done)  { setUploaded(u => new Set([...u, pid])); setDbMrns(s => new Set([...s, pid])); addLine('✓ Done') }
+              if (evt.done)  { const st = _scanType(evt.result); setUploaded(u => new Map([...u, [pid, st]])); setDbMrns(s => new Map([...s, [pid, st]])); addLine('✓ Done') }
               if (evt.error) addLine(`✗ ${evt.error}`)
             }
           } catch {}
@@ -198,6 +205,7 @@ export default function FetchStudiesPage() {
   const selName   = `${selected?.patient?.title ?? ''} ${selected?.patient?.name ?? ''}`.trim()
   const selInDb   = dbMrns.has(selPid)
   const selUpd    = uploaded.has(selPid) || mdbDone
+  const selScanType = uploaded.get(selPid) ?? dbMrns.get(selPid) ?? 'osteo'
 
   return (
     <div style={{ position: 'fixed', inset: 0, background: C.dark, fontFamily: 'system-ui, sans-serif', color: C.white, display: 'flex', flexDirection: 'column' }}>
@@ -317,14 +325,9 @@ export default function FetchStudiesPage() {
                 {selUpd && <span style={{ color: '#4ade80', fontSize: 11, fontWeight: 700 }}>✓ Uploaded</span>}
                 {(selInDb || selUpd) && (
                   <>
-                    <Btn label="🦴 Osteo"      bg={C.teal}   href={`${BASE}/report/osteo/${selPid}`} />
-                    <Btn label="📊 Total Body"  bg={C.purple} href={`${BASE}/report/totalbody/${selPid}`} />
-                    <Btn
-                      label="📱 WA"
-                      bg="#1a5c2a"
-                      textColor="#4ade80"
-                      onClick={() => { setWaMrn(selPid); setWaName(selName); setWaOpen(true) }}
-                    />
+                    {selScanType !== 'total_body' && <Btn label="🦴 Osteo"     bg={C.teal}   href={`${BASE}/report/osteo/${selPid}`} />}
+                    {selScanType === 'total_body' && <Btn label="📊 Total Body" bg={C.purple} href={`${BASE}/report/totalbody/${selPid}`} />}
+                    <Btn label="📱 WA" bg="#1a5c2a" textColor="#4ade80" onClick={() => { setWaMrn(selPid); setWaName(selName); setWaOpen(true) }} />
                   </>
                 )}
               </div>
@@ -401,8 +404,9 @@ export default function FetchStudiesPage() {
                 isUploading={uploading.has(info.patient?.patient_id)}
                 progressLog={progress[info.patient?.patient_id] ?? []}
                 inDb={dbMrns.has(info.patient?.patient_id)}
+                scanType={uploaded.get(info.patient?.patient_id) ?? dbMrns.get(info.patient?.patient_id) ?? 'osteo'}
                 onUpload={uploadPatient}
-                onUploaded={pid => { setUploaded(u => new Set([...u, pid])); setDbMrns(s => new Set([...s, pid])) }}
+                onUploaded={(pid, st) => { setUploaded(u => new Map([...u, [pid, st]])); setDbMrns(s => new Map([...s, [pid, st]])) }}
                 onWa={(mrn, name) => { setWaMrn(mrn); setWaName(name); setWaOpen(true) }}
               />
             ))}
@@ -439,7 +443,7 @@ export default function FetchStudiesPage() {
 
 // ── Recent patient card ───────────────────────────────────────────────────────
 
-function RecentCard({ info, uploaded, isUploading, progressLog, inDb, onUpload, onWa }) {
+function RecentCard({ info, uploaded, isUploading, progressLog, inDb, scanType, onUpload, onWa }) {
   const p       = info.patient ?? {}
   const pid     = p.patient_id ?? ''
   const name    = `${p.title ?? ''} ${p.name ?? ''}`.trim() || pid
@@ -505,9 +509,9 @@ function RecentCard({ info, uploaded, isUploading, progressLog, inDb, onUpload, 
           )}
           {showActions && (
             <>
-              <Btn label="🦴 Osteo"     bg={C.teal}   href={`${BASE}/report/osteo/${pid}`} />
-              <Btn label="📊 Total Body" bg={C.purple} href={`${BASE}/report/totalbody/${pid}`} />
-              <Btn label="📱 WhatsApp"   bg="#1a5c2a"  textColor="#4ade80" onClick={() => onWa(pid, name)} />
+              {scanType !== 'total_body' && <Btn label="🦴 Osteo"     bg={C.teal}   href={`${BASE}/report/osteo/${pid}`} />}
+              {scanType === 'total_body' && <Btn label="📊 Total Body" bg={C.purple} href={`${BASE}/report/totalbody/${pid}`} />}
+              <Btn label="📱 WA" bg="#1a5c2a" textColor="#4ade80" onClick={() => onWa(pid, name)} />
             </>
           )}
         </div>
