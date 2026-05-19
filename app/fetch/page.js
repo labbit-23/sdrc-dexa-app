@@ -253,18 +253,20 @@ export default function FetchStudiesPage() {
           {/* Patient list */}
           <div style={{ overflowY: 'auto', flex: 1 }}>
             {mdbFiltered.map(info => {
-              const ip    = info.patient ?? {}
-              const ipid  = ip.patient_id ?? ''
-              const iname = `${ip.title ?? ''} ${ip.name ?? ''}`.trim() || '—'
-              const iinDb = dbMrns.has(ipid)
-              const isel  = selected?.patient?.patient_id === ipid
+              const ip         = info.patient ?? {}
+              const ipid       = ip.patient_id ?? ''
+              const iname      = `${ip.title ?? ''} ${ip.name ?? ''}`.trim() || '—'
+              const iinDb      = dbMrns.has(ipid)
+              const isel       = selected?.patient?.patient_id === ipid
+              const icomponents= info.scan_components ?? []
+              const iScanType  = info.mdb_scan_type ?? 'osteo'
+              const tagColor   = iScanType === 'total_body' ? C.purple : C.teal
               return (
                 <div
                   key={ipid}
                   onClick={() => { setSelected(info); setMdbDone(false); setMdbProgress([]) }}
                   style={{
-                    display: 'grid', gridTemplateColumns: '14px 74px 1fr 80px', gap: 8,
-                    padding: '8px 14px', cursor: 'pointer',
+                    padding: '7px 14px', cursor: 'pointer',
                     borderBottom: `1px solid #0f2030`,
                     background: isel ? '#1a3a55' : 'transparent',
                     fontSize: 12,
@@ -272,10 +274,23 @@ export default function FetchStudiesPage() {
                   onMouseEnter={e => { if (!isel) e.currentTarget.style.background = '#0f2030' }}
                   onMouseLeave={e => { if (!isel) e.currentTarget.style.background = 'transparent' }}
                 >
-                  <div style={{ color: iinDb ? '#4ade80' : '#2a3a4a', fontSize: 9, paddingTop: 3 }}>●</div>
-                  <div style={{ color: C.lt, fontFamily: 'monospace', fontSize: 11, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{ipid}</div>
-                  <div style={{ color: isel ? C.white : C.lt, fontWeight: isel ? 600 : 400, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{iname}</div>
-                  <div style={{ color: C.gray, fontSize: 10, textAlign: 'right' }}>{fmtDateShort(info.scan_date)}</div>
+                  <div style={{ display: 'grid', gridTemplateColumns: '14px 74px 1fr 80px', gap: 8, alignItems: 'center' }}>
+                    <div style={{ color: iinDb ? '#4ade80' : '#2a3a4a', fontSize: 9 }}>●</div>
+                    <div style={{ color: C.lt, fontFamily: 'monospace', fontSize: 11, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{ipid}</div>
+                    <div style={{ color: isel ? C.white : C.lt, fontWeight: isel ? 600 : 400, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{iname}</div>
+                    <div style={{ color: C.gray, fontSize: 10, textAlign: 'right' }}>{fmtDateShort(info.scan_date)}</div>
+                  </div>
+                  {icomponents.length > 0 && (
+                    <div style={{ display: 'flex', gap: 4, marginTop: 3, paddingLeft: 22 }}>
+                      {icomponents.map(c => (
+                        <span key={c} style={{
+                          background: tagColor + '18', border: `1px solid ${tagColor}44`,
+                          color: tagColor, borderRadius: 2, padding: '0 5px',
+                          fontSize: 9, fontWeight: 600, letterSpacing: 0.3,
+                        }}>{c}</span>
+                      ))}
+                    </div>
+                  )}
                 </div>
               )
             })}
@@ -288,11 +303,13 @@ export default function FetchStudiesPage() {
           {selected && (
             <div style={{ borderTop: `1px solid ${C.border}`, padding: 14, flexShrink: 0, background: '#0d1f35' }}>
               <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 2 }}>{selName || selPid}</div>
-              <div style={{ fontSize: 11, color: C.gray, marginBottom: 8 }}>
+              <div style={{ fontSize: 11, color: C.gray, marginBottom: 4 }}>
                 MRN: <span style={{ color: C.lt }}>{selPid}</span>
                 {' · '}Scan: {fmtDateShort(selected.scan_date)}
                 {selInDb && <span style={{ color: '#4ade80', marginLeft: 8 }}>✓ In DB</span>}
               </div>
+              <ScanBadges components={selected.scan_components ?? []} mdbScanType={selected.mdb_scan_type ?? 'osteo'} />
+              <div style={{ marginBottom: 4 }} />
 
               {/* XPS status */}
               <div style={{ fontSize: 11, color: C.gray, marginBottom: 8 }}>
@@ -441,15 +458,35 @@ export default function FetchStudiesPage() {
 }
 
 
+// ── Scan component badge ──────────────────────────────────────────────────────
+
+function ScanBadges({ components, mdbScanType }) {
+  if (!components || components.length === 0) return null
+  const color = mdbScanType === 'total_body' ? C.purple : C.teal
+  return (
+    <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginTop: 4 }}>
+      {components.map(c => (
+        <span key={c} style={{
+          background: color + '22', border: `1px solid ${color}66`,
+          color, borderRadius: 3, padding: '1px 7px',
+          fontSize: 10, fontWeight: 600, letterSpacing: 0.4,
+        }}>{c}</span>
+      ))}
+    </div>
+  )
+}
+
 // ── Recent patient card ───────────────────────────────────────────────────────
 
 function RecentCard({ info, uploaded, isUploading, progressLog, inDb, scanType, onUpload, onWa }) {
-  const p       = info.patient ?? {}
-  const pid     = p.patient_id ?? ''
-  const name    = `${p.title ?? ''} ${p.name ?? ''}`.trim() || pid
-  const xpsList = info.xps_files ?? []
-  const hasXps  = xpsList.length > 0
-  const logEnd  = useRef(null)
+  const p          = info.patient ?? {}
+  const pid        = p.patient_id ?? ''
+  const name       = `${p.title ?? ''} ${p.name ?? ''}`.trim() || pid
+  const xpsList    = info.xps_files ?? []
+  const hasXps     = xpsList.length > 0
+  const components = info.scan_components ?? []
+  const mdbScanType= info.mdb_scan_type ?? 'osteo'
+  const logEnd     = useRef(null)
 
   useEffect(() => {
     logEnd.current?.scrollIntoView({ behavior: 'smooth' })
@@ -479,8 +516,10 @@ function RecentCard({ info, uploaded, isUploading, progressLog, inDb, scanType, 
             MRN: <strong style={{ color: C.lt }}>{pid}</strong>
             {' · '}Scan: {fmtDate(info.scan_date)}
           </div>
+          {/* MDB scan components */}
+          <ScanBadges components={components} mdbScanType={mdbScanType} />
           {inDb && !uploaded && (
-            <div style={{ color: '#f59e0b', fontSize: 10, fontWeight: 600, marginTop: 2 }}>
+            <div style={{ color: '#f59e0b', fontSize: 10, fontWeight: 600, marginTop: 4 }}>
               ⚠ Already in Supabase — re-upload only if data changed
             </div>
           )}
