@@ -74,14 +74,13 @@ export default function FetchStudiesPage() {
   const [bmdOffline,  setBmdOffline]  = useState(false)
 
   // Selection + upload
-  const [selected,    setSelected]    = useState(null)
-  const [xpsFiles,    setXpsFiles]    = useState([])
-  const [xpsLoading,  setXpsLoading]  = useState(false)
-  const [uploadLog,   setUploadLog]   = useState([])
-  const [isUploading, setIsUploading] = useState(false)
-  const [uploadDone,  setUploadDone]  = useState(false)
-  const [uploaded,    setUploaded]    = useState(() => new Map())
-  const [dbMrns,      setDbMrns]      = useState(new Map())
+  const [selected,      setSelected]      = useState(null)
+  const [xpsTyped,      setXpsTyped]      = useState([])   // [{path, name, type}]
+  const [xpsLoading,    setXpsLoading]    = useState(false)
+  const [uploadLog,     setUploadLog]     = useState([])
+  const [uploadingType, setUploadingType] = useState(null) // null | 'osteo' | 'total_body'
+  const [doneTypes,     setDoneTypes]     = useState(new Set())
+  const [dbMrns,        setDbMrns]        = useState(new Map())
 
   // Modals
   const [linkOpen,     setLinkOpen]     = useState(false)
@@ -113,15 +112,16 @@ export default function FetchStudiesPage() {
 
   // Fetch XPS when patient selected
   useEffect(() => {
-    if (!selected) { setXpsFiles([]); return }
+    if (!selected) { setXpsTyped([]); return }
     const pid = selected.patient?.patient_id
     if (!pid) return
     setXpsLoading(true)
     setUploadLog([])
-    setUploadDone(false)
+    setDoneTypes(new Set())
+    setUploadingType(null)
     fetch(`${BASE}/api/collector/xps/${pid}`)
       .then(r => r.json())
-      .then(d => { setXpsFiles(d.xps_files ?? []); setXpsLoading(false) })
+      .then(d => { setXpsTyped(d.xps_typed ?? []); setXpsLoading(false) })
       .catch(() => setXpsLoading(false))
   }, [selected])
 
@@ -131,7 +131,7 @@ export default function FetchStudiesPage() {
 
   const gather = useCallback(async (from, to) => {
     setSelected(null)
-    setXpsFiles([])
+    setXpsTyped([])
     setRecentSt('loading')
     setOffline(false)
     setBmdOffline(false)
@@ -160,14 +160,14 @@ export default function FetchStudiesPage() {
     }
   }, [])
 
-  const doUpload = useCallback(async (pid, xpsPaths) => {
-    setIsUploading(true)
-    setUploadLog(['Starting upload…'])
+  const doUpload = useCallback(async (pid, xpsPaths, scanTypeOverride) => {
+    setUploadingType(scanTypeOverride)
+    setUploadLog([`Starting ${scanTypeOverride === 'total_body' ? 'Total Body' : 'Osteo'} upload…`])
     try {
       const res = await fetch(`${BASE}/api/collector/upload/${pid}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ xps_paths: xpsPaths }),
+        body: JSON.stringify({ xps_paths: xpsPaths, scan_type_override: scanTypeOverride }),
       })
       const reader = res.body.getReader()
       const dec = new TextDecoder()
@@ -183,10 +183,8 @@ export default function FetchStudiesPage() {
             const evt = JSON.parse(line.slice(6))
             if (evt.msg)   setUploadLog(l => [...l, evt.msg])
             if (evt.done)  {
-              const st = _scanType(evt.result)
-              setUploadDone(true)
-              setDbMrns(s => new Map([...s, [pid, st]]))
-              setUploaded(u => new Map([...u, [pid, st]]))
+              setDoneTypes(s => new Set([...s, scanTypeOverride]))
+              setDbMrns(s => new Map([...s, [pid, scanTypeOverride]]))
               setUploadLog(l => [...l, '✓ Done'])
             }
             if (evt.error) setUploadLog(l => [...l, `✗ ${evt.error}`])
@@ -196,7 +194,7 @@ export default function FetchStudiesPage() {
     } catch (e) {
       setUploadLog(l => [...l, `✗ ${e.message}`])
     } finally {
-      setIsUploading(false)
+      setUploadingType(null)
     }
   }, [])
 
@@ -208,11 +206,9 @@ export default function FetchStudiesPage() {
       })
     : recent
 
-  const selPid      = selected?.patient?.patient_id ?? ''
-  const selName     = `${selected?.patient?.title ?? ''} ${selected?.patient?.name ?? ''}`.trim()
-  const selInDb     = dbMrns.has(selPid)
-  const selUpd      = uploaded.has(selPid) || uploadDone
-  const selScanType = uploaded.get(selPid) ?? dbMrns.get(selPid) ?? 'osteo'
+  const selPid  = selected?.patient?.patient_id ?? ''
+  const selName = `${selected?.patient?.title ?? ''} ${selected?.patient?.name ?? ''}`.trim()
+  const selInDb = dbMrns.has(selPid)
 
   return (
     <div style={{ position: 'fixed', inset: 0, background: C.dark, fontFamily: 'system-ui, sans-serif', color: C.white, display: 'flex', flexDirection: 'column' }}>
@@ -369,15 +365,14 @@ export default function FetchStudiesPage() {
           ) : (
             <SelectedDetail
               info={selected}
-              xpsFiles={xpsFiles}
+              xpsTyped={xpsTyped}
               xpsLoading={xpsLoading}
               inDb={selInDb}
-              uploaded={selUpd}
-              isUploading={isUploading}
+              uploadingType={uploadingType}
+              doneTypes={doneTypes}
               uploadLog={uploadLog}
               logEnd={logEnd}
-              scanType={selScanType}
-              onUpload={() => doUpload(selPid, xpsFiles)}
+              onUpload={(xpsPaths, scanTypeOverride) => doUpload(selPid, xpsPaths, scanTypeOverride)}
               onWa={() => { setWaMrn(selPid); setWaName(selName); setWaOpen(true) }}
             />
           )}
@@ -413,12 +408,26 @@ export default function FetchStudiesPage() {
 
 // ── Selected patient detail (right panel) ─────────────────────────────────────
 
-function SelectedDetail({ info, xpsFiles, xpsLoading, inDb, uploaded, isUploading, uploadLog, logEnd, scanType, onUpload, onWa }) {
+function SelectedDetail({ info, xpsTyped, xpsLoading, inDb, uploadingType, doneTypes, uploadLog, logEnd, onUpload, onWa }) {
   const p           = info.patient ?? {}
   const pid         = p.patient_id ?? ''
   const name        = `${p.title ?? ''} ${p.name ?? ''}`.trim() || pid
-  const hasXps      = xpsFiles.length > 0
   const mdbScanType = info.mdb_scan_type ?? 'osteo'
+  const hasOsteo    = !!info.has_osteo
+  const hasTb       = !!info.has_total_body
+  const busy        = uploadingType !== null
+
+  function handleOsteo() {
+    const filtered = xpsTyped.filter(x => x.type === 'osteo').map(x => x.path)
+    const paths    = filtered.length > 0 ? filtered : xpsTyped.map(x => x.path)
+    onUpload(paths, 'osteo')
+  }
+
+  function handleTb() {
+    const filtered = xpsTyped.filter(x => x.type === 'total_body').map(x => x.path)
+    const paths    = filtered.length > 0 ? filtered : xpsTyped.map(x => x.path)
+    onUpload(paths, 'total_body')
+  }
 
   return (
     <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 8, padding: '20px 24px', maxWidth: 680 }}>
@@ -442,21 +451,21 @@ function SelectedDetail({ info, xpsFiles, xpsLoading, inDb, uploaded, isUploadin
         <div style={{ fontSize: 10, color: C.gray, fontWeight: 700, textTransform: 'uppercase', letterSpacing: .8, marginBottom: 6 }}>XPS Files</div>
         {xpsLoading ? (
           <div style={{ color: C.gray, fontSize: 12 }}>Checking…</div>
-        ) : hasXps ? (
-          xpsFiles.map((x, i) => (
-            <div key={i} style={{ color: C.cyan, fontSize: 12, marginBottom: 2 }}>✓ {basename(x)}</div>
-          ))
+        ) : xpsTyped.length > 0 ? (
+          xpsTyped.map((x, i) => {
+            const tc = x.type === 'total_body' ? C.purple : x.type === 'osteo' ? C.teal : C.gray
+            const tl = x.type === 'total_body' ? 'Total Body' : x.type === 'osteo' ? 'Osteo' : 'Unknown'
+            return (
+              <div key={i} style={{ color: C.cyan, fontSize: 12, marginBottom: 3, display: 'flex', alignItems: 'center', gap: 6 }}>
+                ✓ {x.name}
+                <span style={{ background: tc + '22', border: `1px solid ${tc}55`, color: tc, borderRadius: 2, padding: '0 5px', fontSize: 9, fontWeight: 700, letterSpacing: 0.3 }}>{tl}</span>
+              </div>
+            )
+          })
         ) : (
           <div style={{ color: '#f59e0b', fontSize: 12 }}>⚠ No XPS files found — MDB data only</div>
         )}
       </div>
-
-      {/* Warning if already in DB */}
-      {inDb && !uploaded && (
-        <div style={{ color: '#f59e0b', fontSize: 11, marginBottom: 12, fontWeight: 600 }}>
-          ⚠ Already in Supabase — re-upload only if data changed
-        </div>
-      )}
 
       {/* Upload log */}
       {uploadLog.length > 0 && (
@@ -470,22 +479,37 @@ function SelectedDetail({ info, xpsFiles, xpsLoading, inDb, uploaded, isUploadin
 
       {/* Action buttons */}
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
-        {!uploaded && (
+        {hasOsteo && (
           <Btn
-            label={isUploading ? 'Uploading…' : inDb ? '↻ Re-upload' : '↑ Upload'}
-            bg={inDb ? '#92400e' : '#166534'}
-            disabled={isUploading || xpsLoading}
-            onClick={onUpload}
+            label={uploadingType === 'osteo' ? '🦴 Uploading…' : doneTypes.has('osteo') ? '🦴 ✓ Osteo' : inDb ? '🦴 ↻ Osteo' : '🦴 Upload Osteo'}
+            bg={doneTypes.has('osteo') ? '#166534' : '#0f4a36'}
+            border={doneTypes.has('osteo') ? '#4ade80' : undefined}
+            disabled={busy || xpsLoading}
+            onClick={handleOsteo}
             bold
           />
         )}
-        {uploaded && <span style={{ color: '#4ade80', fontSize: 12, fontWeight: 700 }}>✓ Uploaded</span>}
-        {(inDb || uploaded) && (
-          <>
-            {(info.has_osteo      || (!info.has_total_body && scanType !== 'total_body')) && <Btn label="🦴 Osteo"      bg={C.teal}   href={`${BASE}/report/osteo/${pid}`} />}
-            {(info.has_total_body || scanType === 'total_body')                           && <Btn label="📊 Total Body" bg={C.purple} href={`${BASE}/report/totalbody/${pid}`} />}
-            <Btn label="📱 WA" bg="#1a5c2a" textColor="#4ade80" onClick={onWa} />
-          </>
+        {hasTb && (
+          <Btn
+            label={uploadingType === 'total_body' ? '📊 Uploading…' : doneTypes.has('total_body') ? '📊 ✓ Total Body' : inDb ? '📊 ↻ Total Body' : '📊 Upload Total Body'}
+            bg={doneTypes.has('total_body') ? '#4a1d96' : '#2d1b69'}
+            border={doneTypes.has('total_body') ? '#a78bfa' : undefined}
+            disabled={busy || xpsLoading}
+            onClick={handleTb}
+            bold
+          />
+        )}
+        {!hasOsteo && !hasTb && (
+          <Btn
+            label={busy ? 'Uploading…' : '↑ Upload'}
+            bg="#166534"
+            disabled={busy || xpsLoading}
+            onClick={() => onUpload(xpsTyped.map(x => x.path), 'osteo')}
+            bold
+          />
+        )}
+        {(inDb || doneTypes.size > 0) && (
+          <Btn label="📱 WA" bg="#1a5c2a" textColor="#4ade80" onClick={onWa} />
         )}
       </div>
     </div>
