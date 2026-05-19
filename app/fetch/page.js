@@ -54,6 +54,12 @@ export default function FetchStudiesPage() {
   const [progress,   setProgress]   = useState({})
   const [offline,    setOffline]    = useState(false)
   const [bmdOffline, setBmdOffline] = useState(false)
+  const [lastFetched,setLastFetched]= useState(null)  // ISO timestamp
+
+  // Date-range pickers (default: today)
+  const todayStr = new Date().toISOString().slice(0, 10)
+  const [dateFrom, setDateFrom] = useState(todayStr)
+  const [dateTo,   setDateTo]   = useState(todayStr)
 
   // MDB browser (left panel)
   const [mdbAll,     setMdbAll]     = useState([])
@@ -117,12 +123,15 @@ export default function FetchStudiesPage() {
     mdbLogEnd.current?.scrollIntoView({ behavior: 'smooth' })
   }, [mdbProgress.length])
 
-  const gather = useCallback(async () => {
+  const gather = useCallback(async (from, to) => {
     setRecentSt('loading')
     setOffline(false)
     setBmdOffline(false)
+    const params = new URLSearchParams()
+    if (from) params.set('date_from', from)
+    if (to)   params.set('date_to',   to)
     try {
-      const res = await fetch(`${BASE}/api/collector/recent`)
+      const res = await fetch(`${BASE}/api/collector/recent?${params}`)
       if (!res.ok) {
         let detail = {}
         try { const b = await res.json(); detail = b.detail ?? b } catch {}
@@ -135,14 +144,13 @@ export default function FetchStudiesPage() {
       const data = await res.json()
       setRecent(data)
       setRecentSt('done')
+      setLastFetched(new Date().toISOString())
     } catch (e) {
       setOffline(true)
       setRecentErr(e.message)
       setRecentSt('error')
     }
   }, [])
-
-  useEffect(() => { gather() }, [gather])
 
   const uploadPatient = useCallback(async (pid, xpsPaths, fromMdb = false) => {
     const addLine = msg => setProgress(p => ({ ...p, [pid]: [...(p[pid] ?? []), msg] }))
@@ -377,21 +385,44 @@ export default function FetchStudiesPage() {
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
 
           {/* Toolbar */}
-          <div style={{ padding: '10px 16px', borderBottom: `1px solid ${C.border}`, display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0, flexWrap: 'wrap' }}>
+          <div style={{ padding: '10px 16px', borderBottom: `1px solid ${C.border}`, display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0, flexWrap: 'wrap' }}>
+            {/* Date range pickers */}
+            <label style={{ fontSize: 11, color: C.gray, display: 'flex', alignItems: 'center', gap: 4 }}>
+              From
+              <input
+                type="date"
+                value={dateFrom}
+                max={dateTo || todayStr}
+                onChange={e => setDateFrom(e.target.value)}
+                style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 4, color: C.white, fontSize: 11, padding: '4px 6px', outline: 'none', colorScheme: 'dark' }}
+              />
+            </label>
+            <label style={{ fontSize: 11, color: C.gray, display: 'flex', alignItems: 'center', gap: 4 }}>
+              To
+              <input
+                type="date"
+                value={dateTo}
+                min={dateFrom || undefined}
+                max={todayStr}
+                onChange={e => setDateTo(e.target.value)}
+                style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 4, color: C.white, fontSize: 11, padding: '4px 6px', outline: 'none', colorScheme: 'dark' }}
+              />
+            </label>
             <Btn
               label={recentSt === 'loading' ? '… Scanning' : '⟳ Gather Data'}
               bg={C.teal}
               disabled={recentSt === 'loading'}
-              onClick={gather}
+              onClick={() => gather(dateFrom, dateTo)}
               bold
             />
-            <span style={{ fontSize: 12, color: C.gray }}>
-              {recentSt === 'done'    && `${recent.length} patient(s) from last 48h`}
+            <span style={{ fontSize: 11, color: C.gray }}>
+              {recentSt === 'done'    && `${recent.length} patient(s)${lastFetched ? ` · fetched ${new Date(lastFetched).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}` : ''}`}
               {recentSt === 'loading' && 'Scanning MDB…'}
+              {recentSt === 'idle'    && 'Choose a date range and click Gather Data'}
               {recentSt === 'error'   && (bmdOffline ? '⚠ BMD PC unreachable' : `Error: ${recentErr}`)}
             </span>
             {offline && !bmdOffline && (
-              <span style={{ color: '#f59e0b', fontSize: 12, fontWeight: 600 }}>
+              <span style={{ color: '#f59e0b', fontSize: 11, fontWeight: 600 }}>
                 ⚠ Collector API offline
               </span>
             )}
@@ -407,11 +438,19 @@ export default function FetchStudiesPage() {
 
           {/* Patient cards */}
           <div style={{ overflowY: 'auto', flex: 1, padding: '8px 10px 40px' }}>
-            {recentSt === 'idle' || (recentSt === 'done' && recent.length === 0 && !offline && !bmdOffline) ? (
+            {recentSt === 'idle' && (
               <div style={{ color: C.gray, textAlign: 'center', padding: 60, fontSize: 13 }}>
-                {offline ? 'Start the collector: pm2 start ecosystem.config.js' : 'No patients in MDB for last 48h.'}
+                {offline
+                  ? 'Start the collector: pm2 start ecosystem.config.js'
+                  : 'Select a date range above and click ⟳ Gather Data to read the MDB.'
+                }
               </div>
-            ) : null}
+            )}
+            {recentSt === 'done' && recent.length === 0 && !offline && !bmdOffline && (
+              <div style={{ color: C.gray, textAlign: 'center', padding: 60, fontSize: 13 }}>
+                No patients found for this date range.
+              </div>
+            )}
 
             {recent.map(info => (
               <RecentCard
