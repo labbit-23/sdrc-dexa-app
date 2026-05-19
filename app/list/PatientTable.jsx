@@ -3,8 +3,11 @@ import { useState } from 'react'
 import Link from 'next/link'
 
 const SCAN_BADGE = {
-  osteo:      { label: 'Osteo',      bg: '#e0f2fe', color: '#0369a1' },
-  total_body: { label: 'Total Body', bg: '#f0fdf4', color: '#166534' },
+  spine_only:  { label: 'AP Spine',         bg: '#e0f2fe', color: '#0369a1' },
+  spine_femur: { label: 'Spine + Hip',       bg: '#e0f2fe', color: '#0369a1' },
+  dual_femur:  { label: 'Dual Femur',        bg: '#e0f2fe', color: '#0369a1' },
+  osteo:       { label: 'Osteo',             bg: '#e0f2fe', color: '#0369a1' },  // legacy
+  total_body:  { label: 'Total Body',        bg: '#f0fdf4', color: '#166534' },
 }
 
 function ScanBadge({ type }) {
@@ -94,10 +97,10 @@ export default function PatientTable({ patients }) {
                 <td style={{ ...td, textAlign: 'center', color: '#6b7280' }}>{p.scan_count}</td>
                 <td style={{ ...td, textAlign: 'right' }}>
                   <div style={{ display: 'flex', gap: 6, justifyContent: 'flex-end' }}>
-                    {(p.scan_types ?? []).includes('osteo') && (
+                    {p.has_osteo && (
                       <Link href={`/report/osteo/${p.mrn}`} style={btn('#0D7377')}>Osteo</Link>
                     )}
-                    {(p.scan_types ?? []).includes('total_body') && (
+                    {p.has_total_body && (
                       <Link href={`/report/totalbody/${p.mrn}`} style={btn('#166534')}>Total Body</Link>
                     )}
                   </div>
