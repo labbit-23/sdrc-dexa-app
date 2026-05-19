@@ -350,8 +350,8 @@ export default function FetchStudiesPage() {
                 {selUpd && <span style={{ color: '#4ade80', fontSize: 11, fontWeight: 700 }}>✓ Uploaded</span>}
                 {(selInDb || selUpd) && (
                   <>
-                    {selScanType !== 'total_body' && <Btn label="🦴 Osteo"     bg={C.teal}   href={`${BASE}/report/osteo/${selPid}`} />}
-                    {selScanType === 'total_body' && <Btn label="📊 Total Body" bg={C.purple} href={`${BASE}/report/totalbody/${selPid}`} />}
+                    {(selected?.has_osteo      || (!selected?.has_total_body && selScanType !== 'total_body')) && <Btn label="🦴 Osteo"      bg={C.teal}   href={`${BASE}/report/osteo/${selPid}`} />}
+                    {(selected?.has_total_body || selScanType === 'total_body')                                && <Btn label="📊 Total Body" bg={C.purple} href={`${BASE}/report/totalbody/${selPid}`} />}
                     <Btn label="📱 WA" bg="#1a5c2a" textColor="#4ade80" onClick={() => { setWaMrn(selPid); setWaName(selName); setWaOpen(true) }} />
                   </>
                 )}
@@ -587,8 +587,8 @@ function RecentCard({ info, uploaded, isUploading, progressLog, inDb, scanType, 
           )}
           {showActions && (
             <>
-              {scanType !== 'total_body' && <Btn label="🦴 Osteo"     bg={C.teal}   href={`${BASE}/report/osteo/${pid}`} />}
-              {scanType === 'total_body' && <Btn label="📊 Total Body" bg={C.purple} href={`${BASE}/report/totalbody/${pid}`} />}
+              {(info.has_osteo      || (!info.has_total_body && scanType !== 'total_body')) && <Btn label="🦴 Osteo"      bg={C.teal}   href={`${BASE}/report/osteo/${pid}`} />}
+              {(info.has_total_body || scanType === 'total_body')                           && <Btn label="📊 Total Body" bg={C.purple} href={`${BASE}/report/totalbody/${pid}`} />}
               <Btn label="📱 WA" bg="#1a5c2a" textColor="#4ade80" onClick={() => onWa(pid, name)} />
             </>
           )}
