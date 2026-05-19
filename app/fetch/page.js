@@ -417,16 +417,31 @@ function SelectedDetail({ info, xpsTyped, xpsLoading, inDb, uploadingType, doneT
   const hasTb       = !!info.has_total_body
   const busy        = uploadingType !== null
 
+  const [xpsWarn, setXpsWarn] = useState(null) // { forType, msg }
+
+  // Clear warning when XPS list refreshes (new patient selected)
+  useEffect(() => { setXpsWarn(null) }, [xpsTyped])
+
   function handleOsteo() {
-    const filtered = xpsTyped.filter(x => x.type === 'osteo').map(x => x.path)
-    const paths    = filtered.length > 0 ? filtered : xpsTyped.map(x => x.path)
-    onUpload(paths, 'osteo')
+    setXpsWarn(null)
+    const matched = xpsTyped.filter(x => x.type === 'osteo').map(x => x.path)
+    // XPS files exist but none are osteo-compatible — block and warn
+    if (matched.length === 0 && xpsTyped.length > 0) {
+      setXpsWarn({ forType: 'osteo', msg: 'No compatible Osteo XPS found. Please export the spine / femur scan from the BMD PC first.' })
+      return
+    }
+    // No XPS at all → MDB-only upload (images skipped) — valid
+    onUpload(matched, 'osteo')
   }
 
   function handleTb() {
-    const filtered = xpsTyped.filter(x => x.type === 'total_body').map(x => x.path)
-    const paths    = filtered.length > 0 ? filtered : xpsTyped.map(x => x.path)
-    onUpload(paths, 'total_body')
+    setXpsWarn(null)
+    const matched = xpsTyped.filter(x => x.type === 'total_body').map(x => x.path)
+    if (matched.length === 0 && xpsTyped.length > 0) {
+      setXpsWarn({ forType: 'total_body', msg: 'No compatible Total Body XPS found. Please export the total body scan from the BMD PC first.' })
+      return
+    }
+    onUpload(matched, 'total_body')
   }
 
   return (
@@ -474,6 +489,13 @@ function SelectedDetail({ info, xpsTyped, xpsLoading, inDb, uploadingType, doneT
             <div key={i} style={{ color: msg.startsWith('✗') ? '#ef9a9a' : '#80DEEA', lineHeight: 1.7 }}>{msg}</div>
           ))}
           <div ref={logEnd} />
+        </div>
+      )}
+
+      {/* XPS mismatch warning */}
+      {xpsWarn && (
+        <div style={{ background: '#2a1400', border: `1px solid #E65100`, borderLeft: `3px solid #E65100`, borderRadius: 4, padding: '8px 12px', marginBottom: 12, fontSize: 11, color: '#ffcc80' }}>
+          ⚠ {xpsWarn.msg}
         </div>
       )}
 
