@@ -73,6 +73,7 @@ export async function GET(req, { params }) {
     fat_lean_url:     imageUrls.fat_lean_url     ?? '',
     fat_gradient_url: imageUrls.fat_gradient_url ?? '',
     bone_url:         imageUrls.bone_url         ?? '',
+    bone_roi_url:     imageUrls.bone_roi_url     ?? '',
     composite_url:    imageUrls.composite_url    ?? '',
   }
 
