@@ -17,6 +17,7 @@ import { NextResponse } from 'next/server'
 const WA_API  = process.env.WHATSAPP_API_URL ?? 'https://api.sdrc.in/api/internal/whatsapp/send'
 const TOKEN   = process.env.WHATSAPP_INTERNAL_SEND_TOKEN
 const LAB_ID  = process.env.WHATSAPP_LAB_ID
+const log     = (...a) => console.log('[wa-send]', ...a)
 
 function normalizePhone(raw) {
   const digits = (raw ?? '').replace(/\D/g, '')
@@ -59,6 +60,8 @@ export async function POST(req) {
     caption,
     source_service: 'sdrc_dexa_worker',
   }
+
+  log(`wa-send → ${WA_API}`, { lab_id: LAB_ID, phone: payload.phone, token_prefix: TOKEN?.slice(0,6) })
 
   try {
     const res  = await fetch(WA_API, {
