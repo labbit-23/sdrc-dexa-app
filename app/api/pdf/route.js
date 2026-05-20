@@ -19,9 +19,11 @@ export async function GET(req) {
 
   const lh       = req.nextUrl.searchParams.get('lh') === '1'
   const scanType = req.nextUrl.searchParams.get('type') === 'totalbody' ? 'totalbody' : 'osteo'
-  const host     = req.headers.get('host') ?? 'localhost:3010'
-  const proto    = process.env.RENDER_PROTO ?? 'http'
-  const renderUrl = `${proto}://${host}/bmd/render/${scanType}/${mrn}${lh ? '?lh=1' : ''}`
+  // Puppeteer runs server-side — always hit localhost directly to avoid routing
+  // through the reverse proxy (which would land on ERPNext, not this Next.js app).
+  const port     = process.env.PORT ?? '3010'
+  const base     = process.env.NEXT_PUBLIC_BASEPATH ?? ''
+  const renderUrl = `http://localhost:${port}${base}/render/${scanType}/${mrn}${lh ? '?lh=1' : ''}`
 
   const browser = await puppeteer.launch({
     headless: true,
