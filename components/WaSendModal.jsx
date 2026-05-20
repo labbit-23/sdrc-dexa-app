@@ -28,7 +28,7 @@ export default function WaSendModal({ mrn, scanType = 'osteo', patientName = '',
         body:    JSON.stringify({ phone, mrn, scanType: type, patientName: name }),
       })
       const data = await res.json()
-      setResult(res.ok ? { ok: true, pdfUrl: data.pdfUrl } : { error: data.error ?? 'Send failed' })
+      setResult(res.ok ? { ok: true, pdfUrl: data.pdfUrl } : { error: data.error ?? 'Send failed', detail: data.detail })
     } catch (e) {
       setResult({ error: e.message })
     } finally {
@@ -76,6 +76,11 @@ export default function WaSendModal({ mrn, scanType = 'osteo', patientName = '',
             {result.error && (
               <div style={{ color: '#fca5a5', fontSize: 12, marginTop: 8 }}>{result.error}</div>
             )}
+            {result.detail && (
+              <div style={{ color: '#9E9E9E', fontSize: 10, marginTop: 4, fontFamily: 'monospace', wordBreak: 'break-all' }}>
+                {JSON.stringify(result.detail)}
+              </div>
+            )}
             <div style={{ display: 'flex', gap: 10, justifyContent: 'center', marginTop: 24 }}>
               {result.ok && (
                 <button
@@ -106,7 +111,7 @@ export default function WaSendModal({ mrn, scanType = 'osteo', patientName = '',
             <input
               style={inp} value={phone}
               onChange={e => setPhone(e.target.value)}
-              placeholder="9949099249  or  919949099249"
+              placeholder="9000012345  or  919000012345"
               onKeyDown={e => e.key === 'Enter' && send()}
             />
 
