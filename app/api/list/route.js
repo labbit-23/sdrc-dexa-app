@@ -87,7 +87,7 @@ export async function GET(req) {
     const sorted   = Object.keys(latest).sort((a, b) => latest[b].localeCompare(latest[a]))
     const total    = sorted.length
     const pages    = Math.max(1, Math.ceil(total / PAGE_SIZE))
-    const pageIds  = sorted.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE).map(Number)
+    const pageIds  = sorted.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE)
 
     if (!pageIds.length) return NextResponse.json({ patients: [], total, pages, page })
 
