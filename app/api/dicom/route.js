@@ -1,15 +1,16 @@
 /**
  * Proxy for the DICOM sidecar (manualsend endpoint).
- * Reads DICOM_ENDPOINT from env so the URL is never hardcoded in static files.
+ * Reads DICOM_SEND_URL (falls back to DICOM_ENDPOINT) so the URL is never hardcoded in static files.
  */
 
 export const dynamic = 'force-dynamic'
 
-const ENDPOINT = (process.env.DICOM_ENDPOINT ?? '').replace(/\/$/, '') + '/manualsend/'
+const BASE_URL  = (process.env.DICOM_SEND_URL ?? process.env.DICOM_ENDPOINT ?? '').replace(/\/$/, '')
+const ENDPOINT  = BASE_URL ? BASE_URL + '/manualsend/' : ''
 
 export async function POST(req) {
-  if (!ENDPOINT || ENDPOINT === '/manualsend/') {
-    return new Response(JSON.stringify({ error: 'DICOM_ENDPOINT not configured' }), {
+  if (!ENDPOINT) {
+    return new Response(JSON.stringify({ error: 'DICOM_SEND_URL not configured' }), {
       status: 503, headers: { 'Content-Type': 'application/json' },
     })
   }

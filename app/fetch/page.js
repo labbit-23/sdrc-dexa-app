@@ -338,7 +338,7 @@ export default function FetchStudiesPage() {
               textColor={archiveAvail?.available ? '#90CAF9' : C.gray}
               border={archiveAvail?.available ? '#90CAF9' : '#2a3a4a'}
               disabled={!archiveAvail?.available}
-              title={archiveAvail?.available ? 'Link archived MDB study as trend data' : (archiveAvail?.reason ?? 'Checking…')}
+              title={archiveAvail?.available ? 'Link archived MDB study as trend data' : (archiveAvail?.reason ?? (archiveAvail?.archives?.length ? 'Archive files not accessible' : 'Checking…'))}
               onClick={() => setArchiveOpen(true)} />
             <Btn label="🔗 Link Older" bg="transparent"
               textColor={recent.length > 0 ? C.pink : C.gray}
@@ -590,10 +590,12 @@ function LinkOlderStudyModal({ currentPids, onClose, archiveMode = false }) {
   const others  = filtered.filter(p => !currentPids.has(p.patient?.patient_id))
 
   const doLink = async (scanType) => {
-    const pid = selected.patient?.patient_id
+    const pid  = selected.patient?.patient_id
+    const mdb  = selected.archive_label
+    const url  = mdb ? `${trendBase}/${pid}?mdb=${encodeURIComponent(mdb)}` : `${trendBase}/${pid}`
     setUploading(true)
     try {
-      const res  = await fetch(`${trendBase}/${pid}`, {
+      const res  = await fetch(url, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ scan_type: scanType }),
@@ -637,6 +639,7 @@ function LinkOlderStudyModal({ currentPids, onClose, archiveMode = false }) {
             <div><span style={{ color: C.gray, width: 70, display: 'inline-block' }}>Name</span> <strong>{nm}</strong></div>
             <div><span style={{ color: C.gray, width: 70, display: 'inline-block' }}>MRN</span> {p.patient_id}</div>
             <div><span style={{ color: C.gray, width: 70, display: 'inline-block' }}>Scan</span> {fmtDateShort(selected.scan_date)}</div>
+            {selected.archive_label && <div><span style={{ color: C.gray, width: 70, display: 'inline-block' }}>Archive</span> <span style={{ color: '#90CAF9' }}>{selected.archive_label}</span></div>}
           </div>
           <div style={{ color: C.lt, fontSize: 12, marginBottom: 14 }}>
             Their MDB data will be uploaded as trend history — no images required.
@@ -700,9 +703,10 @@ function PatientRow({ info, highlight, selected, onClick, onDoubleClick }) {
   const pid    = p.patient_id ?? '?'
   const name   = `${p.title ?? ''} ${p.name ?? ''}`.trim() || '—'
   const gender = (p.gender ?? '').slice(0, 1).toUpperCase() || '—'
+  const label  = info.archive_label
   return (
     <div onClick={onClick} onDoubleClick={onDoubleClick}
-      style={{ display: 'grid', gridTemplateColumns: '90px 1fr 50px 100px', gap: 8, padding: '8px 14px', cursor: 'pointer', borderBottom: `1px solid #0f2030`, background: selected ? '#1a3a55' : 'transparent', fontSize: 12 }}
+      style={{ display: 'grid', gridTemplateColumns: '90px 1fr 50px 100px' + (label ? ' 90px' : ''), gap: 8, padding: '8px 14px', cursor: 'pointer', borderBottom: `1px solid #0f2030`, background: selected ? '#1a3a55' : 'transparent', fontSize: 12 }}
       onMouseEnter={e => { if (!selected) e.currentTarget.style.background = '#0f2030' }}
       onMouseLeave={e => { if (!selected) e.currentTarget.style.background = 'transparent' }}
     >
@@ -710,6 +714,7 @@ function PatientRow({ info, highlight, selected, onClick, onDoubleClick }) {
       <div style={{ color: highlight ? C.white : C.lt, fontWeight: highlight ? 600 : 400, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{name}</div>
       <div style={{ color: C.gray }}>{gender}</div>
       <div style={{ color: C.gray }}>{fmtDateShort(info.scan_date)}</div>
+      {label && <div style={{ color: '#90CAF9', fontSize: 10, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{label}</div>}
     </div>
   )
 }
