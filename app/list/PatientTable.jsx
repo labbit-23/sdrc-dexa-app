@@ -1,6 +1,7 @@
 'use client'
 import { useState, useEffect, useRef, useCallback } from 'react'
 import Link from 'next/link'
+import BASE from '@/lib/basepath'
 
 const SCAN_BADGE = {
   spine_only:  { label: 'AP Spine',   bg: '#e0f2fe', color: '#0369a1' },
