@@ -211,7 +211,8 @@ function loadStudies() {
 
     const formattedDate = formatDateToYYYYMMDD(dateInput);
 
-    fetch("http://100.103.168.62:8085/manualsend/", {
+    const apiBase = window.location.pathname.replace(/\/dicom\.html$/, '')
+    fetch(apiBase + "/api/dicom", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -269,7 +270,8 @@ function sendManual() {
         return;
     }
 
-    fetch("http://100.103.168.62:8085/manualsend/", {
+    const apiBase = window.location.pathname.replace(/\/dicom\.html$/, '')
+    fetch(apiBase + "/api/dicom", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

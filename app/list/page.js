@@ -1,12 +1,7 @@
-import { listPatients } from '@/lib/fetch-scan.js'
 import Link from 'next/link'
 import PatientTable from './PatientTable.jsx'
 
-export const dynamic = 'force-dynamic'
-
-export default async function ListPage() {
-  const patients = await listPatients('any')
-
+export default function ListPage() {
   return (
     <div style={{ minHeight: '100vh', background: '#f0f4f8', fontFamily: 'system-ui, sans-serif' }}>
       <div style={{ background: '#0D7377', padding: '10px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
@@ -19,7 +14,7 @@ export default async function ListPage() {
         </Link>
       </div>
       <div style={{ maxWidth: 960, margin: '32px auto', padding: '0 16px' }}>
-        <PatientTable patients={patients} />
+        <PatientTable />
       </div>
     </div>
   )
