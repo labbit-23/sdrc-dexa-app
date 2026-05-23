@@ -1,7 +1,6 @@
 'use client'
 import { useState, useEffect, useRef, useCallback } from 'react'
 import Link from 'next/link'
-import BASE from '@/lib/basepath'
 
 const SCAN_BADGE = {
   spine_only:  { label: 'AP Spine',   bg: '#e0f2fe', color: '#0369a1' },
@@ -68,8 +67,8 @@ function PatientRow({ p, idx }) {
       <td style={{ ...td, textAlign: 'center', color: '#6b7280' }}>{p.scan_count}</td>
       <td style={{ ...td, textAlign: 'right' }}>
         <div style={{ display: 'flex', gap: 6, justifyContent: 'flex-end' }}>
-          {p.has_osteo      && <Link href={`${BASE}/report/osteo/${p.mrn}`}     style={btn('#0D7377')}>Osteo</Link>}
-          {p.has_total_body && <Link href={`${BASE}/report/totalbody/${p.mrn}`} style={btn('#166534')}>Total Body</Link>}
+          {p.has_osteo      && <Link href={`/report/osteo/${p.mrn}`}     style={btn('#0D7377')}>Osteo</Link>}
+          {p.has_total_body && <Link href={`/report/totalbody/${p.mrn}`} style={btn('#166534')}>Total Body</Link>}
         </div>
       </td>
     </tr>
