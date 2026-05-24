@@ -35,7 +35,7 @@ export default function HubPage() {
         <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
-            src="/labit-logo.png" alt="Labit"
+            src={`${BASE}/labit-logo.png`} alt="Labit"
             style={{ height: 36, background: '#fff', borderRadius: 6, padding: '4px 10px', objectFit: 'contain', objectPosition: 'left center', width: 110, display: 'block' }}
           />
           <span style={{ color: '#b2dfdb', fontSize: 13, letterSpacing: .5 }}>Radiology Information System</span>

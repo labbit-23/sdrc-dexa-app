@@ -78,7 +78,7 @@ export default function PrintPreviewTotalbody({ params }) {
       }}>
         {/* Labit branding */}
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={`${BASE}/labit-logo.png`} alt="Labit" style={{ height: 22, width: 'auto' }} />
+        <img src={`${BASE}/labit-logo-inverted.png`} alt="Labit" style={{ height: 22, width: 'auto' }} />
         <span style={{ color: '#4a6a80', fontSize: 11, borderLeft: '1px solid #2d3748', paddingLeft: 8 }}>
           Total Body Report
           {meta?.name ? ` · ${meta.name}` : ` · MRN ${mrn}`}
