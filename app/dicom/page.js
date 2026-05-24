@@ -10,9 +10,12 @@ export default function DicomDashboard() {
         height: 44, background: '#6a1b9a', display: 'flex', alignItems: 'center',
         justifyContent: 'space-between', padding: '0 16px', flexShrink: 0,
       }}>
-        <div style={{ fontSize: 12, color: '#e9d5ff' }}>
-          <span style={{ color: '#fff', fontWeight: 700 }}>SDRC</span>
-          {' '}· DICOM Dashboard
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={`${BASE}/sdrc-logo.png`} alt="SDRC" style={{ height: 28, width: 'auto', background: 'rgba(255,255,255,0.92)', borderRadius: 4, padding: '2px 6px' }} />
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={`${BASE}/labit-logo-inverted.png`} alt="Labit" style={{ height: 20, width: 'auto' }} />
+          <span style={{ fontSize: 11, color: '#e9d5ff', borderLeft: '1px solid rgba(255,255,255,0.2)', paddingLeft: 10 }}>DICOM Dashboard</span>
         </div>
         <a href={`${BASE}/`} style={{
           background: 'rgba(255,255,255,0.15)', color: '#fff', textDecoration: 'none',

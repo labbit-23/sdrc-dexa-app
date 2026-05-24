@@ -216,8 +216,11 @@ export default function FetchStudiesPage() {
       {/* Header */}
       <div style={{ background: C.teal, height: 52, display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 20px', flexShrink: 0 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
-          <img src="https://www.sdrc.in/assets/sdrc-logo-full.png" alt="SDRC" style={{ height: 32, background: 'rgba(255,255,255,0.92)', borderRadius: 4, padding: '2px 6px' }} />
-          <span style={{ color: '#B2DFDB', fontSize: 12, letterSpacing: 1 }}>Data Collector</span>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={`${BASE}/sdrc-logo.png`} alt="SDRC" style={{ height: 32, background: 'rgba(255,255,255,0.92)', borderRadius: 4, padding: '2px 6px' }} />
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={`${BASE}/labit-logo-inverted.png`} alt="Labit" style={{ height: 24, width: 'auto' }} />
+          <span style={{ color: '#B2DFDB', fontSize: 12, letterSpacing: 1, borderLeft: '1px solid rgba(255,255,255,0.2)', paddingLeft: 12 }}>Data Collector</span>
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
           <a href={`${BASE}/`}     style={navBtn}>← Hub</a>
