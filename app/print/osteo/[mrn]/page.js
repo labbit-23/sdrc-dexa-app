@@ -57,17 +57,17 @@ export default function PrintPreviewOsteo({ params }) {
   }, [lh])
 
   return (
-    <div style={{ position: 'fixed', inset: 0, background: '#4a5568', display: 'flex', flexDirection: 'column', fontFamily: 'system-ui, sans-serif' }}>
+    <div style={{ position: 'fixed', inset: 0, background: '#0D1B2A', display: 'flex', flexDirection: 'column', fontFamily: 'system-ui, sans-serif' }}>
 
       <div style={{
-        height: 48, background: '#1a202c', display: 'flex', alignItems: 'center',
-        gap: 8, padding: '0 16px', flexShrink: 0, borderBottom: '1px solid #2d3748',
+        height: 48, background: '#0f2235', display: 'flex', alignItems: 'center',
+        gap: 8, padding: '0 16px', flexShrink: 0, borderBottom: '1px solid #1a3a55',
       }}>
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src={`${BASE}/sdrc-logo.png`} alt="SDRC" style={{ height: 28, width: 'auto', background: 'rgba(255,255,255,0.92)', borderRadius: 4, padding: '2px 6px' }} />
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src={`${BASE}/labit-logo-inverted.png`} alt="Labit" style={{ height: 22, width: 'auto' }} />
-        <span style={{ color: '#718096', fontSize: 11, borderLeft: '1px solid #2d3748', paddingLeft: 8 }}>Bone Density Report · MRN {mrn}</span>
+        <span style={{ color: '#718096', fontSize: 11, borderLeft: '1px solid #1a3a55', paddingLeft: 8 }}>Bone Density Report · MRN {mrn}</span>
         <div style={{ flex: 1 }} />
 
         <button
