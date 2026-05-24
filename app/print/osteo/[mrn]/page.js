@@ -63,8 +63,11 @@ export default function PrintPreviewOsteo({ params }) {
         height: 48, background: '#1a202c', display: 'flex', alignItems: 'center',
         gap: 8, padding: '0 16px', flexShrink: 0, borderBottom: '1px solid #2d3748',
       }}>
-        <span style={{ color: '#0D7377', fontWeight: 700, fontSize: 12 }}>SDRC</span>
-        <span style={{ color: '#718096', fontSize: 12 }}>· Bone Density Report · MRN {mrn}</span>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src={`${BASE}/sdrc-logo.png`} alt="SDRC" style={{ height: 28, width: 'auto', background: 'rgba(255,255,255,0.92)', borderRadius: 4, padding: '2px 6px' }} />
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src={`${BASE}/labit-logo-inverted.png`} alt="Labit" style={{ height: 22, width: 'auto' }} />
+        <span style={{ color: '#718096', fontSize: 11, borderLeft: '1px solid #2d3748', paddingLeft: 8 }}>Bone Density Report · MRN {mrn}</span>
         <div style={{ flex: 1 }} />
 
         <button
