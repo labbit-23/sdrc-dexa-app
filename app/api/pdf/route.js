@@ -19,6 +19,8 @@ export async function GET(req) {
 
   const lh       = req.nextUrl.searchParams.get('lh') === '1'
   const scanType = req.nextUrl.searchParams.get('type') === 'totalbody' ? 'totalbody' : 'osteo'
+  // Patient-friendly filename passed from the print page (via tb-meta)
+  const dlParam  = req.nextUrl.searchParams.get('dl')
   // Puppeteer runs server-side — always hit localhost directly to avoid routing
   // through the reverse proxy (which would land on ERPNext, not this Next.js app).
   const port     = process.env.PORT ?? '3010'
@@ -50,8 +52,10 @@ export async function GET(req) {
       margin: { top: 0, bottom: 0, left: 0, right: 0 },
     })
 
-    const label    = scanType === 'totalbody' ? 'total_body' : 'bone_density'
-    const filename = `${mrn}_${label}${lh ? '_letterhead' : ''}.pdf`
+    const label    = scanType === 'totalbody' ? 'Body_Composition' : 'Bone_Density'
+    const filename = dlParam
+      ? dlParam.replace(/[^a-zA-Z0-9._-]/g, '_')  // sanitise the patient-friendly name
+      : `${mrn}_${label}${lh ? '_Letterhead' : ''}.pdf`
     return new NextResponse(Buffer.from(pdf), {
       headers: {
         'Content-Type': 'application/pdf',

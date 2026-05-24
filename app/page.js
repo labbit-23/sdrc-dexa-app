@@ -33,9 +33,10 @@ export default function HubPage() {
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
-            src="https://www.sdrc.in/assets/sdrc-logo-full.png" alt="SDRC"
-            style={{ height: 36, background: 'rgba(255,255,255,0.92)', borderRadius: 4, padding: '2px 8px' }}
+            src="/labit-logo.png" alt="Labit"
+            style={{ height: 36, background: '#fff', borderRadius: 6, padding: '4px 10px', objectFit: 'contain', objectPosition: 'left center', width: 110, display: 'block' }}
           />
           <span style={{ color: '#b2dfdb', fontSize: 13, letterSpacing: .5 }}>Radiology Information System</span>
         </div>

@@ -30,14 +30,24 @@ export default function PrintPreviewTotalbody({ params }) {
   const { mrn } = params
   const [lh, setLh] = useState(false)
   const [waOpen, setWaOpen] = useState(false)
+  const [meta, setMeta] = useState(null) // { name, scan_date, filename, symmetry }
+
+  useEffect(() => {
+    fetch(`${BASE}/api/tb-meta?mrn=${mrn}`)
+      .then(r => r.ok ? r.json() : null)
+      .then(data => { if (data) setMeta(data) })
+      .catch(() => {})
+  }, [mrn])
 
   const previewUrl = lh
     ? `${BASE}/render/totalbody/${mrn}?lh=1&preview=1`
     : `${BASE}/render/totalbody/${mrn}?preview=1`
 
+  // Include patient-friendly filename hint in the PDF URL
+  const nameParam = meta?.filename ? `&dl=${encodeURIComponent(meta.filename)}` : ''
   const pdfHref = lh
-    ? `${BASE}/api/pdf?mrn=${mrn}&type=totalbody&lh=1`
-    : `${BASE}/api/pdf?mrn=${mrn}&type=totalbody`
+    ? `${BASE}/api/pdf?mrn=${mrn}&type=totalbody&lh=1${nameParam}`
+    : `${BASE}/api/pdf?mrn=${mrn}&type=totalbody${nameParam}`
 
   const doPrint = () => {
     const win = window.open(previewUrl, '_blank')
@@ -56,15 +66,24 @@ export default function PrintPreviewTotalbody({ params }) {
     return () => window.removeEventListener('keydown', handler)
   }, [lh])
 
+  const symmetry = meta?.symmetry
+
   return (
     <div style={{ position: 'fixed', inset: 0, background: '#4a5568', display: 'flex', flexDirection: 'column', fontFamily: 'system-ui, sans-serif' }}>
 
+      {/* Toolbar */}
       <div style={{
         height: 48, background: '#1a202c', display: 'flex', alignItems: 'center',
         gap: 8, padding: '0 16px', flexShrink: 0, borderBottom: '1px solid #2d3748',
       }}>
-        <span style={{ color: '#0D7377', fontWeight: 700, fontSize: 12 }}>SDRC</span>
-        <span style={{ color: '#718096', fontSize: 12 }}>· Total Body Composition Report · MRN {mrn}</span>
+        {/* Labit branding */}
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src={`${BASE}/labit-logo.png`} alt="Labit" style={{ height: 22, width: 'auto' }} />
+        <span style={{ color: '#4a6a80', fontSize: 11, borderLeft: '1px solid #2d3748', paddingLeft: 8 }}>
+          Total Body Report
+          {meta?.name ? ` · ${meta.name}` : ` · MRN ${mrn}`}
+          {meta?.scan_date ? ` · ${meta.scan_date}` : ''}
+        </span>
         <div style={{ flex: 1 }} />
 
         <button
@@ -103,6 +122,33 @@ export default function PrintPreviewTotalbody({ params }) {
           📱 WhatsApp
         </button>
       </div>
+
+      {/* ROI symmetry warning — screen only, not part of the printed report */}
+      {symmetry && (
+        <div style={{
+          background: symmetry.level === 'red' ? '#3b0a0a' : '#2d1a00',
+          borderBottom: `2px solid ${symmetry.level === 'red' ? '#ef4444' : '#f59e0b'}`,
+          padding: '7px 16px',
+          display: 'flex',
+          alignItems: 'flex-start',
+          gap: 10,
+          flexShrink: 0,
+        }}>
+          <span style={{
+            fontSize: 13, fontWeight: 700,
+            color: symmetry.level === 'red' ? '#ef4444' : '#f59e0b',
+            flexShrink: 0, marginTop: 1,
+          }}>
+            {symmetry.level === 'red' ? '🔴' : '🟠'} ROI CHECK REQUIRED
+          </span>
+          <div style={{ fontSize: 11, color: '#e5c07b', lineHeight: 1.5 }}>
+            <strong>Abnormal L/R asymmetry detected:</strong> {symmetry.items.join(' · ')}.{' '}
+            This may reflect incorrect ROI placement rather than a true clinical finding.{' '}
+            <strong>Action:</strong> Re-analyse the scan in GE Lunar, verify L/R regions are correctly positioned,
+            export XPS, then re-fetch in Labit to regenerate the report.
+          </div>
+        </div>
+      )}
 
       <iframe
         key={previewUrl}
