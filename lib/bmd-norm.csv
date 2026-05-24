@@ -1,8 +1,12 @@
 # GE Lunar iDXA normative reference database — SDRC
 #
 # Sources:
-#   neck   — GE Lunar Norm.csv (hip scans: n=338 female, n=31 male)
-#   spine  — GE Lunar Norm.csv peak/SD (n=5 F, n=1 M); age curve scaled from NHANES III shape
+#   neck   — GE Lunar Norm.csv (hip scans: n=338 female, n=31 male); peak=1.038 SD=0.139 verified
+#            from pct_ya field across all clinical patients — exact match to machine T-scores
+#   spine  — peak=1.180 SD=0.120 reverse-engineered from pct_ya/machine T-scores across 12 female
+#            patients (SD stdev=0.0007); consistent with GE Lunar AP Spine iDXA female reference.
+#            SUVARNA RAO excluded as outlier (age-82 degenerative spine, peak=1.220 on machine).
+#            Male values estimated; age curve from NHANES III shape.
 #   totalbody — GE Lunar published iDXA total body norms (female peak 1.220, male 1.285)
 #
 # Hip T-score zones: always female reference (NHANES white female, GE Lunar WHO classification standard)
@@ -14,7 +18,7 @@
 site,gender,peak,sd,age20,age25,age30,age35,age40,age45,age50,age55,age60,age65,age70,age75,age80,age85,age90
 neck,female,1.038,0.139,1.030,,1.038,,0.975,,0.928,0.910,0.864,0.839,0.804,0.747,0.729,0.690,0.655
 neck,male,1.068,0.131,1.060,,1.068,,1.045,,1.020,,0.967,0.942,0.878,0.854,0.835,0.810,0.780
-spine,female,1.125,0.080,1.101,,1.125,,1.090,,1.039,1.009,0.961,0.921,0.880,0.840,0.799,,0.752
-spine,male,1.220,0.080,1.190,,1.220,,1.195,,1.144,1.109,1.064,1.018,0.976,0.933,0.889,,0.837
+spine,female,1.180,0.120,1.156,,1.180,,1.146,,1.092,1.060,1.010,0.967,0.924,0.882,0.839,,0.790
+spine,male,1.220,0.120,1.190,,1.220,,1.195,,1.144,1.109,1.064,1.018,0.976,0.933,0.889,,0.837
 totalbody,female,1.220,0.080,1.195,,1.220,,1.190,,1.155,1.130,1.095,1.058,1.020,0.982,0.945,,0.900
 totalbody,male,1.285,0.110,1.254,,1.285,,1.267,,1.245,1.230,1.215,1.195,1.175,1.152,1.130,,1.080
