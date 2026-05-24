@@ -8,7 +8,7 @@ export default function ListPage() {
       <div style={{ background: '#0D7377', padding: '10px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={`${BASE}/labit-logo-inverted.png`} alt="Labit" style={{ height: 32, width: 110, objectFit: 'cover', objectPosition: 'left center', borderRadius: 4, display: 'block' }} />
+          <img src={`${BASE}/labit-logo-inverted.png`} alt="Labit" style={{ height: 32, width: 'auto', display: 'block' }} />
           <span style={{ color: '#b2dfdb', fontSize: 13 }}>Bone Density &amp; Body Composition Reports</span>
         </div>
         <Link href="/fetch" style={{ background: 'rgba(255,255,255,0.15)', color: '#fff', textDecoration: 'none', padding: '6px 14px', borderRadius: 5, fontSize: 12, fontWeight: 600, border: '1px solid rgba(255,255,255,0.25)' }}>
