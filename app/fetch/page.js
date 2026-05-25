@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react'
 import BASE from '@/lib/basepath'
+import { tealToolbar, sdrcLogoStyle, labitInvertedStyle } from '@/lib/theme'
 import WaSendModal from '@/components/WaSendModal'
 
 const C = {
@@ -214,12 +215,12 @@ export default function FetchStudiesPage() {
     <div style={{ position: 'fixed', inset: 0, background: C.dark, fontFamily: 'system-ui, sans-serif', color: C.white, display: 'flex', flexDirection: 'column' }}>
 
       {/* Header */}
-      <div style={{ background: C.teal, height: 52, display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 20px', flexShrink: 0 }}>
+      <div style={tealToolbar}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={`${BASE}/sdrc-logo.png`} alt="SDRC" style={{ height: 32, background: 'rgba(255,255,255,0.92)', borderRadius: 4, padding: '2px 6px' }} />
+          <img src={`${BASE}/sdrc-logo.png`} alt="SDRC" style={sdrcLogoStyle} />
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={`${BASE}/labit-logo-inverted.png`} alt="Labit" style={{ height: 24, width: 'auto' }} />
+          <img src={`${BASE}/labit-logo-inverted.png`} alt="Labit" style={labitInvertedStyle} />
           <span style={{ color: '#B2DFDB', fontSize: 12, letterSpacing: 1, borderLeft: '1px solid rgba(255,255,255,0.2)', paddingLeft: 12 }}>Data Collector</span>
         </div>
         <div style={{ display: 'flex', gap: 8 }}>

@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import WaSendModal from '@/components/WaSendModal'
 import BASE from '@/lib/basepath'
+import { C, darkPage, darkToolbar, sdrcLogoStyle, labitInvertedStyle, toolbarLabel } from '@/lib/theme'
 
 function PdfBtn({ href, label, bg, faint }) {
   const [busy, setBusy] = useState(false)
@@ -57,17 +58,14 @@ export default function PrintPreviewOsteo({ params }) {
   }, [lh])
 
   return (
-    <div style={{ position: 'fixed', inset: 0, background: '#0D1B2A', display: 'flex', flexDirection: 'column', fontFamily: 'system-ui, sans-serif' }}>
+    <div style={darkPage}>
 
-      <div style={{
-        height: 48, background: '#0f2235', display: 'flex', alignItems: 'center',
-        gap: 8, padding: '0 16px', flexShrink: 0, borderBottom: '1px solid #1a3a55',
-      }}>
+      <div style={darkToolbar}>
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={`${BASE}/sdrc-logo.png`} alt="SDRC" style={{ height: 28, width: 'auto', background: 'rgba(255,255,255,0.92)', borderRadius: 4, padding: '2px 6px' }} />
+        <img src={`${BASE}/sdrc-logo.png`} alt="SDRC" style={sdrcLogoStyle} />
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={`${BASE}/labit-logo-inverted.png`} alt="Labit" style={{ height: 22, width: 'auto' }} />
-        <span style={{ color: '#718096', fontSize: 11, borderLeft: '1px solid #1a3a55', paddingLeft: 8 }}>Bone Density Report · MRN {mrn}</span>
+        <img src={`${BASE}/labit-logo-inverted.png`} alt="Labit" style={labitInvertedStyle} />
+        <span style={toolbarLabel()}>Bone Density Report · MRN {mrn}</span>
         <div style={{ flex: 1 }} />
 
         <button
