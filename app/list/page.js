@@ -14,7 +14,7 @@ export default function ListPage() {
           <img src={`${BASE}/labit-logo-inverted.png`} alt="Labit" style={labitInvertedStyle} />
           <span style={{ color: '#b2dfdb', fontSize: 13 }}>Bone Density &amp; Body Composition Reports</span>
         </div>
-        <Link href={`${BASE}/fetch`} style={tealNavBtn}>⟳ Fetch Studies</Link>
+        <Link href="/fetch" style={tealNavBtn}>⟳ Fetch Studies</Link>
       </div>
       <div style={{ maxWidth: 960, margin: '32px auto', padding: '0 16px' }}>
         <PatientTable />
