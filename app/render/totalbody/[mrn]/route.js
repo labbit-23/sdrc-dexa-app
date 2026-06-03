@@ -91,7 +91,7 @@ export async function GET(req, { params }) {
   const preview    = req.nextUrl.searchParams.get('preview') === '1'
   const tpl        = req.nextUrl.searchParams.get('tpl') ?? 'standard'
 
-  const html = tpl === 'kraft'
+  const html = tpl === 'studio'
     ? generateEditorialHtml(reportData, { letterhead, history, preview })
     : generateReportHtml(reportData, { dark: false, letterhead, history, preview })
 

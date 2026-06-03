@@ -38,8 +38,8 @@ const TEMPLATES = [
     lhColor:   { bg: '#fff3e0', color: '#b45309', border: '#f59e0b88' },
   },
   {
-    tpl:       'kraft',
-    label:     'Kraft',
+    tpl:       'studio',
+    label:     'Studio',
     lhLabel:   '🌿 Brown Paper',
     lhHint:    'Load plain brown / recycled paper into printer',
     lhActive:  'Using brown paper',
