@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import WaSendModal from '@/components/WaSendModal'
 import BASE from '@/lib/basepath'
-import { C, darkPage, darkToolbar, sdrcLogoStyle, labitInvertedStyle, toolbarLabel } from '@/lib/theme'
+import { darkPage, darkToolbar, sdrcLogoStyle, labitInvertedStyle, toolbarLabel } from '@/lib/theme'
 
 function PdfBtn({ href, label, bg, faint }) {
   const [busy, setBusy] = useState(false)
@@ -27,11 +27,34 @@ function PdfBtn({ href, label, bg, faint }) {
   )
 }
 
+// Template definitions — name shown to staff, tpl value sent to render route
+const TEMPLATES = [
+  {
+    tpl:       'standard',
+    label:     'Standard',
+    lhLabel:   '📄 Lab Stationery',
+    lhHint:    'Load pre-printed lab stationery into printer',
+    lhActive:  'Using lab stationery',
+    lhColor:   { bg: '#fff3e0', color: '#b45309', border: '#f59e0b88' },
+  },
+  {
+    tpl:       'kraft',
+    label:     'Kraft',
+    lhLabel:   '🌿 Brown Paper',
+    lhHint:    'Load plain brown / recycled paper into printer',
+    lhActive:  'Using brown paper',
+    lhColor:   { bg: '#f0fdf4', color: '#166534', border: '#86efac88' },
+  },
+]
+
 export default function PrintPreviewTotalbody({ params }) {
   const { mrn } = params
-  const [lh, setLh] = useState(false)
+  const [lh, setLh]       = useState(false)
+  const [tpl, setTpl]     = useState('standard')
   const [waOpen, setWaOpen] = useState(false)
-  const [meta, setMeta] = useState(null) // { name, scan_date, filename, symmetry }
+  const [meta, setMeta]   = useState(null) // { name, scan_date, filename, symmetry }
+
+  const tmpl = TEMPLATES.find(t => t.tpl === tpl) ?? TEMPLATES[0]
 
   useEffect(() => {
     fetch(`${BASE}/api/tb-meta?mrn=${mrn}`)
@@ -40,15 +63,12 @@ export default function PrintPreviewTotalbody({ params }) {
       .catch(() => {})
   }, [mrn])
 
-  const previewUrl = lh
-    ? `${BASE}/render/totalbody/${mrn}?lh=1&preview=1`
-    : `${BASE}/render/totalbody/${mrn}?preview=1`
+  const tplParam   = tpl !== 'standard' ? `&tpl=${tpl}` : ''
+  const previewUrl = `${BASE}/render/totalbody/${mrn}?preview=1${lh ? '&lh=1' : ''}${tplParam}`
 
   // Include patient-friendly filename hint in the PDF URL
   const nameParam = meta?.filename ? `&dl=${encodeURIComponent(meta.filename)}` : ''
-  const pdfHref = lh
-    ? `${BASE}/api/pdf?mrn=${mrn}&type=totalbody&lh=1${nameParam}`
-    : `${BASE}/api/pdf?mrn=${mrn}&type=totalbody${nameParam}`
+  const pdfHref   = `${BASE}/api/pdf?mrn=${mrn}&type=totalbody${lh ? '&lh=1' : ''}${tplParam}${nameParam}`
 
   const doPrint = () => {
     const win = window.open(previewUrl, '_blank')
@@ -65,7 +85,7 @@ export default function PrintPreviewTotalbody({ params }) {
     }
     window.addEventListener('keydown', handler)
     return () => window.removeEventListener('keydown', handler)
-  }, [lh])
+  }, [lh, tpl])
 
   const symmetry = meta?.symmetry
 
@@ -86,20 +106,46 @@ export default function PrintPreviewTotalbody({ params }) {
         </span>
         <div style={{ flex: 1 }} />
 
-        <button
-          onClick={() => setLh(l => !l)}
-          style={{
-            padding: '5px 14px', borderRadius: 5, fontSize: 12, fontWeight: 600,
-            background: lh ? '#fff3e0' : '#2d3748',
-            color: lh ? '#b45309' : '#a0aec0',
-            border: `1px solid ${lh ? '#f59e0b88' : '#4a5568'}`,
-            cursor: 'pointer',
-          }}
-        >
-          {lh ? '✕ Exit Letterhead' : '📄 Letterhead'}
-        </button>
+        {/* Template selector */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 2, background: '#1a202c', borderRadius: 6, padding: 2 }}>
+          {TEMPLATES.map(t => (
+            <button
+              key={t.tpl}
+              onClick={() => { setTpl(t.tpl); setLh(false) }}
+              style={{
+                padding: '4px 12px', borderRadius: 4, fontSize: 11, fontWeight: 600,
+                background: tpl === t.tpl ? '#4a5568' : 'transparent',
+                color: tpl === t.tpl ? '#e2e8f0' : '#718096',
+                border: 'none', cursor: 'pointer', whiteSpace: 'nowrap',
+              }}
+            >
+              {t.label}
+            </button>
+          ))}
+        </div>
 
-        <PdfBtn href={pdfHref} label="↓ PDF" bg={lh ? '#92400e' : '#0D7377'} faint={lh ? '#fef3c7' : '#fff'} />
+        {/* Letterhead toggle — label and hint change per template */}
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 2 }}>
+          <button
+            onClick={() => setLh(l => !l)}
+            style={{
+              padding: '5px 14px', borderRadius: 5, fontSize: 12, fontWeight: 600,
+              background: lh ? tmpl.lhColor.bg : '#2d3748',
+              color: lh ? tmpl.lhColor.color : '#a0aec0',
+              border: `1px solid ${lh ? tmpl.lhColor.border : '#4a5568'}`,
+              cursor: 'pointer', whiteSpace: 'nowrap',
+            }}
+          >
+            {lh ? `✕ ${tmpl.lhActive}` : tmpl.lhLabel}
+          </button>
+          {!lh && (
+            <span style={{ fontSize: 9, color: '#4a5568', letterSpacing: '0.05em' }}>
+              {tmpl.lhHint}
+            </span>
+          )}
+        </div>
+
+        <PdfBtn href={pdfHref} label="↓ PDF" bg={lh ? '#2d4a1e' : '#0D7377'} faint={lh ? '#bbf7d0' : '#fff'} />
 
         <button
           onClick={doPrint}

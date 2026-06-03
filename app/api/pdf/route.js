@@ -18,6 +18,7 @@ export async function GET(req) {
   }
 
   const lh       = req.nextUrl.searchParams.get('lh') === '1'
+  const tpl      = req.nextUrl.searchParams.get('tpl') ?? 'standard'
   const scanType = req.nextUrl.searchParams.get('type') === 'totalbody' ? 'totalbody' : 'osteo'
   // Patient-friendly filename passed from the print page (via tb-meta)
   const dlParam  = req.nextUrl.searchParams.get('dl')
@@ -25,7 +26,11 @@ export async function GET(req) {
   // through the reverse proxy (which would land on ERPNext, not this Next.js app).
   const port     = process.env.PORT ?? '3010'
   const base     = process.env.NEXT_PUBLIC_BASEPATH ?? ''
-  const renderUrl = `http://localhost:${port}${base}/render/${scanType}/${mrn}${lh ? '?lh=1' : ''}`
+  const qp = new URLSearchParams()
+  if (lh) qp.set('lh', '1')
+  if (tpl !== 'standard') qp.set('tpl', tpl)
+  const qs = qp.toString()
+  const renderUrl = `http://localhost:${port}${base}/render/${scanType}/${mrn}${qs ? '?' + qs : ''}`
 
   const browser = await puppeteer.launch({
     headless: true,
@@ -53,9 +58,10 @@ export async function GET(req) {
     })
 
     const label    = scanType === 'totalbody' ? 'Body_Composition' : 'Bone_Density'
+    const printSuffix = lh ? '_Print' : ''
     const filename = dlParam
-      ? dlParam.replace(/[^a-zA-Z0-9._-]/g, '_')  // sanitise the patient-friendly name
-      : `${mrn}_${label}${lh ? '_Letterhead' : ''}.pdf`
+      ? dlParam.replace(/[^a-zA-Z0-9._-]/g, '_').replace(/\.pdf$/i, '') + printSuffix + '.pdf'
+      : `${mrn}_${label}${printSuffix}.pdf`
     return new NextResponse(Buffer.from(pdf), {
       headers: {
         'Content-Type': 'application/pdf',

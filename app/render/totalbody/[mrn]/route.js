@@ -7,8 +7,9 @@
  */
 
 import { NextResponse }        from 'next/server'
-import { computeReportData }   from '@/lib/bmd-compute.js'
-import { generateReportHtml }  from '@/lib/bmd-html-template.js'
+import { computeReportData }        from '@/lib/bmd-compute.js'
+import { generateReportHtml }       from '@/lib/bmd-html-template.js'
+import { generateEditorialHtml }    from '@/lib/editorial-html-template.js'
 import { fetchAllTotalBodyScans, buildTotalbodyImageUrls } from '@/lib/fetch-scan.js'
 
 export const dynamic = 'force-dynamic'
@@ -88,7 +89,11 @@ export async function GET(req, { params }) {
 
   const letterhead = req.nextUrl.searchParams.get('lh') === '1'
   const preview    = req.nextUrl.searchParams.get('preview') === '1'
-  const html = generateReportHtml(reportData, { dark: false, letterhead, history, preview })
+  const tpl        = req.nextUrl.searchParams.get('tpl') ?? 'standard'
+
+  const html = tpl === 'kraft'
+    ? generateEditorialHtml(reportData, { letterhead, history, preview })
+    : generateReportHtml(reportData, { dark: false, letterhead, history, preview })
 
   return new NextResponse(html, {
     headers: { 'Content-Type': 'text/html; charset=utf-8' },
