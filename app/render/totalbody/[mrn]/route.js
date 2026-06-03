@@ -87,13 +87,33 @@ export async function GET(req, { params }) {
     })
     .filter(Boolean)
 
-  const letterhead = req.nextUrl.searchParams.get('lh') === '1'
-  const preview    = req.nextUrl.searchParams.get('preview') === '1'
-  const tpl        = req.nextUrl.searchParams.get('tpl') ?? 'standard'
+  const letterhead   = req.nextUrl.searchParams.get('lh') === '1'
+  const preview      = req.nextUrl.searchParams.get('preview') === '1'
+  const tpl          = req.nextUrl.searchParams.get('tpl') ?? 'standard'
+  const forceTrends  = req.nextUrl.searchParams.get('trends') === '1'
+
+  // Scan delta: diff between current and most recent prior scan
+  const prevData = history[history.length - 1] ?? null
+  if (prevData) {
+    const cur = reportData.composition
+    const prv = prevData.composition
+    reportData.scan_delta = {
+      fat_pct_change:  parseFloat((cur.fat_pct - prv.fat_pct).toFixed(1)),
+      fat_kg_change:   parseFloat((cur.fat_g / 1000 - prv.fat_g / 1000).toFixed(1)),
+      lean_kg_change:  parseFloat((cur.lean_g / 1000 - prv.lean_g / 1000).toFixed(1)),
+      bmc_kg_change:   parseFloat((cur.bmc_g / 1000 - prv.bmc_g / 1000).toFixed(2)),
+      scan_date_prev:  prevData.patient.scan_date,
+    }
+  }
+
+  // forceTrends: in dev, show trends page even for single-scan patients
+  const historyForRender = forceTrends && history.length === 0
+    ? [{ ...reportData, patient: { ...reportData.patient, scan_date: 'Preview (no prior scan)' } }]
+    : history
 
   const html = tpl === 'studio'
-    ? generateEditorialHtml(reportData, { letterhead, history, preview })
-    : generateReportHtml(reportData, { dark: false, letterhead, history, preview })
+    ? generateEditorialHtml(reportData, { letterhead, history: historyForRender, preview })
+    : generateReportHtml(reportData, { dark: false, letterhead, history: historyForRender, preview })
 
   return new NextResponse(html, {
     headers: { 'Content-Type': 'text/html; charset=utf-8' },
