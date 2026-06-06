@@ -31,7 +31,7 @@ function PdfBtn({ href, label, bg, faint }) {
 const TEMPLATES = [
   {
     tpl:       'standard',
-    label:     'Standard',
+    label:     'Classic',
     lhLabel:   '📄 Lab Stationery',
     lhHint:    'Load pre-printed lab stationery into printer',
     lhActive:  'Using lab stationery',
@@ -44,6 +44,14 @@ const TEMPLATES = [
     lhHint:    'Load plain brown / recycled paper into printer',
     lhActive:  'Using brown paper',
     lhColor:   { bg: '#f0fdf4', color: '#166534', border: '#86efac88' },
+  },
+  {
+    tpl:       'comprehensive',
+    label:     'Comprehensive',
+    lhLabel:   '📑 Plain White',
+    lhHint:    'Load plain white paper into printer',
+    lhActive:  'Using plain white paper',
+    lhColor:   { bg: '#f0f0f0', color: '#333333', border: '#cccccc88' },
   },
 ]
 
@@ -106,23 +114,26 @@ export default function PrintPreviewTotalbody({ params }) {
         </span>
         <div style={{ flex: 1 }} />
 
-        {/* Template selector */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 2, background: '#1a202c', borderRadius: 6, padding: 2 }}>
+        {/* Template selector dropdown */}
+        <select
+          value={tpl}
+          onChange={(e) => { setTpl(e.target.value); setLh(false) }}
+          style={{
+            padding: '6px 10px', borderRadius: 5, fontSize: 12, fontWeight: 600,
+            background: '#2d3748', color: '#e2e8f0', border: '1px solid #4a5568',
+            cursor: 'pointer', appearance: 'none',
+            backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath fill='%23718096' d='M1 1l5 5 5-5'/%3E%3C/svg%3E")`,
+            backgroundRepeat: 'no-repeat',
+            backgroundPosition: 'right 6px center',
+            paddingRight: '28px',
+          }}
+        >
           {TEMPLATES.map(t => (
-            <button
-              key={t.tpl}
-              onClick={() => { setTpl(t.tpl); setLh(false) }}
-              style={{
-                padding: '4px 12px', borderRadius: 4, fontSize: 11, fontWeight: 600,
-                background: tpl === t.tpl ? '#4a5568' : 'transparent',
-                color: tpl === t.tpl ? '#e2e8f0' : '#718096',
-                border: 'none', cursor: 'pointer', whiteSpace: 'nowrap',
-              }}
-            >
+            <option key={t.tpl} value={t.tpl}>
               {t.label}
-            </button>
+            </option>
           ))}
-        </div>
+        </select>
 
         {/* Letterhead toggle — label and hint change per template */}
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 2 }}>

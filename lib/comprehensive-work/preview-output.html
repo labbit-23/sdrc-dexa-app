@@ -1,0 +1,657 @@
+
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+      <meta charset="UTF-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <title>DEXA Comprehensive Report</title>
+      <link rel="preconnect" href="https://fonts.googleapis.com">
+      <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+      <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Poppins:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,700;1,800;1,900&display=swap">
+      <style>
+        :root {
+          --accent:#C24A2E; --accent2:#D9633F; --lean:#5F7138; --lean-d:#4C5C2C;
+          --dark:#2A241E; --stone:#9B8E78; --bone:#DED7C9; --amber:#C08A2E;
+          --ink:#2A241E; --ink-2:#574E42; --muted:#908676; --line:#E7E1D5;
+          --paper:#FBF9F4; --fig-base:#D9D2C4;
+          --sans:"Poppins",system-ui,-apple-system,sans-serif;
+          --page-w:210mm; --page-h:297mm; --pad:16mm;
+        }
+        * { margin:0; padding:0; box-sizing:border-box; }
+        @page { size:A4; margin:0; }
+        body { font-family:var(--sans); color:var(--ink); background:#CFC8BA; -webkit-font-smoothing:antialiased; -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+        img { max-width:100%; height:auto; display:block; }
+
+        [data-page] { position:relative; width:var(--page-w); min-height:var(--page-h); height:var(--page-h); margin:10mm auto; background:var(--paper); padding:var(--pad); display:flex; flex-direction:column; overflow:hidden; box-shadow:0 16px 40px -18px rgba(40,32,20,.4); }
+
+        .dx-head { margin-bottom:7mm; }
+        .dx-title { font-weight:800; font-size:33px; letter-spacing:-0.5px; line-height:0.98; text-transform:uppercase; }
+        .dx-sub { font-weight:400; font-size:25px; line-height:1.1; color:var(--accent); margin-top:1px; }
+        .dx-sub-date { color:var(--ink); }
+        .dx-kicker { font-weight:800; font-size:20px; text-transform:uppercase; letter-spacing:0.3px; }
+        .dx-kicker .lite { font-weight:400; color:var(--ink-2); }
+
+        .dx-foot { margin-top:auto; padding-top:6mm; display:flex; justify-content:space-between; align-items:flex-end; }
+        .dx-foot-q { font-size:12px; color:var(--ink-2); line-height:1.55; }
+        .dx-foot-gen { color:var(--muted); font-size:11px; }
+        .dx-foot-logo { font-weight:900; font-size:26px; letter-spacing:1px; color:var(--accent); border:2.5px solid var(--accent); border-radius:8px; padding:4px 12px; }
+
+        .dx-flow { flex:1; display:flex; flex-direction:column; gap:7mm; min-height:0; }
+        .dx-flow > * { flex-shrink:0; }
+
+        .dx-patient { display:grid; grid-template-columns:1fr 200px; border:2px solid var(--accent); border-radius:16px; overflow:hidden; }
+        .dx-patient-info { display:grid; grid-template-columns:1fr 1fr; gap:4mm 8mm; padding:6mm 7mm; align-content:center; }
+        .dx-pi { font-size:16px; } .dx-pi .k { color:var(--ink-2); } .dx-pi .v { font-weight:600; }
+        .dx-patient-bf { background:var(--accent); color:#fff; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:2px; padding:4mm; }
+        .dx-patient-bf .lbl { font-size:15px; font-weight:500; } .dx-patient-bf .big { font-size:40px; font-weight:800; line-height:1; }
+
+        .dx-badge { display:flex; flex-direction:column; align-items:center; gap:7px; }
+        .dx-badge-ring { width:90px; height:90px; border-radius:50%; border:4px solid var(--lean); background:var(--paper); display:flex; flex-direction:column; align-items:center; justify-content:center; }
+        .dx-badge-val { font-size:26px; font-weight:800; line-height:1; }
+        .dx-badge-unit { font-size:12px; color:var(--muted); font-weight:500; }
+        .dx-badge-label { font-size:13px; font-weight:600; letter-spacing:0.4px; text-transform:uppercase; }
+        .dx-badge-label.on-dark { color:#F3EFE7; }
+
+        .dx-dark { background:var(--dark); color:#F3EFE7; border-radius:18px; padding:7mm; }
+        .dx-dark h3 { font-size:21px; font-weight:700; margin-bottom:4mm; }
+        .dx-dark .hl { color:var(--accent2); }
+
+        .dx-copy { font-size:13px; line-height:1.5; color:var(--ink-2); }
+        .dx-copy strong { color:var(--ink); font-weight:700; }
+        .dx-copy h4 { font-size:16px; font-weight:700; color:var(--ink); margin:3mm 0 1mm; }
+        .dx-copy ul { padding-left:16px; } .dx-copy li { margin-bottom:1mm; }
+
+        .dx-scale { position:relative; padding-top:30px; }
+        .dx-scale-track { display:grid; grid-template-columns:repeat(6,1fr); gap:6px; height:16px; }
+        .dx-scale-track > span { border-radius:8px; }
+        .dx-scale-ends { display:flex; justify-content:space-between; font-size:14px; font-weight:600; margin-top:5px; }
+        .dx-scale-marker { position:absolute; top:0; transform:translateX(-50%); display:flex; flex-direction:column; align-items:center; line-height:1; }
+        .dx-scale-marker-val { font-size:17px; font-weight:800; } .dx-scale-marker-tri { font-size:12px; margin-top:2px; }
+        .dx-scale-legend { display:grid; grid-template-columns:repeat(3,1fr); gap:5mm 8mm; }
+        .dx-leg-item { font-size:12.5px; line-height:1.4; color:var(--ink-2); }
+        .dx-leg-item .tag { display:flex; align-items:center; gap:6px; font-weight:700; color:var(--ink); margin-bottom:1px; }
+        .dx-leg-item .sw { width:16px; height:11px; border-radius:3px; display:inline-block; }
+
+        .dx-fig { width:auto; height:120px; margin:0 auto; display:block; }
+
+        .dx-reg-bodies { display:grid; grid-template-columns:70px repeat(var(--cols,5),1fr); align-items:end; gap:4px; }
+        .dx-reg-row { display:grid; grid-template-columns:70px repeat(var(--cols,5),1fr); align-items:center; text-align:center; }
+        .dx-reg-row > .rh { text-align:left; font-weight:800; font-size:13px; letter-spacing:0.3px; text-transform:uppercase; }
+        .dx-reg-row > div { padding:7px 4px; font-size:14px; font-weight:600; }
+        .dx-reg-row.head > div { font-weight:700; font-size:12.5px; letter-spacing:0.3px; text-transform:uppercase; }
+        .dx-reg-row.plain + .dx-reg-row.plain { border-top:1px solid var(--line); }
+        .dx-reg-row.lean { background:var(--lean); border-radius:10px; color:#fff; } .dx-reg-row.lean .rh { color:#fff; }
+        .dx-reg-row.fat { background:var(--accent); border-radius:10px; color:#fff; } .dx-reg-row.fat .rh { color:#fff; }
+        .dx-reg-row.boner { background:var(--bone); border-radius:10px; }
+        .dx-reg-spacer { height:4px; }
+
+        .dx-cards3 { display:grid; grid-template-columns:repeat(3,1fr); }
+        .dx-card3 { padding:5mm; border:1.5px solid var(--accent); font-size:12px; line-height:1.45; color:var(--ink-2); }
+        .dx-card3:first-child { border-radius:14px 0 0 14px; border-right:none; }
+        .dx-card3:nth-child(2){ border-left:none; border-right:none; }
+        .dx-card3:last-child { border-radius:0 14px 14px 0; }
+        .dx-card3 h4 { font-size:16px; font-weight:700; color:var(--ink); margin-bottom:2mm; }
+        .dx-card3.fill-accent { background:var(--accent); border-color:var(--accent); color:#fff; } .dx-card3.fill-accent h4 { color:#fff; }
+        .dx-card3.fill-bone { background:var(--bone); border-color:var(--bone); color:var(--ink-2); }
+
+        .dx-table { width:100%; border-collapse:separate; border-spacing:0; font-size:14px; }
+        .dx-table th { background:var(--dark); color:#F3EFE7; font-weight:600; padding:9px 12px; text-align:center; }
+        .dx-table th:first-child { text-align:left; border-radius:10px 0 0 0; } .dx-table th:last-child { border-radius:0 10px 0 0; }
+        .dx-table td { padding:9px 12px; text-align:center; border-bottom:1px solid var(--line); }
+        .dx-table td:first-child { text-align:left; font-weight:600; }
+        .dx-table tr:last-child td { border-bottom:none; }
+        .dx-table tr.hi td { background:var(--bone); font-weight:700; }
+        .dx-table tr[data-trend="positive"] td:last-child { color:var(--lean-d); font-weight:700; }
+        .dx-table tr[data-trend="negative"] td:last-child { color:var(--accent); font-weight:700; }
+
+        .dx-bone-grid { display:grid; grid-template-columns:90px repeat(8,1fr); align-items:center; }
+        .dx-bone-grid .col-h { text-align:center; font-weight:800; font-size:13px; text-transform:uppercase; padding-bottom:4mm; }
+        .dx-bone-grid .row-h { font-weight:800; font-size:13px; text-transform:uppercase; }
+        .dx-bone-grid .row-h small { display:block; font-weight:500; font-size:10px; color:var(--muted); text-transform:none; }
+        .dx-bone-grid > div { padding:6px 2px; text-align:center; font-size:14px; }
+        .dx-bone-grid .bone-fig { display:flex; align-items:flex-end; justify-content:center; padding-bottom:3mm; }
+        .dx-bone-grid .bone-fig .dx-fig { height:104px; }
+        .dx-bone-grid .total-col { background:var(--bone); font-weight:700; border-radius:8px; }
+
+        .dx-compare { position:relative; height:2px; background:var(--ink); margin:12mm 0 4mm; }
+        .dx-compare::before, .dx-compare::after { content:""; position:absolute; top:-6px; width:2px; height:14px; background:var(--ink); }
+        .dx-compare::before { left:0; } .dx-compare::after { right:0; }
+        .dx-compare-dot { position:absolute; top:-7px; width:16px; height:16px; border-radius:50%; transform:translateX(-50%); }
+        .dx-compare-labels { display:flex; justify-content:space-between; font-weight:700; font-size:14px; }
+
+        /* symmetry */
+        .dx-sym-grid { display:grid; grid-template-columns:70px repeat(6,1fr); text-align:center; }
+        .dx-sym-grid .rh { text-align:left; font-weight:800; font-size:12.5px; text-transform:uppercase; }
+        .dx-sym-grid > div { padding:6px 3px; font-size:13px; font-weight:600; }
+        .dx-sym-grid .head > div, .dx-sym-grid .colh { font-weight:700; font-size:11.5px; text-transform:uppercase; }
+        .dx-sym-grid .lean { background:var(--lean); color:#fff; border-radius:8px; }
+        .dx-sym-grid .fat { background:var(--accent); color:#fff; border-radius:8px; }
+        .dx-sym-grid .boner { background:var(--bone); border-radius:8px; }
+        .dx-bal { display:grid; grid-template-columns:repeat(3,1fr); gap:6mm; }
+        .dx-bal-card { border:1.5px solid var(--line); border-radius:14px; padding:5mm; }
+        .dx-bal-card h4 { font-size:15px; font-weight:800; text-transform:uppercase; margin-bottom:3mm; }
+        .dx-bal-bar { position:relative; height:10px; border-radius:6px; background:linear-gradient(90deg,#5F7138,#BBA86B,#C24A2E); margin-bottom:3mm; }
+        .dx-bal-bar .pin { position:absolute; top:-4px; width:4px; height:18px; background:var(--ink); border-radius:2px; transform:translateX(-50%); }
+        .dx-bal-tag { font-weight:700; font-size:13px; }
+
+        /* trend rows */
+        .dx-trend-row { display:grid; grid-template-columns:120px 200px 1fr; align-items:center; gap:6mm; padding:4mm 0; border-bottom:1px solid var(--line); }
+        .dx-trend-row:last-child { border-bottom:none; }
+        .dx-trend-row .rname { font-weight:800; font-size:18px; text-transform:uppercase; }
+        .dx-trend-row .rname small { display:block; font-weight:500; font-size:11px; color:var(--muted); text-transform:none; margin-top:2px; }
+        .dx-spark { width:200px; height:76px; }
+        .dx-trend-stats { display:grid; grid-template-columns:repeat(3,1fr); gap:3mm; }
+        .dx-stat { background:var(--paper); border:1px solid var(--line); border-radius:10px; padding:3mm; text-align:center; }
+        .dx-stat .v { font-size:18px; font-weight:800; } .dx-stat .l { font-size:10px; color:var(--muted); text-transform:uppercase; letter-spacing:0.3px; }
+        .dx-stat.up .v { color:var(--accent); } .dx-stat.down .v { color:var(--lean-d); }
+
+        /* RMR */
+        .dx-rmr-hero { display:grid; grid-template-columns:1fr 200px; border-radius:16px; overflow:hidden; border:2px solid var(--accent); }
+        .dx-rmr-hero .txt { padding:6mm 7mm; font-size:13px; color:var(--ink-2); line-height:1.5; align-self:center; }
+        .dx-rmr-hero .val { background:var(--accent); color:#fff; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:2px; }
+        .dx-rmr-hero .val .l { font-size:14px; } .dx-rmr-hero .val .n { font-size:46px; font-weight:800; line-height:1; }
+        .dx-life { display:grid; grid-template-columns:repeat(5,1fr); gap:0; border:1px solid var(--line); border-radius:12px; overflow:hidden; }
+        .dx-life > div { padding:4mm 3mm; border-right:1px solid var(--line); text-align:center; }
+        .dx-life > div:last-child { border-right:none; }
+        .dx-life .lv { font-size:11px; text-transform:uppercase; letter-spacing:0.3px; color:var(--muted); }
+        .dx-life .kc { font-size:22px; font-weight:800; }
+        .dx-tdee { display:grid; grid-template-columns:repeat(3,1fr); gap:6mm; align-items:center; text-align:center; }
+        .dx-tdee .circ { width:130px; height:130px; border-radius:50%; border:5px solid var(--stone); display:flex; flex-direction:column; align-items:center; justify-content:center; margin:0 auto; }
+        .dx-tdee .circ.maintain { border-color:var(--accent); }
+        .dx-tdee .circ .n { font-size:30px; font-weight:800; } .dx-tdee .circ .l { font-size:12px; text-transform:uppercase; color:var(--ink-2); }
+
+        /* shapes */
+        .dx-shapes { display:grid; grid-template-columns:repeat(5,1fr); gap:6mm; text-align:center; }
+        .dx-shape { padding:4mm; border-radius:14px; border:2px solid transparent; }
+        .dx-shape.active { border-color:var(--accent); background:#F6E9E3; }
+        .dx-shape .dx-fig { height:130px; }
+        .dx-shape .nm { font-weight:700; font-size:13px; text-transform:uppercase; margin-top:3mm; }
+        .dx-shape.active .nm { color:var(--accent); }
+
+        .dx-2 { display:grid; grid-template-columns:1fr 1fr; gap:8mm; }
+        .dx-3 { display:grid; grid-template-columns:repeat(3,1fr); gap:6mm; }
+        .dx-img-frame { border-radius:14px; overflow:hidden; background:#F1ECE3; display:flex; align-items:center; justify-content:center; min-height:120px; }
+        .dx-img-frame img { max-height:300px; width:auto; }
+        .dx-note { font-size:11.5px; font-style:italic; color:var(--muted); line-height:1.5; }
+        .dx-alert { color:var(--accent); font-weight:700; }
+
+        @media print {
+          body { background:#fff; }
+          [data-page] { margin:0; box-shadow:none; page-break-after:always; break-after:page; height:var(--page-h); }
+          [data-page]:last-child { page-break-after:auto; }
+        }
+      </style>
+    </head>
+    <body>
+
+      <!-- PAGE 1: AT A GLANCE -->
+      <div data-page="1">
+        
+  <header class="dx-head">
+    <h1 class="dx-title">DEXA BODY COMPOSITION</h1>
+    <p class="dx-sub">Report <span class="dx-sub-date">— 29 Jan, 2026</span></p>
+  </header>
+        <div class="dx-flow">
+          <article class="dx-patient">
+            <div class="dx-patient-info">
+              <div class="dx-pi"><span class="k">Name:</span> <span class="v">Vishal Suddala</span></div>
+              <div class="dx-pi"><span class="k">Age:</span> <span class="v">40 yrs</span></div>
+              <div class="dx-pi"><span class="k">Height:</span> <span class="v">170 cm</span></div>
+              <div class="dx-pi"><span class="k">Gender:</span> <span class="v">Male</span></div>
+              <div class="dx-pi"><span class="k">Weight:</span> <span class="v">85 kg</span></div>
+            </div>
+            <div class="dx-patient-bf"><span class="lbl">Body Fat</span><span class="big">38.6 %</span></div>
+          </article>
+
+          <div class="dx-2" style="grid-template-columns:0.85fr 1.15fr; align-items:start;">
+            <div style="text-align:center;">
+              <div class="dx-kicker"><span>AGE GROUP</span> <span class="lite">AVERAGE</span></div>
+                <div style="font-size:26px;font-weight:800;margin:2px 0 4mm;">28%</div>
+              <div class="dx-img-frame"><svg class="dx-fig" viewBox="0 0 120 262" aria-hidden="true"><path d="M54 36 C53 41 51 43 48 45 C43 47 39 51 36 57 C33 63 31 70 29 80 C27 90 26 99 25 108 C24 114 24 120 26 123 C28 125 31 123 32 118 C34 108 36 99 38 90 C40 82 42 76 44 70 C44 80 44 92 45 102 C46 118 47 128 49 137 C47 154 46 173 47 191 C48 208 50 223 51 238 C52 247 53 251 57 251 C61 251 61 246 61 239 C61 219 61 199 61 180 C61 167 60 152 60 142 C60 152 59 167 59 180 C59 199 59 219 59 239 C59 246 59 251 63 251 C67 251 68 247 69 238 C70 223 72 208 73 191 C74 173 73 154 71 137 C73 128 74 118 75 102 C76 92 76 80 76 70 C78 76 80 82 82 90 C84 99 86 108 88 118 C89 123 92 125 94 123 C96 120 96 114 95 108 C94 99 93 90 91 80 C89 70 87 63 84 57 C81 51 77 47 72 45 C69 43 67 41 66 36 C64 40 56 40 54 36 Z" fill="var(--fig-base)"/><circle cx="60" cy="22" r="14" fill="var(--fig-base)"/></svg></div>
+            </div>
+            <article>
+              <div class="dx-kicker" style="margin-bottom:5mm;">YOUR BODY COMPOSITION <span class="lite">&amp; WHAT IT MEANS</span></div>
+              <div class="dx-dark">
+                <div style="display:grid;grid-template-columns:1fr 1.1fr;gap:6mm;align-items:center;">
+                  <div style="display:flex;flex-direction:column;gap:5mm;">
+                    
+  <div class="dx-badge">
+    <div class="dx-badge-ring" style="border-color:var(--accent)">
+      <span class="dx-badge-val" style="color:var(--accent)">84.6</span>
+      <span class="dx-badge-unit">kgs</span>
+    </div>
+    <div class="dx-badge-label on-dark">Total Mass</div>
+  </div>
+                    
+  <div class="dx-badge">
+    <div class="dx-badge-ring" style="border-color:var(--lean)">
+      <span class="dx-badge-val" style="color:var(--lean)">49.5</span>
+      <span class="dx-badge-unit">kgs</span>
+    </div>
+    <div class="dx-badge-label on-dark">Lean Mass</div>
+  </div>
+                    
+  <div class="dx-badge">
+    <div class="dx-badge-ring" style="border-color:var(--accent)">
+      <span class="dx-badge-val" style="color:var(--accent)">32.7</span>
+      <span class="dx-badge-unit">kgs</span>
+    </div>
+    <div class="dx-badge-label on-dark">Fat Mass</div>
+  </div>
+                    
+  <div class="dx-badge">
+    <div class="dx-badge-ring" style="border-color:var(--lean)">
+      <span class="dx-badge-val" style="color:var(--lean)">2.4</span>
+      <span class="dx-badge-unit">kgs</span>
+    </div>
+    <div class="dx-badge-label on-dark">Bone Mineral</div>
+  </div>
+                  </div>
+                  <div class="dx-copy" style="color:#CBC3B4;">
+                    <h4 style="color:#fff;">DEXA is the GOLD STANDARD</h4>
+                    <p style="color:#CBC3B4;">It measures the three components directly, leaving no room for assumptions.</p>
+                    <h4 style="color:#fff;">Increase LEAN MASS</h4>
+                    <p style="color:#CBC3B4;">Strength training · adequate protein intake.</p>
+                    <h4 style="color:#fff;">Decrease FAT MASS</h4>
+                    <p style="color:#CBC3B4;">Nutrition planning · cardiovascular activity.</p>
+                  </div>
+                </div>
+              </div>
+            </article>
+          </div>
+          <p class="dx-note">This classification provides body-fat percentages based on empirical DEXA results — general guidance to help set goals. To safely reduce or gain weight, consult your physician or fitness trainer.</p>
+        </div>
+        
+  <footer class="dx-foot">
+    <div class="dx-foot-q">Diagnostics &amp; Imaging<br>www.sdrc.in<br><span class="dx-foot-gen">Generated by labit.online</span></div>
+    <div class="dx-foot-logo">SDRC</div>
+  </footer>
+      </div>
+
+      <!-- PAGE 2: BODY FAT SCALE -->
+      <div data-page="2">
+        
+  <header class="dx-head">
+    <h1 class="dx-title">DEXA BODY COMPOSITION</h1>
+    <p class="dx-sub">Report</p>
+  </header>
+        <div class="dx-flow">
+          <div>
+            <div class="dx-kicker" style="margin-bottom:2mm;">BODY FAT <span class="lite">SCALE</span></div>
+            
+  <div class="dx-scale">
+    <div class="dx-scale-marker" style="left:89.76744186046513%">
+      <span class="dx-scale-marker-val">38.6</span>
+      <span class="dx-scale-marker-tri">▼</span>
+    </div>
+    <div class="dx-scale-track">
+      <span style="background:#5F7138"></span><span style="background:#8E9A55"></span>
+      <span style="background:#BBA86B"></span><span style="background:#CDA06E"></span>
+      <span style="background:#C9784E"></span><span style="background:#C24A2E"></span>
+    </div>
+    <div class="dx-scale-ends"><span>0</span><span>43</span></div>
+  </div>
+          </div>
+          <div class="dx-scale-legend">
+            <div class="dx-leg-item"><div class="tag"><span class="sw" style="background:#5F7138"></span>LOW BODY FAT RISK</div>Ask your physician about safely increasing body fat.</div>
+            <div class="dx-leg-item"><div class="tag"><span class="sw" style="background:#8E9A55"></span>ULTRA LEAN</div>Body fat often found in elite athletes.</div>
+            <div class="dx-leg-item"><div class="tag"><span class="sw" style="background:#BBA86B"></span>LEAN</div>Lower than most people; excellent for health.</div>
+            <div class="dx-leg-item"><div class="tag"><span class="sw" style="background:#CDA06E"></span>MODERATE</div>What you would find in an average person.</div>
+            <div class="dx-leg-item"><div class="tag"><span class="sw" style="background:#C9784E"></span>EXCESS FAT</div>Indicates some excess fat stored in the body.</div>
+            <div class="dx-leg-item"><div class="tag"><span class="sw" style="background:#C24A2E"></span>HIGH BODY FAT RISK</div>Ask your provider about safely reducing body fat.</div>
+          </div>
+          <div class="dx-2" style="grid-template-columns:0.8fr 1.2fr; align-items:center;">
+            <div class="dx-img-frame"><svg class="dx-fig" viewBox="0 0 120 262" aria-hidden="true">
+    <defs><clipPath id="dxclip1"><path d="M54 36 C53 41 51 43 48 45 C43 47 39 51 36 57 C33 63 31 70 29 80 C27 90 26 99 25 108 C24 114 24 120 26 123 C28 125 31 123 32 118 C34 108 36 99 38 90 C40 82 42 76 44 70 C44 80 44 92 45 102 C46 118 47 128 49 137 C47 154 46 173 47 191 C48 208 50 223 51 238 C52 247 53 251 57 251 C61 251 61 246 61 239 C61 219 61 199 61 180 C61 167 60 152 60 142 C60 152 59 167 59 180 C59 199 59 219 59 239 C59 246 59 251 63 251 C67 251 68 247 69 238 C70 223 72 208 73 191 C74 173 73 154 71 137 C73 128 74 118 75 102 C76 92 76 80 76 70 C78 76 80 82 82 90 C84 99 86 108 88 118 C89 123 92 125 94 123 C96 120 96 114 95 108 C94 99 93 90 91 80 C89 70 87 63 84 57 C81 51 77 47 72 45 C69 43 67 41 66 36 C64 40 56 40 54 36 Z"/><circle cx="60" cy="22" r="14"/></clipPath></defs>
+    <path d="M54 36 C53 41 51 43 48 45 C43 47 39 51 36 57 C33 63 31 70 29 80 C27 90 26 99 25 108 C24 114 24 120 26 123 C28 125 31 123 32 118 C34 108 36 99 38 90 C40 82 42 76 44 70 C44 80 44 92 45 102 C46 118 47 128 49 137 C47 154 46 173 47 191 C48 208 50 223 51 238 C52 247 53 251 57 251 C61 251 61 246 61 239 C61 219 61 199 61 180 C61 167 60 152 60 142 C60 152 59 167 59 180 C59 199 59 219 59 239 C59 246 59 251 63 251 C67 251 68 247 69 238 C70 223 72 208 73 191 C74 173 73 154 71 137 C73 128 74 118 75 102 C76 92 76 80 76 70 C78 76 80 82 82 90 C84 99 86 108 88 118 C89 123 92 125 94 123 C96 120 96 114 95 108 C94 99 93 90 91 80 C89 70 87 63 84 57 C81 51 77 47 72 45 C69 43 67 41 66 36 C64 40 56 40 54 36 Z" fill="var(--fig-base)"/><circle cx="60" cy="22" r="14" fill="var(--fig-base)"/>
+    <g clip-path="url(#dxclip1)" fill="var(--accent)"><rect x="42" y="45" width="36" height="93"/></g>
+  </svg></div>
+            <div style="display:flex;flex-direction:column;gap:6mm;">
+              <article><div class="dx-kicker" style="margin-bottom:2mm;">BODY FAT <span class="lite">CENTILE</span></div><p class="dx-copy">Your body fat is higher than the average person in your age group. The age-group average is 28%.</p></article>
+            </div>
+          </div>
+        </div>
+        
+  <footer class="dx-foot">
+    <div class="dx-foot-q">Diagnostics &amp; Imaging<br>www.sdrc.in<br><span class="dx-foot-gen">Generated by labit.online</span></div>
+    <div class="dx-foot-logo">SDRC</div>
+  </footer>
+      </div>
+
+      <!-- PAGE 3: A/G RATIO + BODY SHAPE -->
+      <div data-page="3">
+        
+  <header class="dx-head">
+    <h1 class="dx-title">DEXA BODY COMPOSITION</h1>
+    <p class="dx-sub">Android–Gynoid Ratio</p>
+  </header>
+        <div class="dx-flow">
+          <div class="dx-2" style="grid-template-columns:0.7fr 1.3fr;">
+            <div class="dx-dark" style="display:flex;flex-direction:column;justify-content:center;text-align:center;">
+              <div style="font-size:14px;font-weight:600;letter-spacing:0.5px;" class="hl">YOUR A/G RATIO</div>
+              <div style="font-size:64px;font-weight:800;line-height:1.1;">1.3</div>
+              <div style="font-size:12px;color:#CBC3B4;">Also known as Waist-to-Hip ratio</div>
+            </div>
+            <div class="dx-copy">
+              <h4>What is A/G ratio?</h4>
+              <p>The ratio of fat percentage in your android (abdominal) region to your gynoid (hip &amp; thigh) region. We use fat % rather than inches because muscle can distort measurements.</p>
+              <h4>Why it matters</h4>
+              <p>A value <strong>below 1.0</strong> is associated with desirable body shapes (pear, hourglass) and lower visceral fat. <strong>Above 1.0</strong> correlates with apple / round shapes and higher visceral-fat risk.</p>
+            </div>
+          </div>
+          <div>
+            <div class="dx-kicker" style="margin-bottom:4mm;">BODY <span class="lite">SHAPE GUIDE</span></div>
+            <div class="dx-shapes">
+              <div class="dx-shape "><svg class="dx-fig" viewBox="0 0 120 262" aria-hidden="true">
+    <defs><clipPath id="dxclip2"><path d="M54 36 C53 41 51 43 48 45 C43 47 39 51 36 57 C33 63 31 70 29 80 C27 90 26 99 25 108 C24 114 24 120 26 123 C28 125 31 123 32 118 C34 108 36 99 38 90 C40 82 42 76 44 70 C44 80 44 92 45 102 C46 118 47 128 49 137 C47 154 46 173 47 191 C48 208 50 223 51 238 C52 247 53 251 57 251 C61 251 61 246 61 239 C61 219 61 199 61 180 C61 167 60 152 60 142 C60 152 59 167 59 180 C59 199 59 219 59 239 C59 246 59 251 63 251 C67 251 68 247 69 238 C70 223 72 208 73 191 C74 173 73 154 71 137 C73 128 74 118 75 102 C76 92 76 80 76 70 C78 76 80 82 82 90 C84 99 86 108 88 118 C89 123 92 125 94 123 C96 120 96 114 95 108 C94 99 93 90 91 80 C89 70 87 63 84 57 C81 51 77 47 72 45 C69 43 67 41 66 36 C64 40 56 40 54 36 Z"/><circle cx="60" cy="22" r="14"/></clipPath></defs>
+    <path d="M54 36 C53 41 51 43 48 45 C43 47 39 51 36 57 C33 63 31 70 29 80 C27 90 26 99 25 108 C24 114 24 120 26 123 C28 125 31 123 32 118 C34 108 36 99 38 90 C40 82 42 76 44 70 C44 80 44 92 45 102 C46 118 47 128 49 137 C47 154 46 173 47 191 C48 208 50 223 51 238 C52 247 53 251 57 251 C61 251 61 246 61 239 C61 219 61 199 61 180 C61 167 60 152 60 142 C60 152 59 167 59 180 C59 199 59 219 59 239 C59 246 59 251 63 251 C67 251 68 247 69 238 C70 223 72 208 73 191 C74 173 73 154 71 137 C73 128 74 118 75 102 C76 92 76 80 76 70 C78 76 80 82 82 90 C84 99 86 108 88 118 C89 123 92 125 94 123 C96 120 96 114 95 108 C94 99 93 90 91 80 C89 70 87 63 84 57 C81 51 77 47 72 45 C69 43 67 41 66 36 C64 40 56 40 54 36 Z" fill="var(--fig-base)"/><circle cx="60" cy="22" r="14" fill="var(--fig-base)"/>
+    <g clip-path="url(#dxclip2)" fill="var(--stone)"></g>
+  </svg><div class="nm">pear</div></div><div class="dx-shape "><svg class="dx-fig" viewBox="0 0 120 262" aria-hidden="true">
+    <defs><clipPath id="dxclip3"><path d="M54 36 C53 41 51 43 48 45 C43 47 39 51 36 57 C33 63 31 70 29 80 C27 90 26 99 25 108 C24 114 24 120 26 123 C28 125 31 123 32 118 C34 108 36 99 38 90 C40 82 42 76 44 70 C44 80 44 92 45 102 C46 118 47 128 49 137 C47 154 46 173 47 191 C48 208 50 223 51 238 C52 247 53 251 57 251 C61 251 61 246 61 239 C61 219 61 199 61 180 C61 167 60 152 60 142 C60 152 59 167 59 180 C59 199 59 219 59 239 C59 246 59 251 63 251 C67 251 68 247 69 238 C70 223 72 208 73 191 C74 173 73 154 71 137 C73 128 74 118 75 102 C76 92 76 80 76 70 C78 76 80 82 82 90 C84 99 86 108 88 118 C89 123 92 125 94 123 C96 120 96 114 95 108 C94 99 93 90 91 80 C89 70 87 63 84 57 C81 51 77 47 72 45 C69 43 67 41 66 36 C64 40 56 40 54 36 Z"/><circle cx="60" cy="22" r="14"/></clipPath></defs>
+    <path d="M54 36 C53 41 51 43 48 45 C43 47 39 51 36 57 C33 63 31 70 29 80 C27 90 26 99 25 108 C24 114 24 120 26 123 C28 125 31 123 32 118 C34 108 36 99 38 90 C40 82 42 76 44 70 C44 80 44 92 45 102 C46 118 47 128 49 137 C47 154 46 173 47 191 C48 208 50 223 51 238 C52 247 53 251 57 251 C61 251 61 246 61 239 C61 219 61 199 61 180 C61 167 60 152 60 142 C60 152 59 167 59 180 C59 199 59 219 59 239 C59 246 59 251 63 251 C67 251 68 247 69 238 C70 223 72 208 73 191 C74 173 73 154 71 137 C73 128 74 118 75 102 C76 92 76 80 76 70 C78 76 80 82 82 90 C84 99 86 108 88 118 C89 123 92 125 94 123 C96 120 96 114 95 108 C94 99 93 90 91 80 C89 70 87 63 84 57 C81 51 77 47 72 45 C69 43 67 41 66 36 C64 40 56 40 54 36 Z" fill="var(--fig-base)"/><circle cx="60" cy="22" r="14" fill="var(--fig-base)"/>
+    <g clip-path="url(#dxclip3)" fill="var(--stone)"></g>
+  </svg><div class="nm">hourglass</div></div><div class="dx-shape "><svg class="dx-fig" viewBox="0 0 120 262" aria-hidden="true">
+    <defs><clipPath id="dxclip4"><path d="M54 36 C53 41 51 43 48 45 C43 47 39 51 36 57 C33 63 31 70 29 80 C27 90 26 99 25 108 C24 114 24 120 26 123 C28 125 31 123 32 118 C34 108 36 99 38 90 C40 82 42 76 44 70 C44 80 44 92 45 102 C46 118 47 128 49 137 C47 154 46 173 47 191 C48 208 50 223 51 238 C52 247 53 251 57 251 C61 251 61 246 61 239 C61 219 61 199 61 180 C61 167 60 152 60 142 C60 152 59 167 59 180 C59 199 59 219 59 239 C59 246 59 251 63 251 C67 251 68 247 69 238 C70 223 72 208 73 191 C74 173 73 154 71 137 C73 128 74 118 75 102 C76 92 76 80 76 70 C78 76 80 82 82 90 C84 99 86 108 88 118 C89 123 92 125 94 123 C96 120 96 114 95 108 C94 99 93 90 91 80 C89 70 87 63 84 57 C81 51 77 47 72 45 C69 43 67 41 66 36 C64 40 56 40 54 36 Z"/><circle cx="60" cy="22" r="14"/></clipPath></defs>
+    <path d="M54 36 C53 41 51 43 48 45 C43 47 39 51 36 57 C33 63 31 70 29 80 C27 90 26 99 25 108 C24 114 24 120 26 123 C28 125 31 123 32 118 C34 108 36 99 38 90 C40 82 42 76 44 70 C44 80 44 92 45 102 C46 118 47 128 49 137 C47 154 46 173 47 191 C48 208 50 223 51 238 C52 247 53 251 57 251 C61 251 61 246 61 239 C61 219 61 199 61 180 C61 167 60 152 60 142 C60 152 59 167 59 180 C59 199 59 219 59 239 C59 246 59 251 63 251 C67 251 68 247 69 238 C70 223 72 208 73 191 C74 173 73 154 71 137 C73 128 74 118 75 102 C76 92 76 80 76 70 C78 76 80 82 82 90 C84 99 86 108 88 118 C89 123 92 125 94 123 C96 120 96 114 95 108 C94 99 93 90 91 80 C89 70 87 63 84 57 C81 51 77 47 72 45 C69 43 67 41 66 36 C64 40 56 40 54 36 Z" fill="var(--fig-base)"/><circle cx="60" cy="22" r="14" fill="var(--fig-base)"/>
+    <g clip-path="url(#dxclip4)" fill="var(--stone)"></g>
+  </svg><div class="nm">triangle</div></div><div class="dx-shape "><svg class="dx-fig" viewBox="0 0 120 262" aria-hidden="true">
+    <defs><clipPath id="dxclip5"><path d="M54 36 C53 41 51 43 48 45 C43 47 39 51 36 57 C33 63 31 70 29 80 C27 90 26 99 25 108 C24 114 24 120 26 123 C28 125 31 123 32 118 C34 108 36 99 38 90 C40 82 42 76 44 70 C44 80 44 92 45 102 C46 118 47 128 49 137 C47 154 46 173 47 191 C48 208 50 223 51 238 C52 247 53 251 57 251 C61 251 61 246 61 239 C61 219 61 199 61 180 C61 167 60 152 60 142 C60 152 59 167 59 180 C59 199 59 219 59 239 C59 246 59 251 63 251 C67 251 68 247 69 238 C70 223 72 208 73 191 C74 173 73 154 71 137 C73 128 74 118 75 102 C76 92 76 80 76 70 C78 76 80 82 82 90 C84 99 86 108 88 118 C89 123 92 125 94 123 C96 120 96 114 95 108 C94 99 93 90 91 80 C89 70 87 63 84 57 C81 51 77 47 72 45 C69 43 67 41 66 36 C64 40 56 40 54 36 Z"/><circle cx="60" cy="22" r="14"/></clipPath></defs>
+    <path d="M54 36 C53 41 51 43 48 45 C43 47 39 51 36 57 C33 63 31 70 29 80 C27 90 26 99 25 108 C24 114 24 120 26 123 C28 125 31 123 32 118 C34 108 36 99 38 90 C40 82 42 76 44 70 C44 80 44 92 45 102 C46 118 47 128 49 137 C47 154 46 173 47 191 C48 208 50 223 51 238 C52 247 53 251 57 251 C61 251 61 246 61 239 C61 219 61 199 61 180 C61 167 60 152 60 142 C60 152 59 167 59 180 C59 199 59 219 59 239 C59 246 59 251 63 251 C67 251 68 247 69 238 C70 223 72 208 73 191 C74 173 73 154 71 137 C73 128 74 118 75 102 C76 92 76 80 76 70 C78 76 80 82 82 90 C84 99 86 108 88 118 C89 123 92 125 94 123 C96 120 96 114 95 108 C94 99 93 90 91 80 C89 70 87 63 84 57 C81 51 77 47 72 45 C69 43 67 41 66 36 C64 40 56 40 54 36 Z" fill="var(--fig-base)"/><circle cx="60" cy="22" r="14" fill="var(--fig-base)"/>
+    <g clip-path="url(#dxclip5)" fill="var(--stone)"></g>
+  </svg><div class="nm">rectangle</div></div><div class="dx-shape active"><svg class="dx-fig" viewBox="0 0 120 262" aria-hidden="true">
+    <defs><clipPath id="dxclip6"><path d="M54 36 C53 41 51 43 48 45 C43 47 39 51 36 57 C33 63 31 70 29 80 C27 90 26 99 25 108 C24 114 24 120 26 123 C28 125 31 123 32 118 C34 108 36 99 38 90 C40 82 42 76 44 70 C44 80 44 92 45 102 C46 118 47 128 49 137 C47 154 46 173 47 191 C48 208 50 223 51 238 C52 247 53 251 57 251 C61 251 61 246 61 239 C61 219 61 199 61 180 C61 167 60 152 60 142 C60 152 59 167 59 180 C59 199 59 219 59 239 C59 246 59 251 63 251 C67 251 68 247 69 238 C70 223 72 208 73 191 C74 173 73 154 71 137 C73 128 74 118 75 102 C76 92 76 80 76 70 C78 76 80 82 82 90 C84 99 86 108 88 118 C89 123 92 125 94 123 C96 120 96 114 95 108 C94 99 93 90 91 80 C89 70 87 63 84 57 C81 51 77 47 72 45 C69 43 67 41 66 36 C64 40 56 40 54 36 Z"/><circle cx="60" cy="22" r="14"/></clipPath></defs>
+    <path d="M54 36 C53 41 51 43 48 45 C43 47 39 51 36 57 C33 63 31 70 29 80 C27 90 26 99 25 108 C24 114 24 120 26 123 C28 125 31 123 32 118 C34 108 36 99 38 90 C40 82 42 76 44 70 C44 80 44 92 45 102 C46 118 47 128 49 137 C47 154 46 173 47 191 C48 208 50 223 51 238 C52 247 53 251 57 251 C61 251 61 246 61 239 C61 219 61 199 61 180 C61 167 60 152 60 142 C60 152 59 167 59 180 C59 199 59 219 59 239 C59 246 59 251 63 251 C67 251 68 247 69 238 C70 223 72 208 73 191 C74 173 73 154 71 137 C73 128 74 118 75 102 C76 92 76 80 76 70 C78 76 80 82 82 90 C84 99 86 108 88 118 C89 123 92 125 94 123 C96 120 96 114 95 108 C94 99 93 90 91 80 C89 70 87 63 84 57 C81 51 77 47 72 45 C69 43 67 41 66 36 C64 40 56 40 54 36 Z" fill="var(--fig-base)"/><circle cx="60" cy="22" r="14" fill="var(--fig-base)"/>
+    <g clip-path="url(#dxclip6)" fill="var(--accent)"></g>
+  </svg><div class="nm">round</div></div>
+            </div>
+          </div>
+          <p class="dx-note">Body-shape guide is illustrative. Shape is influenced by genetics, age and hormonal profile; interpret alongside a qualified clinician.</p>
+        </div>
+        
+  <footer class="dx-foot">
+    <div class="dx-foot-q">Diagnostics &amp; Imaging<br>www.sdrc.in<br><span class="dx-foot-gen">Generated by labit.online</span></div>
+    <div class="dx-foot-logo">SDRC</div>
+  </footer>
+      </div>
+
+      <!-- PAGE 4: REGIONAL COMPOSITION -->
+      <div data-page="4">
+        
+  <header class="dx-head">
+    <h1 class="dx-title">DEXA BODY COMPOSITION</h1>
+    <p class="dx-sub">Sectional Analysis</p>
+  </header>
+        <div class="dx-flow">
+          <div style="--cols:5">
+            <div class="dx-reg-bodies" style="--cols:5">
+              <div></div>
+              <div><svg class="dx-fig" viewBox="0 0 120 262" aria-hidden="true">
+    <defs><clipPath id="dxclip7"><path d="M54 36 C53 41 51 43 48 45 C43 47 39 51 36 57 C33 63 31 70 29 80 C27 90 26 99 25 108 C24 114 24 120 26 123 C28 125 31 123 32 118 C34 108 36 99 38 90 C40 82 42 76 44 70 C44 80 44 92 45 102 C46 118 47 128 49 137 C47 154 46 173 47 191 C48 208 50 223 51 238 C52 247 53 251 57 251 C61 251 61 246 61 239 C61 219 61 199 61 180 C61 167 60 152 60 142 C60 152 59 167 59 180 C59 199 59 219 59 239 C59 246 59 251 63 251 C67 251 68 247 69 238 C70 223 72 208 73 191 C74 173 73 154 71 137 C73 128 74 118 75 102 C76 92 76 80 76 70 C78 76 80 82 82 90 C84 99 86 108 88 118 C89 123 92 125 94 123 C96 120 96 114 95 108 C94 99 93 90 91 80 C89 70 87 63 84 57 C81 51 77 47 72 45 C69 43 67 41 66 36 C64 40 56 40 54 36 Z"/><circle cx="60" cy="22" r="14"/></clipPath></defs>
+    <path d="M54 36 C53 41 51 43 48 45 C43 47 39 51 36 57 C33 63 31 70 29 80 C27 90 26 99 25 108 C24 114 24 120 26 123 C28 125 31 123 32 118 C34 108 36 99 38 90 C40 82 42 76 44 70 C44 80 44 92 45 102 C46 118 47 128 49 137 C47 154 46 173 47 191 C48 208 50 223 51 238 C52 247 53 251 57 251 C61 251 61 246 61 239 C61 219 61 199 61 180 C61 167 60 152 60 142 C60 152 59 167 59 180 C59 199 59 219 59 239 C59 246 59 251 63 251 C67 251 68 247 69 238 C70 223 72 208 73 191 C74 173 73 154 71 137 C73 128 74 118 75 102 C76 92 76 80 76 70 C78 76 80 82 82 90 C84 99 86 108 88 118 C89 123 92 125 94 123 C96 120 96 114 95 108 C94 99 93 90 91 80 C89 70 87 63 84 57 C81 51 77 47 72 45 C69 43 67 41 66 36 C64 40 56 40 54 36 Z" fill="var(--fig-base)"/><circle cx="60" cy="22" r="14" fill="var(--fig-base)"/>
+    <g clip-path="url(#dxclip7)" fill="var(--accent)"><rect x="42" y="45" width="36" height="93"/></g>
+  </svg></div><div><svg class="dx-fig" viewBox="0 0 120 262" aria-hidden="true">
+    <defs><clipPath id="dxclip8"><path d="M54 36 C53 41 51 43 48 45 C43 47 39 51 36 57 C33 63 31 70 29 80 C27 90 26 99 25 108 C24 114 24 120 26 123 C28 125 31 123 32 118 C34 108 36 99 38 90 C40 82 42 76 44 70 C44 80 44 92 45 102 C46 118 47 128 49 137 C47 154 46 173 47 191 C48 208 50 223 51 238 C52 247 53 251 57 251 C61 251 61 246 61 239 C61 219 61 199 61 180 C61 167 60 152 60 142 C60 152 59 167 59 180 C59 199 59 219 59 239 C59 246 59 251 63 251 C67 251 68 247 69 238 C70 223 72 208 73 191 C74 173 73 154 71 137 C73 128 74 118 75 102 C76 92 76 80 76 70 C78 76 80 82 82 90 C84 99 86 108 88 118 C89 123 92 125 94 123 C96 120 96 114 95 108 C94 99 93 90 91 80 C89 70 87 63 84 57 C81 51 77 47 72 45 C69 43 67 41 66 36 C64 40 56 40 54 36 Z"/><circle cx="60" cy="22" r="14"/></clipPath></defs>
+    <path d="M54 36 C53 41 51 43 48 45 C43 47 39 51 36 57 C33 63 31 70 29 80 C27 90 26 99 25 108 C24 114 24 120 26 123 C28 125 31 123 32 118 C34 108 36 99 38 90 C40 82 42 76 44 70 C44 80 44 92 45 102 C46 118 47 128 49 137 C47 154 46 173 47 191 C48 208 50 223 51 238 C52 247 53 251 57 251 C61 251 61 246 61 239 C61 219 61 199 61 180 C61 167 60 152 60 142 C60 152 59 167 59 180 C59 199 59 219 59 239 C59 246 59 251 63 251 C67 251 68 247 69 238 C70 223 72 208 73 191 C74 173 73 154 71 137 C73 128 74 118 75 102 C76 92 76 80 76 70 C78 76 80 82 82 90 C84 99 86 108 88 118 C89 123 92 125 94 123 C96 120 96 114 95 108 C94 99 93 90 91 80 C89 70 87 63 84 57 C81 51 77 47 72 45 C69 43 67 41 66 36 C64 40 56 40 54 36 Z" fill="var(--fig-base)"/><circle cx="60" cy="22" r="14" fill="var(--fig-base)"/>
+    <g clip-path="url(#dxclip8)" fill="var(--accent)"><rect x="44" y="110" width="32" height="28"/></g>
+  </svg></div><div><svg class="dx-fig" viewBox="0 0 120 262" aria-hidden="true">
+    <defs><clipPath id="dxclip9"><path d="M54 36 C53 41 51 43 48 45 C43 47 39 51 36 57 C33 63 31 70 29 80 C27 90 26 99 25 108 C24 114 24 120 26 123 C28 125 31 123 32 118 C34 108 36 99 38 90 C40 82 42 76 44 70 C44 80 44 92 45 102 C46 118 47 128 49 137 C47 154 46 173 47 191 C48 208 50 223 51 238 C52 247 53 251 57 251 C61 251 61 246 61 239 C61 219 61 199 61 180 C61 167 60 152 60 142 C60 152 59 167 59 180 C59 199 59 219 59 239 C59 246 59 251 63 251 C67 251 68 247 69 238 C70 223 72 208 73 191 C74 173 73 154 71 137 C73 128 74 118 75 102 C76 92 76 80 76 70 C78 76 80 82 82 90 C84 99 86 108 88 118 C89 123 92 125 94 123 C96 120 96 114 95 108 C94 99 93 90 91 80 C89 70 87 63 84 57 C81 51 77 47 72 45 C69 43 67 41 66 36 C64 40 56 40 54 36 Z"/><circle cx="60" cy="22" r="14"/></clipPath></defs>
+    <path d="M54 36 C53 41 51 43 48 45 C43 47 39 51 36 57 C33 63 31 70 29 80 C27 90 26 99 25 108 C24 114 24 120 26 123 C28 125 31 123 32 118 C34 108 36 99 38 90 C40 82 42 76 44 70 C44 80 44 92 45 102 C46 118 47 128 49 137 C47 154 46 173 47 191 C48 208 50 223 51 238 C52 247 53 251 57 251 C61 251 61 246 61 239 C61 219 61 199 61 180 C61 167 60 152 60 142 C60 152 59 167 59 180 C59 199 59 219 59 239 C59 246 59 251 63 251 C67 251 68 247 69 238 C70 223 72 208 73 191 C74 173 73 154 71 137 C73 128 74 118 75 102 C76 92 76 80 76 70 C78 76 80 82 82 90 C84 99 86 108 88 118 C89 123 92 125 94 123 C96 120 96 114 95 108 C94 99 93 90 91 80 C89 70 87 63 84 57 C81 51 77 47 72 45 C69 43 67 41 66 36 C64 40 56 40 54 36 Z" fill="var(--fig-base)"/><circle cx="60" cy="22" r="14" fill="var(--fig-base)"/>
+    <g clip-path="url(#dxclip9)" fill="var(--accent)"><path d="M36 57 C33 63 31 70 29 80 C27 90 26 99 25 108 C24 114 24 120 26 123 C28 125 31 123 32 118 C34 108 36 99 38 90 C40 82 42 76 44 70 L44 56 C41 53 38 54 36 57 Z"/><path d="M84 57 C87 63 89 70 91 80 C93 90 94 99 95 108 C96 114 96 120 94 123 C92 125 89 123 88 118 C86 108 84 99 82 90 C80 82 78 76 76 70 L76 56 C79 53 82 54 84 57 Z"/></g>
+  </svg></div><div><svg class="dx-fig" viewBox="0 0 120 262" aria-hidden="true">
+    <defs><clipPath id="dxclip10"><path d="M54 36 C53 41 51 43 48 45 C43 47 39 51 36 57 C33 63 31 70 29 80 C27 90 26 99 25 108 C24 114 24 120 26 123 C28 125 31 123 32 118 C34 108 36 99 38 90 C40 82 42 76 44 70 C44 80 44 92 45 102 C46 118 47 128 49 137 C47 154 46 173 47 191 C48 208 50 223 51 238 C52 247 53 251 57 251 C61 251 61 246 61 239 C61 219 61 199 61 180 C61 167 60 152 60 142 C60 152 59 167 59 180 C59 199 59 219 59 239 C59 246 59 251 63 251 C67 251 68 247 69 238 C70 223 72 208 73 191 C74 173 73 154 71 137 C73 128 74 118 75 102 C76 92 76 80 76 70 C78 76 80 82 82 90 C84 99 86 108 88 118 C89 123 92 125 94 123 C96 120 96 114 95 108 C94 99 93 90 91 80 C89 70 87 63 84 57 C81 51 77 47 72 45 C69 43 67 41 66 36 C64 40 56 40 54 36 Z"/><circle cx="60" cy="22" r="14"/></clipPath></defs>
+    <path d="M54 36 C53 41 51 43 48 45 C43 47 39 51 36 57 C33 63 31 70 29 80 C27 90 26 99 25 108 C24 114 24 120 26 123 C28 125 31 123 32 118 C34 108 36 99 38 90 C40 82 42 76 44 70 C44 80 44 92 45 102 C46 118 47 128 49 137 C47 154 46 173 47 191 C48 208 50 223 51 238 C52 247 53 251 57 251 C61 251 61 246 61 239 C61 219 61 199 61 180 C61 167 60 152 60 142 C60 152 59 167 59 180 C59 199 59 219 59 239 C59 246 59 251 63 251 C67 251 68 247 69 238 C70 223 72 208 73 191 C74 173 73 154 71 137 C73 128 74 118 75 102 C76 92 76 80 76 70 C78 76 80 82 82 90 C84 99 86 108 88 118 C89 123 92 125 94 123 C96 120 96 114 95 108 C94 99 93 90 91 80 C89 70 87 63 84 57 C81 51 77 47 72 45 C69 43 67 41 66 36 C64 40 56 40 54 36 Z" fill="var(--fig-base)"/><circle cx="60" cy="22" r="14" fill="var(--fig-base)"/>
+    <g clip-path="url(#dxclip10)" fill="var(--accent)"><rect x="42" y="128" width="36" height="40"/></g>
+  </svg></div><div><svg class="dx-fig" viewBox="0 0 120 262" aria-hidden="true">
+    <defs><clipPath id="dxclip11"><path d="M54 36 C53 41 51 43 48 45 C43 47 39 51 36 57 C33 63 31 70 29 80 C27 90 26 99 25 108 C24 114 24 120 26 123 C28 125 31 123 32 118 C34 108 36 99 38 90 C40 82 42 76 44 70 C44 80 44 92 45 102 C46 118 47 128 49 137 C47 154 46 173 47 191 C48 208 50 223 51 238 C52 247 53 251 57 251 C61 251 61 246 61 239 C61 219 61 199 61 180 C61 167 60 152 60 142 C60 152 59 167 59 180 C59 199 59 219 59 239 C59 246 59 251 63 251 C67 251 68 247 69 238 C70 223 72 208 73 191 C74 173 73 154 71 137 C73 128 74 118 75 102 C76 92 76 80 76 70 C78 76 80 82 82 90 C84 99 86 108 88 118 C89 123 92 125 94 123 C96 120 96 114 95 108 C94 99 93 90 91 80 C89 70 87 63 84 57 C81 51 77 47 72 45 C69 43 67 41 66 36 C64 40 56 40 54 36 Z"/><circle cx="60" cy="22" r="14"/></clipPath></defs>
+    <path d="M54 36 C53 41 51 43 48 45 C43 47 39 51 36 57 C33 63 31 70 29 80 C27 90 26 99 25 108 C24 114 24 120 26 123 C28 125 31 123 32 118 C34 108 36 99 38 90 C40 82 42 76 44 70 C44 80 44 92 45 102 C46 118 47 128 49 137 C47 154 46 173 47 191 C48 208 50 223 51 238 C52 247 53 251 57 251 C61 251 61 246 61 239 C61 219 61 199 61 180 C61 167 60 152 60 142 C60 152 59 167 59 180 C59 199 59 219 59 239 C59 246 59 251 63 251 C67 251 68 247 69 238 C70 223 72 208 73 191 C74 173 73 154 71 137 C73 128 74 118 75 102 C76 92 76 80 76 70 C78 76 80 82 82 90 C84 99 86 108 88 118 C89 123 92 125 94 123 C96 120 96 114 95 108 C94 99 93 90 91 80 C89 70 87 63 84 57 C81 51 77 47 72 45 C69 43 67 41 66 36 C64 40 56 40 54 36 Z" fill="var(--fig-base)"/><circle cx="60" cy="22" r="14" fill="var(--fig-base)"/>
+    <g clip-path="url(#dxclip11)" fill="var(--accent)"><rect x="43" y="138" width="17" height="118"/><rect x="60" y="138" width="17" height="118"/></g>
+  </svg></div>
+            </div>
+            <div class="dx-reg-row head"><div class="rh"></div><div>Trunk</div><div>Android</div><div>Arms</div><div>Gynoid</div><div>Legs</div></div>
+            <div class="dx-reg-row plain"><div class="rh">Fat %</div><div>45.7 %</div><div>50.6 %</div><div>32.2 %</div><div>40.5 %</div><div>33.5 %</div></div>
+            <div class="dx-reg-row plain"><div class="rh">Total</div><div>41.1 kg</div><div>6.4 kg</div><div>10.5 kg</div><div>12.9 kg</div><div>28.4 kg</div></div>
+            <div class="dx-reg-spacer"></div>
+            <div class="dx-reg-row lean"><div class="rh">Lean</div><div>21.6 kg</div><div>3.1 kg</div><div>6.7 kg</div><div>7.5 kg</div><div>18.0 kg</div></div>
+            <div class="dx-reg-spacer"></div>
+            <div class="dx-reg-row fat"><div class="rh">Fat</div><div>18.8 kg</div><div>3.2 kg</div><div>3.4 kg</div><div>5.2 kg</div><div>9.5 kg</div></div>
+            <div class="dx-reg-spacer"></div>
+            <div class="dx-reg-row boner"><div class="rh">Bone</div><div>0.7 kg</div><div>0.0 kg</div><div>0.3 kg</div><div>0.2 kg</div><div>0.9 kg</div></div>
+          </div>
+          <div class="dx-cards3">
+            <div class="dx-card3"><h4>Causes of imbalance</h4>Movement and physical function require a balance between muscle tone, strength and length. Repeated movements or sustained postures can set up a muscle imbalance that may lead to joint dysfunction.</div>
+            <div class="dx-card3"><h4>How does it affect you?</h4>Many musculoskeletal conditions are caused by muscle imbalance between opposing regions. These imbalances could cause an injury, or contribute to back pain from overuse of some muscles.</div>
+            <div class="dx-card3 fill-accent"><h4>How to improve?</h4><ul style="padding-left:14px;margin:0;"><li>Talk to a physiotherapist</li><li>Stretching exercises</li><li>Build muscle in weaker regions</li><li>Correct your posture</li><li>Reduce overall body fat</li></ul></div>
+          </div>
+        </div>
+        
+  <footer class="dx-foot">
+    <div class="dx-foot-q">Diagnostics &amp; Imaging<br>www.sdrc.in<br><span class="dx-foot-gen">Generated by labit.online</span></div>
+    <div class="dx-foot-logo">SDRC</div>
+  </footer>
+      </div>
+
+      
+      <!-- PAGE 5: LEFT vs RIGHT SYMMETRY -->
+      <div data-page="5">
+        
+  <header class="dx-head">
+    <h1 class="dx-title">DEXA BODY COMPOSITION</h1>
+    <p class="dx-sub">Left vs Right Symmetry</p>
+  </header>
+        <div class="dx-flow">
+          <div class="dx-sym-grid">
+            <div class="rh colh"></div><div class="colh">Left Arm</div><div class="colh">Right Arm</div><div class="colh">Left Leg</div><div class="colh">Right Leg</div><div class="colh">Left Trunk</div><div class="colh">Right Trunk</div>
+            <div class="rh">Fat %</div><div>31.4 %</div><div>33.3 %</div><div>33.3 %</div><div>33.8 %</div><div>44.2 %</div><div>47.1 %</div>
+            <div class="rh">Total</div><div>5.1 kg</div><div>5.4 kg</div><div>14.4 kg</div><div>13.9 kg</div><div>20.6 kg</div><div>20.6 kg</div>
+            <div class="dx-reg-spacer" style="grid-column:1 / -1"></div>
+            <div class="rh">Lean</div><div class="lean">3.3 kg</div><div class="lean">3.4 kg</div><div class="lean">9.2 kg</div><div class="lean">8.8 kg</div><div class="lean">11.1 kg</div><div class="lean">10.5 kg</div>
+            <div class="dx-reg-spacer" style="grid-column:1 / -1"></div>
+            <div class="rh">Fat</div><div class="fat">1.6 kg</div><div class="fat">1.8 kg</div><div class="fat">4.8 kg</div><div class="fat">4.7 kg</div><div class="fat">9.1 kg</div><div class="fat">9.7 kg</div>
+            <div class="dx-reg-spacer" style="grid-column:1 / -1"></div>
+            <div class="rh">Bone</div><div class="boner">0.2 kg</div><div class="boner">0.2 kg</div><div class="boner">0.4 kg</div><div class="boner">0.4 kg</div><div class="boner">0.4 kg</div><div class="boner">0.4 kg</div>
+          </div>
+
+          <div>
+            <div class="dx-kicker" style="margin-bottom:4mm;">BALANCE <span class="lite">BY REGION</span></div>
+            <div class="dx-bal">
+              <div class="dx-bal-card"><h4>Arms</h4><div class="dx-bal-bar"><div class="pin" style="left:9.705882352941186%"></div></div><div class="dx-bal-tag" style="color:#5F7138">Good balance</div><p class="dx-copy" style="margin-top:2mm;">Lean-mass difference of 2.9% between sides. Symmetrical development — no action needed.</p></div><div class="dx-bal-card"><h4>Legs</h4><div class="dx-bal-bar"><div class="pin" style="left:14.347826086956472%"></div></div><div class="dx-bal-tag" style="color:#5F7138">Good balance</div><p class="dx-copy" style="margin-top:2mm;">Lean-mass difference of 4.3% between sides. Symmetrical development — no action needed.</p></div><div class="dx-bal-card"><h4>Trunk</h4><div class="dx-bal-bar"><div class="pin" style="left:17.837837837837828%"></div></div><div class="dx-bal-tag" style="color:#5F7138">Good balance</div><p class="dx-copy" style="margin-top:2mm;">Lean-mass difference of 5.4% between sides. Symmetrical development — no action needed.</p></div>
+            </div>
+          </div>
+          <p class="dx-note">Thresholds — under 10% difference: good balance · 10–15%: monitor · over 15%: significant. Some asymmetry is normal (e.g. dominant side).</p>
+        </div>
+        
+  <footer class="dx-foot">
+    <div class="dx-foot-q">Diagnostics &amp; Imaging<br>www.sdrc.in<br><span class="dx-foot-gen">Generated by labit.online</span></div>
+    <div class="dx-foot-logo">SDRC</div>
+  </footer>
+      </div>
+
+      
+      <!-- PAGE 6: REGIONAL FAT-TISSUE TRENDS -->
+      <div data-page="6">
+        
+  <header class="dx-head">
+    <h1 class="dx-title">DEXA BODY COMPOSITION</h1>
+    <p class="dx-sub">Regional Fat-Tissue Trends</p>
+  </header>
+        <div class="dx-flow">
+          <p class="dx-copy">How fat mass in each region has changed across your scans. Track these against your training and nutrition program.</p>
+          <div class="dx-trend-row">
+              <div class="rname">Arms<small>Fat mass · kg</small></div>
+              <svg viewBox="0 0 190 76" class="dx-spark"><path d="M10.0 10.0 L95.0 38.0 L180.0 66.0" fill="none" stroke="#C24A2E" stroke-width="2.2"/><circle cx="10.0" cy="10.0" r="3.5" fill="#C24A2E"/><circle cx="95.0" cy="38.0" r="3.5" fill="#C24A2E"/><circle cx="180.0" cy="66.0" r="3.5" fill="#C24A2E"/></svg>
+              <div class="dx-trend-stats">
+                <div class="dx-stat"><div class="v">3.4</div><div class="l">Latest (kg)</div></div>
+                <div class="dx-stat down"><div class="v">-0.4</div><div class="l">vs Baseline</div></div>
+                <div class="dx-stat down"><div class="v">-0.2</div><div class="l">vs Previous</div></div>
+              </div>
+            </div><div class="dx-trend-row">
+              <div class="rname">Legs<small>Fat mass · kg</small></div>
+              <svg viewBox="0 0 190 76" class="dx-spark"><path d="M10.0 10.0 L95.0 34.0 L180.0 66.0" fill="none" stroke="#C24A2E" stroke-width="2.2"/><circle cx="10.0" cy="10.0" r="3.5" fill="#C24A2E"/><circle cx="95.0" cy="34.0" r="3.5" fill="#C24A2E"/><circle cx="180.0" cy="66.0" r="3.5" fill="#C24A2E"/></svg>
+              <div class="dx-trend-stats">
+                <div class="dx-stat"><div class="v">9.5</div><div class="l">Latest (kg)</div></div>
+                <div class="dx-stat down"><div class="v">-0.7</div><div class="l">vs Baseline</div></div>
+                <div class="dx-stat down"><div class="v">-0.4</div><div class="l">vs Previous</div></div>
+              </div>
+            </div><div class="dx-trend-row">
+              <div class="rname">Trunk<small>Fat mass · kg</small></div>
+              <svg viewBox="0 0 190 76" class="dx-spark"><path d="M10.0 10.0 L95.0 38.0 L180.0 66.0" fill="none" stroke="#C24A2E" stroke-width="2.2"/><circle cx="10.0" cy="10.0" r="3.5" fill="#C24A2E"/><circle cx="95.0" cy="38.0" r="3.5" fill="#C24A2E"/><circle cx="180.0" cy="66.0" r="3.5" fill="#C24A2E"/></svg>
+              <div class="dx-trend-stats">
+                <div class="dx-stat"><div class="v">18.8</div><div class="l">Latest (kg)</div></div>
+                <div class="dx-stat down"><div class="v">-1.6</div><div class="l">vs Baseline</div></div>
+                <div class="dx-stat down"><div class="v">-0.8</div><div class="l">vs Previous</div></div>
+              </div>
+            </div>
+          <p class="dx-note">Each individual gains and loses fat differently. A reduction in a region reflects overall fat loss — spot reduction is not possible.</p>
+        </div>
+        
+  <footer class="dx-foot">
+    <div class="dx-foot-q">Diagnostics &amp; Imaging<br>www.sdrc.in<br><span class="dx-foot-gen">Generated by labit.online</span></div>
+    <div class="dx-foot-logo">SDRC</div>
+  </footer>
+      </div>
+
+      <!-- PAGE 7: BONE HEALTH -->
+      <div data-page="7">
+        
+  <header class="dx-head">
+    <h1 class="dx-title">DEXA BODY COMPOSITION</h1>
+    <p class="dx-sub">Bone Health</p>
+  </header>
+        <div class="dx-flow">
+          <article>
+            <div class="dx-bone-grid">
+              <div class="col-h"></div>
+              <div class="bone-fig "><svg class="dx-fig" viewBox="0 0 120 262" aria-hidden="true">
+    <defs><clipPath id="dxclip12"><path d="M54 36 C53 41 51 43 48 45 C43 47 39 51 36 57 C33 63 31 70 29 80 C27 90 26 99 25 108 C24 114 24 120 26 123 C28 125 31 123 32 118 C34 108 36 99 38 90 C40 82 42 76 44 70 C44 80 44 92 45 102 C46 118 47 128 49 137 C47 154 46 173 47 191 C48 208 50 223 51 238 C52 247 53 251 57 251 C61 251 61 246 61 239 C61 219 61 199 61 180 C61 167 60 152 60 142 C60 152 59 167 59 180 C59 199 59 219 59 239 C59 246 59 251 63 251 C67 251 68 247 69 238 C70 223 72 208 73 191 C74 173 73 154 71 137 C73 128 74 118 75 102 C76 92 76 80 76 70 C78 76 80 82 82 90 C84 99 86 108 88 118 C89 123 92 125 94 123 C96 120 96 114 95 108 C94 99 93 90 91 80 C89 70 87 63 84 57 C81 51 77 47 72 45 C69 43 67 41 66 36 C64 40 56 40 54 36 Z"/><circle cx="60" cy="22" r="14"/></clipPath></defs>
+    <path d="M54 36 C53 41 51 43 48 45 C43 47 39 51 36 57 C33 63 31 70 29 80 C27 90 26 99 25 108 C24 114 24 120 26 123 C28 125 31 123 32 118 C34 108 36 99 38 90 C40 82 42 76 44 70 C44 80 44 92 45 102 C46 118 47 128 49 137 C47 154 46 173 47 191 C48 208 50 223 51 238 C52 247 53 251 57 251 C61 251 61 246 61 239 C61 219 61 199 61 180 C61 167 60 152 60 142 C60 152 59 167 59 180 C59 199 59 219 59 239 C59 246 59 251 63 251 C67 251 68 247 69 238 C70 223 72 208 73 191 C74 173 73 154 71 137 C73 128 74 118 75 102 C76 92 76 80 76 70 C78 76 80 82 82 90 C84 99 86 108 88 118 C89 123 92 125 94 123 C96 120 96 114 95 108 C94 99 93 90 91 80 C89 70 87 63 84 57 C81 51 77 47 72 45 C69 43 67 41 66 36 C64 40 56 40 54 36 Z" fill="var(--fig-base)"/><circle cx="60" cy="22" r="14" fill="var(--fig-base)"/>
+    <g clip-path="url(#dxclip12)" fill="var(--accent)"><circle cx="60" cy="22" r="14"/></g>
+  </svg></div><div class="bone-fig "><svg class="dx-fig" viewBox="0 0 120 262" aria-hidden="true">
+    <defs><clipPath id="dxclip13"><path d="M54 36 C53 41 51 43 48 45 C43 47 39 51 36 57 C33 63 31 70 29 80 C27 90 26 99 25 108 C24 114 24 120 26 123 C28 125 31 123 32 118 C34 108 36 99 38 90 C40 82 42 76 44 70 C44 80 44 92 45 102 C46 118 47 128 49 137 C47 154 46 173 47 191 C48 208 50 223 51 238 C52 247 53 251 57 251 C61 251 61 246 61 239 C61 219 61 199 61 180 C61 167 60 152 60 142 C60 152 59 167 59 180 C59 199 59 219 59 239 C59 246 59 251 63 251 C67 251 68 247 69 238 C70 223 72 208 73 191 C74 173 73 154 71 137 C73 128 74 118 75 102 C76 92 76 80 76 70 C78 76 80 82 82 90 C84 99 86 108 88 118 C89 123 92 125 94 123 C96 120 96 114 95 108 C94 99 93 90 91 80 C89 70 87 63 84 57 C81 51 77 47 72 45 C69 43 67 41 66 36 C64 40 56 40 54 36 Z"/><circle cx="60" cy="22" r="14"/></clipPath></defs>
+    <path d="M54 36 C53 41 51 43 48 45 C43 47 39 51 36 57 C33 63 31 70 29 80 C27 90 26 99 25 108 C24 114 24 120 26 123 C28 125 31 123 32 118 C34 108 36 99 38 90 C40 82 42 76 44 70 C44 80 44 92 45 102 C46 118 47 128 49 137 C47 154 46 173 47 191 C48 208 50 223 51 238 C52 247 53 251 57 251 C61 251 61 246 61 239 C61 219 61 199 61 180 C61 167 60 152 60 142 C60 152 59 167 59 180 C59 199 59 219 59 239 C59 246 59 251 63 251 C67 251 68 247 69 238 C70 223 72 208 73 191 C74 173 73 154 71 137 C73 128 74 118 75 102 C76 92 76 80 76 70 C78 76 80 82 82 90 C84 99 86 108 88 118 C89 123 92 125 94 123 C96 120 96 114 95 108 C94 99 93 90 91 80 C89 70 87 63 84 57 C81 51 77 47 72 45 C69 43 67 41 66 36 C64 40 56 40 54 36 Z" fill="var(--fig-base)"/><circle cx="60" cy="22" r="14" fill="var(--fig-base)"/>
+    <g clip-path="url(#dxclip13)" fill="var(--accent)"><path d="M36 57 C33 63 31 70 29 80 C27 90 26 99 25 108 C24 114 24 120 26 123 C28 125 31 123 32 118 C34 108 36 99 38 90 C40 82 42 76 44 70 L44 56 C41 53 38 54 36 57 Z"/><path d="M84 57 C87 63 89 70 91 80 C93 90 94 99 95 108 C96 114 96 120 94 123 C92 125 89 123 88 118 C86 108 84 99 82 90 C80 82 78 76 76 70 L76 56 C79 53 82 54 84 57 Z"/></g>
+  </svg></div><div class="bone-fig "><svg class="dx-fig" viewBox="0 0 120 262" aria-hidden="true">
+    <defs><clipPath id="dxclip14"><path d="M54 36 C53 41 51 43 48 45 C43 47 39 51 36 57 C33 63 31 70 29 80 C27 90 26 99 25 108 C24 114 24 120 26 123 C28 125 31 123 32 118 C34 108 36 99 38 90 C40 82 42 76 44 70 C44 80 44 92 45 102 C46 118 47 128 49 137 C47 154 46 173 47 191 C48 208 50 223 51 238 C52 247 53 251 57 251 C61 251 61 246 61 239 C61 219 61 199 61 180 C61 167 60 152 60 142 C60 152 59 167 59 180 C59 199 59 219 59 239 C59 246 59 251 63 251 C67 251 68 247 69 238 C70 223 72 208 73 191 C74 173 73 154 71 137 C73 128 74 118 75 102 C76 92 76 80 76 70 C78 76 80 82 82 90 C84 99 86 108 88 118 C89 123 92 125 94 123 C96 120 96 114 95 108 C94 99 93 90 91 80 C89 70 87 63 84 57 C81 51 77 47 72 45 C69 43 67 41 66 36 C64 40 56 40 54 36 Z"/><circle cx="60" cy="22" r="14"/></clipPath></defs>
+    <path d="M54 36 C53 41 51 43 48 45 C43 47 39 51 36 57 C33 63 31 70 29 80 C27 90 26 99 25 108 C24 114 24 120 26 123 C28 125 31 123 32 118 C34 108 36 99 38 90 C40 82 42 76 44 70 C44 80 44 92 45 102 C46 118 47 128 49 137 C47 154 46 173 47 191 C48 208 50 223 51 238 C52 247 53 251 57 251 C61 251 61 246 61 239 C61 219 61 199 61 180 C61 167 60 152 60 142 C60 152 59 167 59 180 C59 199 59 219 59 239 C59 246 59 251 63 251 C67 251 68 247 69 238 C70 223 72 208 73 191 C74 173 73 154 71 137 C73 128 74 118 75 102 C76 92 76 80 76 70 C78 76 80 82 82 90 C84 99 86 108 88 118 C89 123 92 125 94 123 C96 120 96 114 95 108 C94 99 93 90 91 80 C89 70 87 63 84 57 C81 51 77 47 72 45 C69 43 67 41 66 36 C64 40 56 40 54 36 Z" fill="var(--fig-base)"/><circle cx="60" cy="22" r="14" fill="var(--fig-base)"/>
+    <g clip-path="url(#dxclip14)" fill="var(--accent)"><rect x="43" y="138" width="17" height="118"/><rect x="60" y="138" width="17" height="118"/></g>
+  </svg></div><div class="bone-fig "><svg class="dx-fig" viewBox="0 0 120 262" aria-hidden="true">
+    <defs><clipPath id="dxclip15"><path d="M54 36 C53 41 51 43 48 45 C43 47 39 51 36 57 C33 63 31 70 29 80 C27 90 26 99 25 108 C24 114 24 120 26 123 C28 125 31 123 32 118 C34 108 36 99 38 90 C40 82 42 76 44 70 C44 80 44 92 45 102 C46 118 47 128 49 137 C47 154 46 173 47 191 C48 208 50 223 51 238 C52 247 53 251 57 251 C61 251 61 246 61 239 C61 219 61 199 61 180 C61 167 60 152 60 142 C60 152 59 167 59 180 C59 199 59 219 59 239 C59 246 59 251 63 251 C67 251 68 247 69 238 C70 223 72 208 73 191 C74 173 73 154 71 137 C73 128 74 118 75 102 C76 92 76 80 76 70 C78 76 80 82 82 90 C84 99 86 108 88 118 C89 123 92 125 94 123 C96 120 96 114 95 108 C94 99 93 90 91 80 C89 70 87 63 84 57 C81 51 77 47 72 45 C69 43 67 41 66 36 C64 40 56 40 54 36 Z"/><circle cx="60" cy="22" r="14"/></clipPath></defs>
+    <path d="M54 36 C53 41 51 43 48 45 C43 47 39 51 36 57 C33 63 31 70 29 80 C27 90 26 99 25 108 C24 114 24 120 26 123 C28 125 31 123 32 118 C34 108 36 99 38 90 C40 82 42 76 44 70 C44 80 44 92 45 102 C46 118 47 128 49 137 C47 154 46 173 47 191 C48 208 50 223 51 238 C52 247 53 251 57 251 C61 251 61 246 61 239 C61 219 61 199 61 180 C61 167 60 152 60 142 C60 152 59 167 59 180 C59 199 59 219 59 239 C59 246 59 251 63 251 C67 251 68 247 69 238 C70 223 72 208 73 191 C74 173 73 154 71 137 C73 128 74 118 75 102 C76 92 76 80 76 70 C78 76 80 82 82 90 C84 99 86 108 88 118 C89 123 92 125 94 123 C96 120 96 114 95 108 C94 99 93 90 91 80 C89 70 87 63 84 57 C81 51 77 47 72 45 C69 43 67 41 66 36 C64 40 56 40 54 36 Z" fill="var(--fig-base)"/><circle cx="60" cy="22" r="14" fill="var(--fig-base)"/>
+    <g clip-path="url(#dxclip15)" fill="var(--accent)"><rect x="42" y="45" width="36" height="93"/></g>
+  </svg></div><div class="bone-fig "><svg class="dx-fig" viewBox="0 0 120 262" aria-hidden="true">
+    <defs><clipPath id="dxclip16"><path d="M54 36 C53 41 51 43 48 45 C43 47 39 51 36 57 C33 63 31 70 29 80 C27 90 26 99 25 108 C24 114 24 120 26 123 C28 125 31 123 32 118 C34 108 36 99 38 90 C40 82 42 76 44 70 C44 80 44 92 45 102 C46 118 47 128 49 137 C47 154 46 173 47 191 C48 208 50 223 51 238 C52 247 53 251 57 251 C61 251 61 246 61 239 C61 219 61 199 61 180 C61 167 60 152 60 142 C60 152 59 167 59 180 C59 199 59 219 59 239 C59 246 59 251 63 251 C67 251 68 247 69 238 C70 223 72 208 73 191 C74 173 73 154 71 137 C73 128 74 118 75 102 C76 92 76 80 76 70 C78 76 80 82 82 90 C84 99 86 108 88 118 C89 123 92 125 94 123 C96 120 96 114 95 108 C94 99 93 90 91 80 C89 70 87 63 84 57 C81 51 77 47 72 45 C69 43 67 41 66 36 C64 40 56 40 54 36 Z"/><circle cx="60" cy="22" r="14"/></clipPath></defs>
+    <path d="M54 36 C53 41 51 43 48 45 C43 47 39 51 36 57 C33 63 31 70 29 80 C27 90 26 99 25 108 C24 114 24 120 26 123 C28 125 31 123 32 118 C34 108 36 99 38 90 C40 82 42 76 44 70 C44 80 44 92 45 102 C46 118 47 128 49 137 C47 154 46 173 47 191 C48 208 50 223 51 238 C52 247 53 251 57 251 C61 251 61 246 61 239 C61 219 61 199 61 180 C61 167 60 152 60 142 C60 152 59 167 59 180 C59 199 59 219 59 239 C59 246 59 251 63 251 C67 251 68 247 69 238 C70 223 72 208 73 191 C74 173 73 154 71 137 C73 128 74 118 75 102 C76 92 76 80 76 70 C78 76 80 82 82 90 C84 99 86 108 88 118 C89 123 92 125 94 123 C96 120 96 114 95 108 C94 99 93 90 91 80 C89 70 87 63 84 57 C81 51 77 47 72 45 C69 43 67 41 66 36 C64 40 56 40 54 36 Z" fill="var(--fig-base)"/><circle cx="60" cy="22" r="14" fill="var(--fig-base)"/>
+    <g clip-path="url(#dxclip16)" fill="var(--accent)"><rect x="46" y="52" width="28" height="42"/></g>
+  </svg></div><div class="bone-fig "><svg class="dx-fig" viewBox="0 0 120 262" aria-hidden="true">
+    <defs><clipPath id="dxclip17"><path d="M54 36 C53 41 51 43 48 45 C43 47 39 51 36 57 C33 63 31 70 29 80 C27 90 26 99 25 108 C24 114 24 120 26 123 C28 125 31 123 32 118 C34 108 36 99 38 90 C40 82 42 76 44 70 C44 80 44 92 45 102 C46 118 47 128 49 137 C47 154 46 173 47 191 C48 208 50 223 51 238 C52 247 53 251 57 251 C61 251 61 246 61 239 C61 219 61 199 61 180 C61 167 60 152 60 142 C60 152 59 167 59 180 C59 199 59 219 59 239 C59 246 59 251 63 251 C67 251 68 247 69 238 C70 223 72 208 73 191 C74 173 73 154 71 137 C73 128 74 118 75 102 C76 92 76 80 76 70 C78 76 80 82 82 90 C84 99 86 108 88 118 C89 123 92 125 94 123 C96 120 96 114 95 108 C94 99 93 90 91 80 C89 70 87 63 84 57 C81 51 77 47 72 45 C69 43 67 41 66 36 C64 40 56 40 54 36 Z"/><circle cx="60" cy="22" r="14"/></clipPath></defs>
+    <path d="M54 36 C53 41 51 43 48 45 C43 47 39 51 36 57 C33 63 31 70 29 80 C27 90 26 99 25 108 C24 114 24 120 26 123 C28 125 31 123 32 118 C34 108 36 99 38 90 C40 82 42 76 44 70 C44 80 44 92 45 102 C46 118 47 128 49 137 C47 154 46 173 47 191 C48 208 50 223 51 238 C52 247 53 251 57 251 C61 251 61 246 61 239 C61 219 61 199 61 180 C61 167 60 152 60 142 C60 152 59 167 59 180 C59 199 59 219 59 239 C59 246 59 251 63 251 C67 251 68 247 69 238 C70 223 72 208 73 191 C74 173 73 154 71 137 C73 128 74 118 75 102 C76 92 76 80 76 70 C78 76 80 82 82 90 C84 99 86 108 88 118 C89 123 92 125 94 123 C96 120 96 114 95 108 C94 99 93 90 91 80 C89 70 87 63 84 57 C81 51 77 47 72 45 C69 43 67 41 66 36 C64 40 56 40 54 36 Z" fill="var(--fig-base)"/><circle cx="60" cy="22" r="14" fill="var(--fig-base)"/>
+    <g clip-path="url(#dxclip17)" fill="var(--accent)"><rect x="57" y="44" width="6" height="92" rx="3"/></g>
+  </svg></div><div class="bone-fig "><svg class="dx-fig" viewBox="0 0 120 262" aria-hidden="true">
+    <defs><clipPath id="dxclip18"><path d="M54 36 C53 41 51 43 48 45 C43 47 39 51 36 57 C33 63 31 70 29 80 C27 90 26 99 25 108 C24 114 24 120 26 123 C28 125 31 123 32 118 C34 108 36 99 38 90 C40 82 42 76 44 70 C44 80 44 92 45 102 C46 118 47 128 49 137 C47 154 46 173 47 191 C48 208 50 223 51 238 C52 247 53 251 57 251 C61 251 61 246 61 239 C61 219 61 199 61 180 C61 167 60 152 60 142 C60 152 59 167 59 180 C59 199 59 219 59 239 C59 246 59 251 63 251 C67 251 68 247 69 238 C70 223 72 208 73 191 C74 173 73 154 71 137 C73 128 74 118 75 102 C76 92 76 80 76 70 C78 76 80 82 82 90 C84 99 86 108 88 118 C89 123 92 125 94 123 C96 120 96 114 95 108 C94 99 93 90 91 80 C89 70 87 63 84 57 C81 51 77 47 72 45 C69 43 67 41 66 36 C64 40 56 40 54 36 Z"/><circle cx="60" cy="22" r="14"/></clipPath></defs>
+    <path d="M54 36 C53 41 51 43 48 45 C43 47 39 51 36 57 C33 63 31 70 29 80 C27 90 26 99 25 108 C24 114 24 120 26 123 C28 125 31 123 32 118 C34 108 36 99 38 90 C40 82 42 76 44 70 C44 80 44 92 45 102 C46 118 47 128 49 137 C47 154 46 173 47 191 C48 208 50 223 51 238 C52 247 53 251 57 251 C61 251 61 246 61 239 C61 219 61 199 61 180 C61 167 60 152 60 142 C60 152 59 167 59 180 C59 199 59 219 59 239 C59 246 59 251 63 251 C67 251 68 247 69 238 C70 223 72 208 73 191 C74 173 73 154 71 137 C73 128 74 118 75 102 C76 92 76 80 76 70 C78 76 80 82 82 90 C84 99 86 108 88 118 C89 123 92 125 94 123 C96 120 96 114 95 108 C94 99 93 90 91 80 C89 70 87 63 84 57 C81 51 77 47 72 45 C69 43 67 41 66 36 C64 40 56 40 54 36 Z" fill="var(--fig-base)"/><circle cx="60" cy="22" r="14" fill="var(--fig-base)"/>
+    <g clip-path="url(#dxclip18)" fill="var(--accent)"><rect x="44" y="124" width="32" height="22"/></g>
+  </svg></div><div class="bone-fig total-col"><svg class="dx-fig" viewBox="0 0 120 262" aria-hidden="true"><path d="M54 36 C53 41 51 43 48 45 C43 47 39 51 36 57 C33 63 31 70 29 80 C27 90 26 99 25 108 C24 114 24 120 26 123 C28 125 31 123 32 118 C34 108 36 99 38 90 C40 82 42 76 44 70 C44 80 44 92 45 102 C46 118 47 128 49 137 C47 154 46 173 47 191 C48 208 50 223 51 238 C52 247 53 251 57 251 C61 251 61 246 61 239 C61 219 61 199 61 180 C61 167 60 152 60 142 C60 152 59 167 59 180 C59 199 59 219 59 239 C59 246 59 251 63 251 C67 251 68 247 69 238 C70 223 72 208 73 191 C74 173 73 154 71 137 C73 128 74 118 75 102 C76 92 76 80 76 70 C78 76 80 82 82 90 C84 99 86 108 88 118 C89 123 92 125 94 123 C96 120 96 114 95 108 C94 99 93 90 91 80 C89 70 87 63 84 57 C81 51 77 47 72 45 C69 43 67 41 66 36 C64 40 56 40 54 36 Z" fill="var(--accent)"/><circle cx="60" cy="22" r="14" fill="var(--accent)"/></svg></div>
+              <div class="col-h"></div>
+              <div class="col-h ">Head</div><div class="col-h ">Arms</div><div class="col-h ">Legs</div><div class="col-h ">Trunk</div><div class="col-h ">Ribs</div><div class="col-h ">Spine</div><div class="col-h ">Pelvis</div><div class="col-h total-col">Total</div>
+              <div class="row-h">BMD <small>g/cm²</small></div>
+              <div class="">2.170</div><div class="">0.997</div><div class="">1.177</div><div class="">0.971</div><div class="">0.953</div><div class="">1.113</div><div class="">0.915</div><div class="total-col">1.169</div>
+              <div class="row-h">T-Score <small>young adult</small></div>
+              <div>–</div><div>–</div><div>–</div><div>–</div><div>–</div><div>–</div><div>–</div><div class="total-col">-0.3</div>
+              <div class="row-h">Z-Score <small>age matched</small></div>
+              <div>–</div><div>–</div><div>–</div><div>–</div><div>–</div><div>–</div><div>–</div><div class="total-col">-0.3</div>
+            </div>
+          </article>
+          <article>
+            <div class="dx-kicker" style="margin-bottom:1mm;">BONE DENSITY <span class="lite">COMPARISON</span></div>
+            <p class="dx-copy" style="margin-bottom:2mm;">How your bone density compares to a healthy 30-year-old and to others of your age. Status: <strong style="color:#5F7138">Normal</strong>.</p>
+            <div class="dx-compare"><div class="dx-compare-dot" style="left:50%;background:var(--accent);"></div><div class="dx-compare-dot" style="left:50%;background:var(--stone);top:1px;"></div></div>
+            <div class="dx-compare-labels"><span>&lt; LOWER</span><span>AVERAGE</span><span>HIGHER &gt;</span></div>
+          </article>
+          <div class="dx-cards3">
+            <div class="dx-card3"><h4>T-Score &amp; Z-Score</h4><strong>T-Score</strong> compares your bone mass to a healthy young adult of your gender. <strong>Z-Score</strong> compares it to an average person in your age group.</div>
+            <div class="dx-card3"><h4>When to be concerned</h4><strong>Osteoporosis:</strong> T-score &lt; −2.5 — consult a doctor. <strong>Osteopenia:</strong> T-score between −1 and −2.5 indicates weaker-than-normal bone.</div>
+            <div class="dx-card3 fill-bone"><h4>How to improve</h4>• Sufficient calcium (1000–1200 mg/day)<br>• Vitamin D 600–800 IU/day<br>• Weight-bearing exercise<br>• Avoid smoking and excess alcohol</div>
+          </div>
+        </div>
+        
+  <footer class="dx-foot">
+    <div class="dx-foot-q">Diagnostics &amp; Imaging<br>www.sdrc.in<br><span class="dx-foot-gen">Generated by labit.online</span></div>
+    <div class="dx-foot-logo">SDRC</div>
+  </footer>
+      </div>
+
+      
+      <!-- PAGE 8: RMR / TDEE -->
+      <div data-page="8">
+        
+  <header class="dx-head">
+    <h1 class="dx-title">DEXA BODY COMPOSITION</h1>
+    <p class="dx-sub">Resting Metabolic Rate</p>
+  </header>
+        <div class="dx-flow">
+          <div class="dx-rmr-hero">
+            <div class="txt">This is the number of calories your body needs at rest for a full day. It varies person to person and is the foundation of nutrition planning. Your metabolism is <strong>16% below</strong> average for your age, sex, height and weight.</div>
+            <div class="val"><span class="l">Your RMR</span><span class="n">1436</span></div>
+          </div>
+
+          
+          <div>
+            <div class="dx-kicker" style="margin-bottom:3mm;">LIFESTYLE <span class="lite">FACTOR (kcal to add)</span></div>
+            <div class="dx-life">
+              <div><div class="lv">Sedentary</div><div class="kc">157</div></div>
+              <div><div class="lv">Light</div><div class="kc">310</div></div>
+              <div><div class="lv">Moderate</div><div class="kc">436</div></div>
+              <div><div class="lv">Very Active</div><div class="kc">577</div></div>
+              <div><div class="lv">Extra</div><div class="kc">729</div></div>
+            </div>
+          </div>
+
+          
+          <div>
+            <div class="dx-kicker" style="margin-bottom:4mm;">TOTAL DAILY ENERGY <span class="lite">EXPENDITURE</span></div>
+            <div class="dx-tdee">
+              <div><div class="circ"><div class="n">2577</div></div><div class="l" style="margin-top:3mm;">Gain</div></div>
+              <div><div class="circ maintain"><div class="n">2077</div></div><div class="l" style="margin-top:3mm;">Maintain</div></div>
+              <div><div class="circ"><div class="n">1577</div></div><div class="l" style="margin-top:3mm;">Lose</div></div>
+            </div>
+          </div>
+          <p class="dx-note">Gain / lose figures assume roughly a 500 kcal daily surplus or deficit (≈ 0.5 kg per week). Adjust with a qualified nutritionist.</p>
+        </div>
+        
+  <footer class="dx-foot">
+    <div class="dx-foot-q">Diagnostics &amp; Imaging<br>www.sdrc.in<br><span class="dx-foot-gen">Generated by labit.online</span></div>
+    <div class="dx-foot-logo">SDRC</div>
+  </footer>
+      </div>
+
+      <!-- CLINICAL SUMMARY -->
+      <div data-page="9">
+        
+  <header class="dx-head">
+    <h1 class="dx-title">DEXA BODY COMPOSITION</h1>
+    <p class="dx-sub">Clinical Summary</p>
+  </header>
+        <div class="dx-flow">
+          <div class="dx-summary" style="display:grid;grid-template-columns:1fr 1fr;gap:5mm;">
+            <article class="dx-bal-card" style="border-left:6px solid #C24A2E"><h4 style="text-transform:none;font-size:16px;">Body Fat — High</h4><p class="dx-copy">Your body fat of 38.6% is in the high-risk band for men. Lifestyle changes recommended.</p></article><article class="dx-bal-card" style="border-left:6px solid #5F7138"><h4 style="text-transform:none;font-size:16px;">Lean Mass — Adequate</h4><p class="dx-copy">Lean mass of 49.5 kg is within a healthy range. Maintain with resistance training.</p></article><article class="dx-bal-card" style="border-left:6px solid #C08A2E"><h4 style="text-transform:none;font-size:16px;">A/G Ratio — Elevated</h4><p class="dx-copy">A/G ratio of 1.25 indicates an android-dominant pattern, correlated with visceral fat.</p></article><article class="dx-bal-card" style="border-left:6px solid #5F7138"><h4 style="text-transform:none;font-size:16px;">Bone Density — Normal</h4><p class="dx-copy">Total BMD 1.169 g/cm² with T-score −0.3 sits within the normal range.</p></article>
+          </div>
+          
+            <article class="dx-dark">
+              <h3 class="hl">Fat-Loss Targets</h3>
+              <p style="color:#CBC3B4;font-size:13px;margin-bottom:4mm;">Current: 84.6 kg &nbsp;|&nbsp; Lean: 49.5 kg &nbsp;|&nbsp; Fat: 38.6%</p>
+              <table class="dx-table">
+                <thead><tr><th>Target BF%</th><th>Fat Loss (kg)</th><th>Weight Loss (kg)</th><th>Goal Weight (kg)</th></tr></thead>
+                <tbody><tr><td style="color:#fff;">30%</td><td style="color:#CBC3B4;">8.4</td><td style="color:#CBC3B4;">8.4</td><td style="color:#CBC3B4;">76.2</td></tr><tr><td style="color:#fff;">25%</td><td style="color:#CBC3B4;">12.7</td><td style="color:#CBC3B4;">12.7</td><td style="color:#CBC3B4;">71.9</td></tr><tr><td style="color:#fff;">20%</td><td style="color:#CBC3B4;">17.1</td><td style="color:#CBC3B4;">17.1</td><td style="color:#CBC3B4;">67.5</td></tr></tbody>
+              </table>
+              <p class="dx-note" style="color:#A89E8C;margin-top:3mm;">Targets assume lean mass is preserved through adequate protein and resistance training.</p>
+            </article>
+        </div>
+        
+  <footer class="dx-foot">
+    <div class="dx-foot-q">Diagnostics &amp; Imaging<br>www.sdrc.in<br><span class="dx-foot-gen">Generated by labit.online</span></div>
+    <div class="dx-foot-logo">SDRC</div>
+  </footer>
+      </div>
+
+    </body>
+    </html>
+  

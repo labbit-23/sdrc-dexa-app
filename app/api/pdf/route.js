@@ -10,6 +10,22 @@
 
 import { NextResponse } from 'next/server'
 import puppeteer from 'puppeteer'
+import fs from 'fs'
+
+// Find system Chrome installation (fallback)
+function findSystemChrome() {
+  const paths = [
+    '/usr/bin/google-chrome',
+    '/usr/bin/chromium-browser',
+    '/usr/bin/chromium',
+    '/snap/bin/chromium',
+    '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
+  ]
+  for (const p of paths) {
+    if (fs.existsSync(p)) return p
+  }
+  return null
+}
 
 export async function GET(req) {
   const mrn = req.nextUrl.searchParams.get('mrn')
@@ -32,10 +48,37 @@ export async function GET(req) {
   const qs = qp.toString()
   const renderUrl = `http://localhost:${port}${base}/render/${scanType}/${mrn}${qs ? '?' + qs : ''}`
 
-  const browser = await puppeteer.launch({
-    headless: true,
-    args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage'],
-  })
+  let browser
+  let launchError
+
+  // Try cached Chrome first (Puppeteer's default)
+  try {
+    browser = await puppeteer.launch({
+      headless: true,
+      args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage'],
+    })
+  } catch (e) {
+    launchError = e
+    // Cached Chrome not found, try system Chrome
+    const systemChrome = findSystemChrome()
+    if (!systemChrome) {
+      return NextResponse.json({
+        error: 'Chrome not found. Install cached: npx puppeteer browsers install chrome OR system: sudo apt-get install google-chrome-stable'
+      }, { status: 500 })
+    }
+
+    try {
+      browser = await puppeteer.launch({
+        headless: true,
+        executablePath: systemChrome,
+        args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage'],
+      })
+    } catch (e2) {
+      return NextResponse.json({
+        error: `Chrome launch failed: ${e2.message}`
+      }, { status: 500 })
+    }
+  }
 
   try {
     const page = await browser.newPage()

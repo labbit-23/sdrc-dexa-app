@@ -10,6 +10,7 @@ import { NextResponse }        from 'next/server'
 import { computeReportData }        from '@/lib/bmd-compute.js'
 import { generateReportHtml }       from '@/lib/bmd-html-template.js'
 import { generateEditorialHtml }    from '@/lib/editorial-html-template.js'
+import { generateComprehensiveHtml } from '@/lib/comprehensive-html-template.js'
 import { fetchAllTotalBodyScans, buildTotalbodyImageUrls } from '@/lib/fetch-scan.js'
 
 export const dynamic = 'force-dynamic'
@@ -113,6 +114,8 @@ export async function GET(req, { params }) {
 
   const html = tpl === 'studio'
     ? generateEditorialHtml(reportData, { letterhead, history: historyForRender, preview })
+    : tpl === 'comprehensive'
+    ? generateComprehensiveHtml(reportData, { letterhead, history: historyForRender, preview })
     : generateReportHtml(reportData, { dark: false, letterhead, history: historyForRender, preview })
 
   return new NextResponse(html, {
