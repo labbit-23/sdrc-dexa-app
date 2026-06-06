@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic'
+
 import { getServiceClient } from '@/lib/supabase'
 
 export async function GET(req) {
