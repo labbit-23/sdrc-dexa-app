@@ -162,14 +162,14 @@ export default function FetchStudiesPage() {
     }
   }, [])
 
-  const doUpload = useCallback(async (pid, xpsPaths, scanTypeOverride) => {
+  const doUpload = useCallback(async (pid, xpsPaths, scanTypeOverride, scanDate) => {
     setUploadingType(scanTypeOverride)
     setUploadLog([`Starting ${scanTypeOverride === 'total_body' ? 'Total Body' : 'Osteo'} upload…`])
     try {
       const res = await fetch(`${BASE}/api/collector/upload/${pid}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ xps_paths: xpsPaths, scan_type_override: scanTypeOverride }),
+        body: JSON.stringify({ xps_paths: xpsPaths, scan_type_override: scanTypeOverride, scan_date: scanDate }),
       })
       const reader = res.body.getReader()
       const dec = new TextDecoder()
@@ -379,7 +379,7 @@ export default function FetchStudiesPage() {
               doneTypes={doneTypes}
               uploadLog={uploadLog}
               logEnd={logEnd}
-              onUpload={(xpsPaths, scanTypeOverride) => doUpload(selPid, xpsPaths, scanTypeOverride)}
+              onUpload={(xpsPaths, scanTypeOverride) => doUpload(selPid, xpsPaths, scanTypeOverride, selected?.scan_date)}
               onWa={() => { setWaMrn(selPid); setWaName(selName); setWaOpen(true) }}
             />
           )}
