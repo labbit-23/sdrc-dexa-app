@@ -90,14 +90,20 @@ function PatientRow({ p, idx, onArchiveClick }) {
                 <td style={{ ...td, fontFamily: 'monospace', fontSize: 12, rowSpan: scans.length }}>{p.mrn}</td>
                 <td style={{ ...td, color: '#6b7280', rowSpan: scans.length }}>{fmtDob(p.dob, p.gender)}</td>
               </>
-            ) : null}
+            ) : (
+              <>
+                <td style={td}></td>
+                <td style={td}></td>
+                <td style={td}></td>
+              </>
+            )}
             <td style={td}><ScanBadge type={scan.scan_type} /></td>
             <td style={td}>{fmtDateShort(scan.scan_date)}</td>
             <td style={{ ...td, textAlign: 'right' }}>
               <div style={{ display: 'flex', gap: 6, justifyContent: 'flex-end', alignItems: 'center' }}>
                 {isOsteo && <Link href={`/report/osteo/${p.mrn}?date=${scanDate}`} style={btn('#0D7377')}>Osteo</Link>}
                 {isTb && <Link href={`/report/totalbody/${p.mrn}?date=${scanDate}`} style={btn('#166534')}>Total Body</Link>}
-                {isFirst && <button onClick={() => onArchiveClick(p)} style={{ ...btn('#666666'), cursor: 'pointer' }}>🔗</button>}
+                {isFirst && <button onClick={() => onArchiveClick(p)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 16, padding: 0 }}>🔗</button>}
               </div>
             </td>
           </tr>
