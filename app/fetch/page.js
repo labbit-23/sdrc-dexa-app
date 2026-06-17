@@ -251,12 +251,12 @@ export default function FetchStudiesPage() {
               <label style={{ fontSize: 11, color: C.gray, display: 'flex', alignItems: 'center', gap: 3 }}>
                 From
                 <input type="date" value={dateFrom} max={dateTo || todayStr}
-                  onChange={e => setDateFrom(e.target.value)} style={dateInput} />
+                  onChange={e => { setDateFrom(e.target.value); e.target.blur() }} style={dateInput} />
               </label>
               <label style={{ fontSize: 11, color: C.gray, display: 'flex', alignItems: 'center', gap: 3 }}>
                 To
                 <input type="date" value={dateTo} min={dateFrom} max={todayStr}
-                  onChange={e => setDateTo(e.target.value)} style={dateInput} />
+                  onChange={e => { setDateTo(e.target.value); e.target.blur() }} style={dateInput} />
               </label>
               <Btn
                 label={recentSt === 'loading' ? '…' : '⟳'}
