@@ -37,6 +37,7 @@ export async function GET(req, { params }) {
   try {
     const targetDate = req.nextUrl.searchParams.get('date')
     const result = await selectTotalbodyAndHistory(mrn, targetDate)
+    console.log(`[render/totalbody] MRN=${mrn} targetDate=${targetDate} found=${!!result} priorScans=${result?.priorScans?.length ?? 0}`)
     if (!result) {
       return new NextResponse(
         `<html><body style="font-family:sans-serif;padding:40px">
