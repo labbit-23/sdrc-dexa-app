@@ -9,7 +9,7 @@
 import { NextResponse }      from 'next/server'
 import { computeOsteoData }  from '@/lib/osteo-compute.js'
 import { generateOsteoHtml } from '@/lib/osteo-html-template.js'
-import { fetchAllOsteoScans, buildImageUrls } from '@/lib/fetch-scan.js'
+import { selectScanAndHistory, buildImageUrls } from '@/lib/fetch-scan.js'
 
 export const dynamic = 'force-dynamic'
 
@@ -32,8 +32,9 @@ export async function GET(req, { params }) {
     return new NextResponse('Invalid MRN', { status: 400 })
   }
 
-  const scans = await fetchAllOsteoScans(mrn)
-  if (!scans.length) {
+  const targetDate = req.nextUrl.searchParams.get('date')
+  const result = await selectScanAndHistory(mrn, targetDate)
+  if (!result) {
     return new NextResponse(
       `<html><body style="font-family:sans-serif;padding:40px">
         <h2>No osteo scan found for MRN <code>${mrn}</code></h2>
@@ -43,17 +44,7 @@ export async function GET(req, { params }) {
     )
   }
 
-  // Deduplicate by scan_date — keep latest upload per date (scans are ordered oldest→newest)
-  const byDate = new Map()
-  for (const s of scans) {
-    const d = (s.scan_date ?? '').slice(0, 10)
-    byDate.set(d, s)
-  }
-  const dedupedScans = [...byDate.values()]
-
-  // Most recent scan is the current; all prior are history
-  const scan = dedupedScans[dedupedScans.length - 1]
-  const priorScans = dedupedScans.slice(0, -1)
+  const { scan, priorScans } = result
 
   const imageUrls = buildImageUrls(scan.image_paths)
 

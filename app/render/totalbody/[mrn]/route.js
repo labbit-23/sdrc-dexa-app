@@ -11,7 +11,7 @@ import { computeReportData }        from '@/lib/bmd-compute.js'
 import { generateReportHtml }       from '@/lib/bmd-html-template.js'
 import { generateEditorialHtml }    from '@/lib/editorial-html-template.js'
 import { generateComprehensiveHtml } from '@/lib/comprehensive-html-template.js'
-import { fetchAllTotalBodyScans, buildTotalbodyImageUrls } from '@/lib/fetch-scan.js'
+import { selectTotalbodyAndHistory, buildTotalbodyImageUrls } from '@/lib/fetch-scan.js'
 
 export const dynamic = 'force-dynamic'
 
@@ -34,8 +34,9 @@ export async function GET(req, { params }) {
     return new NextResponse('Invalid MRN', { status: 400 })
   }
 
-  const scans = await fetchAllTotalBodyScans(mrn)
-  if (!scans.length) {
+  const targetDate = req.nextUrl.searchParams.get('date')
+  const result = await selectTotalbodyAndHistory(mrn, targetDate)
+  if (!result) {
     return new NextResponse(
       `<html><body style="font-family:sans-serif;padding:40px">
         <h2>No total body scan found for MRN <code>${mrn}</code></h2>
@@ -45,17 +46,7 @@ export async function GET(req, { params }) {
     )
   }
 
-  // Deduplicate by scan_date — keep latest upload per date (scans are ordered oldest→newest)
-  const byDate = new Map()
-  for (const s of scans) {
-    const d = (s.scan_date ?? '').slice(0, 10)
-    byDate.set(d, s)
-  }
-  const dedupedScans = [...byDate.values()]
-
-  // Most recent scan is the current; all prior are history
-  const scan = dedupedScans[dedupedScans.length - 1]
-  const priorScans = dedupedScans.slice(0, -1)
+  const { scan, priorScans } = result
 
   const imageUrls = buildTotalbodyImageUrls(scan.image_paths)
 
