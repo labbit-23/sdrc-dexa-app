@@ -27,18 +27,20 @@ function PdfBtn({ href, label, bg, faint }) {
   )
 }
 
-export default function PrintPreviewOsteo({ params }) {
+export default function PrintPreviewOsteo({ params, searchParams }) {
   const { mrn } = params
+  const date = searchParams?.date || ''
   const [lh, setLh] = useState(false)
   const [waOpen, setWaOpen] = useState(false)
 
+  const dateParam = date ? `&date=${date}` : ''
   const previewUrl = lh
-    ? `${BASE}/render/osteo/${mrn}?lh=1&preview=1`
-    : `${BASE}/render/osteo/${mrn}?preview=1`
+    ? `${BASE}/render/osteo/${mrn}?lh=1&preview=1${dateParam}`
+    : `${BASE}/render/osteo/${mrn}?preview=1${dateParam}`
 
   const pdfHref = lh
-    ? `${BASE}/api/pdf?mrn=${mrn}&lh=1`
-    : `${BASE}/api/pdf?mrn=${mrn}`
+    ? `${BASE}/api/pdf?mrn=${mrn}&lh=1${dateParam}`
+    : `${BASE}/api/pdf?mrn=${mrn}${dateParam}`
 
   const doPrint = () => {
     const win = window.open(previewUrl, '_blank')

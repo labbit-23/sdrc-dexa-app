@@ -55,8 +55,9 @@ const TEMPLATES = [
   },
 ]
 
-export default function PrintPreviewTotalbody({ params }) {
+export default function PrintPreviewTotalbody({ params, searchParams }) {
   const { mrn } = params
+  const date = searchParams?.date || ''
   const [lh, setLh]       = useState(false)
   const [tpl, setTpl]     = useState('standard')
   const [waOpen, setWaOpen] = useState(false)
@@ -71,12 +72,13 @@ export default function PrintPreviewTotalbody({ params }) {
       .catch(() => {})
   }, [mrn])
 
+  const dateParam  = date ? `&date=${date}` : ''
   const tplParam   = tpl !== 'standard' ? `&tpl=${tpl}` : ''
-  const previewUrl = `${BASE}/render/totalbody/${mrn}?preview=1${lh ? '&lh=1' : ''}${tplParam}`
+  const previewUrl = `${BASE}/render/totalbody/${mrn}?preview=1${lh ? '&lh=1' : ''}${tplParam}${dateParam}`
 
   // Include patient-friendly filename hint in the PDF URL
   const nameParam = meta?.filename ? `&dl=${encodeURIComponent(meta.filename)}` : ''
-  const pdfHref   = `${BASE}/api/pdf?mrn=${mrn}&type=totalbody${lh ? '&lh=1' : ''}${tplParam}${nameParam}`
+  const pdfHref   = `${BASE}/api/pdf?mrn=${mrn}&type=totalbody${lh ? '&lh=1' : ''}${tplParam}${nameParam}${dateParam}`
 
   const doPrint = () => {
     const win = window.open(previewUrl, '_blank')
