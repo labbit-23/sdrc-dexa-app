@@ -210,7 +210,7 @@ export default function FetchStudiesPage() {
 
   const selPid  = selected?.patient?.patient_id ?? ''
   const selName = `${selected?.patient?.title ?? ''} ${selected?.patient?.name ?? ''}`.trim()
-  const selInDb = selected?.exists_in_db ?? dbMrns.has(selPid)
+  const selInDb = selected?.exists_in_db ?? false
 
   return (
     <div style={{ position: 'fixed', inset: 0, background: C.dark, fontFamily: 'system-ui, sans-serif', color: C.white, display: 'flex', flexDirection: 'column' }}>
