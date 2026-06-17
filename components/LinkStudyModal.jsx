@@ -12,6 +12,14 @@ export default function LinkStudyModal({ currentPids, onClose, archiveMode = fal
   const [uploading, setUploading] = useState(false)
   const [result, setResult] = useState(null)
 
+  // Auto-search for target patient if opened from patient list
+  useEffect(() => {
+    if (currentPids.size === 1 && !q) {
+      const targetPid = Array.from(currentPids)[0]
+      setQ(targetPid)
+    }
+  }, [currentPids, q])
+
   const listUrl = archiveMode ? `${BASE}/api/collector/archive/all?max_count=500` : `${BASE}/api/collector/all?max_count=200`
   const trendBase = archiveMode ? `${BASE}/api/collector/archive/trend` : `${BASE}/api/collector/trend`
 
