@@ -103,12 +103,16 @@ export default function LinkStudyModal({ currentPids, onClose, archiveMode = fal
             Historical data will be linked as trend records — no images required.
           </div>
           <div style={{ display: 'flex', gap: 10, marginBottom: 14 }}>
-            <button onClick={() => doLink('osteo_trend')} disabled={uploading} style={{ flex: 1, padding: '6px 10px', background: '#0D7377', color: '#fff', border: 'none', borderRadius: 4, fontWeight: 600, cursor: uploading ? 'not-allowed' : 'pointer', opacity: uploading ? 0.6 : 1 }}>
-              🦴 Bone Density
-            </button>
-            <button onClick={() => doLink('total_body_trend')} disabled={uploading} style={{ flex: 1, padding: '6px 10px', background: '#166534', color: '#fff', border: 'none', borderRadius: 4, fontWeight: 600, cursor: uploading ? 'not-allowed' : 'pointer', opacity: uploading ? 0.6 : 1 }}>
-              📊 Total Body
-            </button>
+            {(selected?.has_osteo !== false) && (
+              <button onClick={() => doLink('osteo_trend')} disabled={uploading} style={{ flex: 1, padding: '6px 10px', background: '#0D7377', color: '#fff', border: 'none', borderRadius: 4, fontWeight: 600, cursor: uploading ? 'not-allowed' : 'pointer', opacity: uploading ? 0.6 : 1 }}>
+                🦴 Bone Density
+              </button>
+            )}
+            {(selected?.has_total_body !== false) && (
+              <button onClick={() => doLink('total_body_trend')} disabled={uploading} style={{ flex: 1, padding: '6px 10px', background: '#166534', color: '#fff', border: 'none', borderRadius: 4, fontWeight: 600, cursor: uploading ? 'not-allowed' : 'pointer', opacity: uploading ? 0.6 : 1 }}>
+                📊 Total Body
+              </button>
+            )}
           </div>
           {uploading && <div style={{ color: '#0D7377', fontSize: 11, marginBottom: 10 }}>Linking…</div>}
           <button onClick={() => setConfirm(false)} style={{ padding: '6px 16px', background: '#e5e7eb', color: '#374151', border: 'none', borderRadius: 4, fontWeight: 600, cursor: 'pointer', width: '100%' }}>
