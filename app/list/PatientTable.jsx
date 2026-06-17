@@ -117,10 +117,9 @@ function TableHead() {
         <th style={th}>Patient</th>
         <th style={th}>MRN</th>
         <th style={th}>Age / Sex</th>
-        <th style={th}>Scan Types</th>
-        <th style={th}>Last Scan</th>
-        <th style={{ ...th, textAlign: 'center' }}>Scans</th>
-        <th style={th}></th>
+        <th style={th}>Type</th>
+        <th style={th}>Date</th>
+        <th style={{ ...th, textAlign: 'right' }}>Report</th>
       </tr>
     </thead>
   )
