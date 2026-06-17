@@ -93,7 +93,7 @@ function PatientRow({ p, idx, onArchiveClick }) {
             ) : null}
             <td style={td}><ScanBadge type={scan.scan_type} /></td>
             <td style={td}>{fmtDateShort(scan.scan_date)}</td>
-            <td style={{ ...td, textAlign: 'right' }}>
+            <td style={{ ...td, textAlign: 'right', padding: '10px 12px' }}>
               <div style={{ display: 'flex', gap: 6, justifyContent: 'flex-end', alignItems: 'center' }}>
                 {isOsteo && <Link href={`/report/osteo/${p.mrn}?date=${scanDate}`} style={btn('#0D7377')}>Osteo</Link>}
                 {isTb && <Link href={`/report/totalbody/${p.mrn}?date=${scanDate}`} style={btn('#166534')}>Total Body</Link>}
