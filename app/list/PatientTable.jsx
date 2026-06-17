@@ -90,7 +90,13 @@ function PatientRow({ p, idx, onArchiveClick }) {
                 <td style={{ ...td, fontFamily: 'monospace', fontSize: 12, rowSpan: scans.length }}>{p.mrn}</td>
                 <td style={{ ...td, color: '#6b7280', rowSpan: scans.length }}>{fmtDob(p.dob, p.gender)}</td>
               </>
-            ) : null}
+            ) : (
+              <>
+                <td style={td} />
+                <td style={td} />
+                <td style={td} />
+              </>
+            )}
             <td style={td}><ScanBadge type={scan.scan_type} /></td>
             <td style={td}>{fmtDateShort(scan.scan_date)}</td>
             <td style={{ ...td, textAlign: 'right', padding: '10px 12px' }}>
