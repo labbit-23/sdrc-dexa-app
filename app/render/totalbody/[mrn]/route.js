@@ -86,9 +86,15 @@ export async function GET(req, { params }) {
     // Build history array: compute report data for each prior scan, skip failures
     const history = priorScans
       .map(s => {
-        const raw = parseRaw(s.raw_json)
-        if (!raw) return null
-        return computeReportData(raw, mrn, '')
+        try {
+          const raw = parseRaw(s.raw_json)
+          if (!raw) return null
+          const report = computeReportData(raw, mrn, '')
+          return report
+        } catch (histErr) {
+          console.warn(`[render/totalbody] Could not compute history for scan ${s.scan_date}:`, histErr.message)
+          return null
+        }
       })
       .filter(Boolean)
 
@@ -97,17 +103,21 @@ export async function GET(req, { params }) {
     const tpl          = req.nextUrl.searchParams.get('tpl') ?? 'standard'
     const forceTrends  = req.nextUrl.searchParams.get('trends') === '1'
 
-    // Scan delta: diff between current and most recent prior scan
+    // Scan delta: diff between current and most recent prior scan (non-fatal if it fails)
     const prevData = history[history.length - 1] ?? null
     if (prevData && reportData.composition && prevData.composition) {
-      const cur = reportData.composition
-      const prv = prevData.composition
-      reportData.scan_delta = {
-        fat_pct_change:  parseFloat((cur.fat_pct - prv.fat_pct).toFixed(1)),
-        fat_kg_change:   parseFloat((cur.fat_g / 1000 - prv.fat_g / 1000).toFixed(1)),
-        lean_kg_change:  parseFloat((cur.lean_g / 1000 - prv.lean_g / 1000).toFixed(1)),
-        bmc_kg_change:   parseFloat((cur.bmc_g / 1000 - prv.bmc_g / 1000).toFixed(2)),
-        scan_date_prev:  prevData.patient.scan_date,
+      try {
+        const cur = reportData.composition
+        const prv = prevData.composition
+        reportData.scan_delta = {
+          fat_pct_change:  parseFloat((cur.fat_pct - prv.fat_pct).toFixed(1)),
+          fat_kg_change:   parseFloat((cur.fat_g / 1000 - prv.fat_g / 1000).toFixed(1)),
+          lean_kg_change:  parseFloat((cur.lean_g / 1000 - prv.lean_g / 1000).toFixed(1)),
+          bmc_kg_change:   parseFloat((cur.bmc_g / 1000 - prv.bmc_g / 1000).toFixed(2)),
+          scan_date_prev:  prevData.patient.scan_date,
+        }
+      } catch (deltaErr) {
+        console.warn('[render/totalbody] Could not compute scan delta:', deltaErr.message)
       }
     }
 
