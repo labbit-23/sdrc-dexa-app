@@ -17,7 +17,11 @@ export default function LinkStudyModal({ currentPids, onClose, archiveMode = fal
   useEffect(() => {
     fetch(listUrl)
       .then(r => r.json())
-      .then(data => { setAll(data); setLoading(false) })
+      .then(data => {
+        const arr = Array.isArray(data) ? data : (data?.patients ?? data?.data ?? [])
+        setAll(arr)
+        setLoading(false)
+      })
       .catch(() => setLoading(false))
   }, [listUrl])
 
