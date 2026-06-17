@@ -28,6 +28,13 @@ function fmtDate(d) {
   return `${day}/${m}/${y}`
 }
 
+function fmtDateShort(iso) {
+  if (!iso) return '—'
+  return new Date(iso).toLocaleDateString('en-IN', {
+    day: '2-digit', month: 'short', year: 'numeric',
+  })
+}
+
 function fmtDob(dob, gender) {
   if (!dob) return gender || '—'
   const age = Math.floor((Date.now() - new Date(dob)) / (365.25 * 24 * 3600 * 1000))
