@@ -103,7 +103,7 @@ function PatientRow({ p, idx, onArchiveClick }) {
               <div style={{ display: 'flex', gap: 6, justifyContent: 'flex-end', alignItems: 'center' }}>
                 {isOsteo && <Link href={`/report/osteo/${p.mrn}?date=${scanDate}`} style={btn('#0D7377')}>Osteo</Link>}
                 {isTb && <Link href={`/report/totalbody/${p.mrn}?date=${scanDate}`} style={btn('#166534')}>Total Body</Link>}
-                {isFirst && <button onClick={() => onArchiveClick(p)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 16, padding: 0 }}>🔗</button>}
+                <button onClick={() => isFirst && onArchiveClick(p)} style={{ background: 'none', border: 'none', cursor: isFirst ? 'pointer' : 'default', fontSize: 16, padding: 0, opacity: isFirst ? 1 : 0, pointerEvents: isFirst ? 'auto' : 'none' }}>🔗</button>
               </div>
             </td>
           </tr>
