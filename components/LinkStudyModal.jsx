@@ -12,13 +12,6 @@ export default function LinkStudyModal({ currentPids, onClose, archiveMode = fal
   const [uploading, setUploading] = useState(false)
   const [result, setResult] = useState(null)
 
-  // Auto-search for target patient if opened from patient list
-  useEffect(() => {
-    if (currentPids.size === 1 && !q) {
-      const targetPid = Array.from(currentPids)[0]
-      setQ(targetPid)
-    }
-  }, [currentPids, q])
 
   const listUrl = archiveMode ? `${BASE}/api/collector/archive/all?max_count=500` : `${BASE}/api/collector/all?max_count=200`
   const trendBase = archiveMode ? `${BASE}/api/collector/archive/trend` : `${BASE}/api/collector/trend`
@@ -34,29 +27,13 @@ export default function LinkStudyModal({ currentPids, onClose, archiveMode = fal
       .catch(() => setLoading(false))
   }, [listUrl])
 
-  // Fuzzy match score (0-1, where 1 is exact)
-  const fuzzyScore = (str, query) => {
-    if (!query) return 1
-    const s = str.toLowerCase()
-    const q = query.toLowerCase()
-    if (s.includes(q)) return 1
-    let matches = 0, score = 0
-    for (let i = 0; i < q.length; i++) {
-      const idx = s.indexOf(q[i])
-      if (idx > -1) { matches++; score += 1 / (idx + 1) }
-    }
-    return matches / q.length * (score / matches)
-  }
-
   const filtered = q
     ? all.filter(p => {
-        const mrn = (p.patient?.patient_id ?? '').toString()
-        const name = (p.patient?.name ?? '')
-        const mrnScore = fuzzyScore(mrn, q)
-        const nameScore = fuzzyScore(name, q)
-        return Math.max(mrnScore, nameScore) >= 0.65
+        const ql = q.toLowerCase()
+        return (p.patient?.patient_id ?? '').toLowerCase().includes(ql) ||
+               (p.patient?.name ?? '').toLowerCase().includes(ql)
       })
-    : (showAll ? all : [])
+    : all
 
   const matches = filtered.filter(p => currentPids.has(p.patient?.patient_id))
   const others = filtered.filter(p => !currentPids.has(p.patient?.patient_id))
@@ -169,25 +146,20 @@ export default function LinkStudyModal({ currentPids, onClose, archiveMode = fal
               {matches.map(info => <ModalPatientRow key={info.patient?.patient_id} info={info} highlight selected={selected?.patient?.patient_id === info.patient?.patient_id} onClick={() => setSelected(info)} onDoubleClick={() => { setSelected(info); setConfirm(true) }} />)}
             </>
           )}
-          {others.length > 0 && (
+          {showAll && others.length > 0 && (
             <>
-              {matches.length > 0 && <div style={{ padding: '6px 14px', background: '#f0f4f8', color: '#6b7280', fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5 }}>Search results</div>}
+              {matches.length > 0 && <div style={{ padding: '6px 14px', background: '#f0f4f8', color: '#6b7280', fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5 }}>All patients</div>}
               {others.map(info => <ModalPatientRow key={info.patient?.patient_id} info={info} selected={selected?.patient?.patient_id === info.patient?.patient_id} onClick={() => setSelected(info)} onDoubleClick={() => { setSelected(info); setConfirm(true) }} />)}
             </>
           )}
-          {!loading && filtered.length === 0 && q && !showAll && (
-            <div style={{ color: '#6b7280', textAlign: 'center', padding: 40, fontSize: 12 }}>
-              <div>No matches (≥65% fuzzy)</div>
-              <button onClick={() => setShowAll(true)} style={{ marginTop: 12, padding: '4px 12px', background: '#0D7377', color: '#fff', border: 'none', borderRadius: 4, fontSize: 11, fontWeight: 600, cursor: 'pointer' }}>
-                Load all →
+          {!showAll && others.length > 0 && matches.length > 0 && (
+            <div style={{ padding: 12, textAlign: 'center' }}>
+              <button onClick={() => setShowAll(true)} style={{ padding: '6px 14px', background: '#e5e7eb', color: '#374151', border: 'none', borderRadius: 4, fontSize: 11, fontWeight: 600, cursor: 'pointer' }}>
+                Load all {others.length} patients →
               </button>
             </div>
           )}
-          {!loading && filtered.length === 0 && !q && !showAll && (
-            <div style={{ color: '#6b7280', textAlign: 'center', padding: 40, fontSize: 12 }}>
-              <div>Search to find patients</div>
-            </div>
-          )}
+          {!loading && filtered.length === 0 && <div style={{ color: '#6b7280', textAlign: 'center', padding: 40, fontSize: 12 }}>No patients found</div>}
         </div>
         <div style={{ padding: '10px 14px', borderTop: '1px solid #e5eaf0', display: 'flex', gap: 10, flexShrink: 0 }}>
           <button onClick={() => setConfirm(true)} disabled={!selected} style={{ flex: 1, padding: '6px 12px', background: selected ? '#0D7377' : '#e5e7eb', color: selected ? '#fff' : '#9ca3af', border: 'none', borderRadius: 4, fontWeight: 600, cursor: selected ? 'pointer' : 'not-allowed' }}>
