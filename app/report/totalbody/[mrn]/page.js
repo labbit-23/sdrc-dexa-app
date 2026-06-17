@@ -1,12 +1,15 @@
 'use client'
 
 import { useEffect } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 
 export default function TotalbodyReportPage({ params }) {
   const router = useRouter()
+  const searchParams = useSearchParams()
   useEffect(() => {
-    router.replace(`/print/totalbody/${params.mrn}`)
-  }, [])
+    const query = searchParams.toString()
+    const url = `/print/totalbody/${params.mrn}${query ? `?${query}` : ''}`
+    router.replace(url)
+  }, [params.mrn, searchParams, router])
   return null
 }
