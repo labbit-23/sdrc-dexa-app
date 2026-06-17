@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import BASE from '@/lib/basepath'
 import { tealToolbar, sdrcLogoStyle, labitInvertedStyle } from '@/lib/theme'
 import WaSendModal from '@/components/WaSendModal'
+import LinkStudyModal from '@/components/LinkStudyModal'
 
 const C = {
   dark:   '#0D1B2A',
@@ -387,14 +388,14 @@ export default function FetchStudiesPage() {
 
       {/* Modals */}
       {archiveOpen && (
-        <LinkOlderStudyModal
+        <LinkStudyModal
           currentPids={new Set(recent.map(p => p.patient?.patient_id).filter(Boolean))}
           onClose={() => setArchiveOpen(false)}
           archiveMode
         />
       )}
       {linkOpen && (
-        <LinkOlderStudyModal
+        <LinkStudyModal
           currentPids={new Set(recent.map(p => p.patient?.patient_id).filter(Boolean))}
           onClose={() => setLinkOpen(false)}
         />
@@ -561,166 +562,6 @@ function ScanBadges({ components, mdbScanType }) {
           }}>{c}</span>
         )
       })}
-    </div>
-  )
-}
-
-
-// ── Link Older Study modal ────────────────────────────────────────────────────
-
-function LinkOlderStudyModal({ currentPids, onClose, archiveMode = false }) {
-  const [all,       setAll]       = useState([])
-  const [q,         setQ]         = useState('')
-  const [loading,   setLoading]   = useState(true)
-  const [selected,  setSelected]  = useState(null)
-  const [confirm,   setConfirm]   = useState(false)
-  const [uploading, setUploading] = useState(false)
-  const [result,    setResult]    = useState(null)
-
-  const listUrl  = archiveMode ? `${BASE}/api/collector/archive/all?max_count=500` : `${BASE}/api/collector/all?max_count=200`
-  const trendBase= archiveMode ? `${BASE}/api/collector/archive/trend` : `${BASE}/api/collector/trend`
-
-  useEffect(() => {
-    fetch(listUrl).then(r => r.json()).then(data => { setAll(data); setLoading(false) }).catch(() => setLoading(false))
-  }, [listUrl])
-
-  const filtered = q
-    ? all.filter(p => {
-        const ql = q.toLowerCase()
-        return (p.patient?.patient_id ?? '').toLowerCase().includes(ql)
-            || (p.patient?.name ?? '').toLowerCase().includes(ql)
-      })
-    : all
-
-  const matches = filtered.filter(p => currentPids.has(p.patient?.patient_id))
-  const others  = filtered.filter(p => !currentPids.has(p.patient?.patient_id))
-
-  const doLink = async (scanType) => {
-    const pid  = selected.patient?.patient_id
-    const mdb  = selected.archive_label
-    const url  = mdb ? `${trendBase}/${pid}?mdb=${encodeURIComponent(mdb)}` : `${trendBase}/${pid}`
-    setUploading(true)
-    try {
-      const res  = await fetch(url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ scan_type: scanType }),
-      })
-      const data = await res.json()
-      setResult({ ok: data.ok, pid, scanType })
-    } catch (e) {
-      setResult({ ok: false, pid: selected.patient?.patient_id, scanType, error: e.message })
-    } finally {
-      setUploading(false)
-    }
-  }
-
-  const overlay = { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 }
-  const modal   = { background: C.dark, border: `1px solid ${C.border}`, borderRadius: 8, width: 700, maxHeight: '85vh', display: 'flex', flexDirection: 'column', overflow: 'hidden' }
-
-  if (result) return (
-    <div style={overlay}>
-      <div style={{ ...modal, width: 400, padding: 32, textAlign: 'center' }}>
-        <div style={{ fontSize: 40 }}>{result.ok ? '✓' : '✗'}</div>
-        <div style={{ fontSize: 16, fontWeight: 700, marginTop: 12, color: result.ok ? '#4ade80' : '#f87171' }}>
-          {result.ok ? 'Linked successfully' : 'Link failed'}
-        </div>
-        <div style={{ color: C.gray, fontSize: 13, marginTop: 8 }}>
-          {result.pid} → {result.scanType}
-          {result.error && <div style={{ color: '#f87171', marginTop: 6 }}>{result.error}</div>}
-        </div>
-        <Btn label="Close" bg={C.teal} onClick={onClose} style={{ marginTop: 20 }} />
-      </div>
-    </div>
-  )
-
-  if (confirm && selected) {
-    const p  = selected.patient ?? {}
-    const nm = `${p.title ?? ''} ${p.name ?? ''}`.trim()
-    return (
-      <div style={overlay}>
-        <div style={{ ...modal, width: 440, padding: 28 }}>
-          <div style={{ fontWeight: 700, fontSize: 15, color: C.teal, marginBottom: 16 }}>Confirm Link</div>
-          <div style={{ background: C.card, borderRadius: 6, padding: '12px 16px', fontSize: 13, lineHeight: 2, marginBottom: 20 }}>
-            <div><span style={{ color: C.gray, width: 70, display: 'inline-block' }}>Name</span> <strong>{nm}</strong></div>
-            <div><span style={{ color: C.gray, width: 70, display: 'inline-block' }}>MRN</span> {p.patient_id}</div>
-            <div><span style={{ color: C.gray, width: 70, display: 'inline-block' }}>Scan</span> {fmtDateShort(selected.scan_date)}</div>
-            {selected.archive_label && <div><span style={{ color: C.gray, width: 70, display: 'inline-block' }}>Archive</span> <span style={{ color: '#90CAF9' }}>{selected.archive_label}</span></div>}
-          </div>
-          <div style={{ color: C.lt, fontSize: 12, marginBottom: 14 }}>
-            Their MDB data will be uploaded as trend history — no images required.
-          </div>
-          <div style={{ display: 'flex', gap: 10, marginBottom: 14 }}>
-            <Btn label="🦴 Bone Density" bg={C.teal}   disabled={uploading} onClick={() => doLink('osteo_trend')} bold />
-            <Btn label="🧬 Total Body"   bg={C.purple} disabled={uploading} onClick={() => doLink('total_body_trend')} bold />
-          </div>
-          {uploading && <div style={{ color: C.cyan, fontSize: 12 }}>Uploading…</div>}
-          <Btn label="← Back" bg="transparent" textColor={C.gray} border={C.border} onClick={() => setConfirm(false)} />
-        </div>
-      </div>
-    )
-  }
-
-  return (
-    <div style={overlay}>
-      <div style={modal}>
-        <div style={{ background: C.teal, padding: '12px 18px', flexShrink: 0, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <div>
-            <div style={{ fontWeight: 700, fontSize: 14 }}>
-              {archiveMode ? '🗄️ Link Archived Study' : 'Link Older Study as Trend Data'}
-            </div>
-            <div style={{ color: '#B2DFDB', fontSize: 11, marginTop: 2 }}>MDB data uploads as trend history — no XPS needed</div>
-          </div>
-          <button onClick={onClose} style={{ background: 'none', border: 'none', color: '#B2DFDB', fontSize: 18, cursor: 'pointer' }}>✕</button>
-        </div>
-        <div style={{ padding: '10px 14px', borderBottom: `1px solid ${C.border}`, flexShrink: 0 }}>
-          <input value={q} onChange={e => setQ(e.target.value)} placeholder="Search MRN or name…" autoFocus
-            style={{ width: '100%', background: C.card, border: `1px solid ${C.border}`, borderRadius: 5, padding: '7px 12px', color: C.white, fontSize: 13, outline: 'none', boxSizing: 'border-box' }} />
-        </div>
-        <div style={{ padding: '4px 14px', color: C.gray, fontSize: 11, flexShrink: 0 }}>
-          {loading ? 'Loading MDB…' : `${filtered.length} patient(s)`}
-        </div>
-        <div style={{ overflowY: 'auto', flex: 1 }}>
-          {matches.length > 0 && (
-            <>
-              <div style={{ padding: '4px 14px', background: '#0a1624', color: C.teal, fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1 }}>Current session match</div>
-              {matches.map(info => <PatientRow key={info.patient?.patient_id} info={info} highlight selected={selected?.patient?.patient_id === info.patient?.patient_id} onClick={() => setSelected(info)} onDoubleClick={() => { setSelected(info); setConfirm(true) }} />)}
-            </>
-          )}
-          {others.length > 0 && (
-            <>
-              {matches.length > 0 && <div style={{ padding: '4px 14px', background: '#0a1624', color: C.gray, fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1 }}>All MDB patients</div>}
-              {others.map(info => <PatientRow key={info.patient?.patient_id} info={info} selected={selected?.patient?.patient_id === info.patient?.patient_id} onClick={() => setSelected(info)} onDoubleClick={() => { setSelected(info); setConfirm(true) }} />)}
-            </>
-          )}
-          {!loading && filtered.length === 0 && <div style={{ color: C.gray, textAlign: 'center', padding: 40 }}>No patients found</div>}
-        </div>
-        <div style={{ padding: '10px 14px', borderTop: `1px solid ${C.border}`, display: 'flex', gap: 10, flexShrink: 0 }}>
-          <Btn label="Select & Confirm →" bg={C.pink} disabled={!selected} onClick={() => setConfirm(true)} bold />
-          <Btn label="Cancel" bg="transparent" textColor={C.gray} border={C.border} onClick={onClose} />
-        </div>
-      </div>
-    </div>
-  )
-}
-
-function PatientRow({ info, highlight, selected, onClick, onDoubleClick }) {
-  const p      = info.patient ?? {}
-  const pid    = p.patient_id ?? '?'
-  const name   = `${p.title ?? ''} ${p.name ?? ''}`.trim() || '—'
-  const gender = (p.gender ?? '').slice(0, 1).toUpperCase() || '—'
-  const label  = info.archive_label
-  return (
-    <div onClick={onClick} onDoubleClick={onDoubleClick}
-      style={{ display: 'grid', gridTemplateColumns: '90px 1fr 50px 100px' + (label ? ' 90px' : ''), gap: 8, padding: '8px 14px', cursor: 'pointer', borderBottom: `1px solid #0f2030`, background: selected ? '#1a3a55' : 'transparent', fontSize: 12 }}
-      onMouseEnter={e => { if (!selected) e.currentTarget.style.background = '#0f2030' }}
-      onMouseLeave={e => { if (!selected) e.currentTarget.style.background = 'transparent' }}
-    >
-      <div style={{ color: highlight ? C.cyan : C.lt, fontFamily: 'monospace' }}>{pid}</div>
-      <div style={{ color: highlight ? C.white : C.lt, fontWeight: highlight ? 600 : 400, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{name}</div>
-      <div style={{ color: C.gray }}>{gender}</div>
-      <div style={{ color: C.gray }}>{fmtDateShort(info.scan_date)}</div>
-      {label && <div style={{ color: '#90CAF9', fontSize: 10, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{label}</div>}
     </div>
   )
 }

@@ -2,6 +2,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import Link from 'next/link'
 import BASE from '@/lib/basepath'
+import LinkStudyModal from '@/components/LinkStudyModal'
 
 const SCAN_BADGE = {
   spine_only:  { label: 'AP Spine',   bg: '#e0f2fe', color: '#0369a1' },
@@ -54,27 +55,53 @@ function groupBySections(patients) {
     if (!groups[s]) groups[s] = []
     groups[s].push(p)
   }
+  // Sort each section by latest study timestamp (descending)
+  for (const s in groups) {
+    groups[s].sort((a, b) => (b.last_scan_date || '').localeCompare(a.last_scan_date || ''))
+  }
   return SECTION_ORDER.filter(s => groups[s]?.length).map(s => ({ label: s, rows: groups[s] }))
 }
 
-function PatientRow({ p, idx }) {
+function PatientRow({ p, idx, onArchiveClick }) {
+  // Each scan (type+date) is its own row
+  const scans = (p.scans ?? []).sort((a, b) => b.scan_date.localeCompare(a.scan_date))
+
   return (
-    <tr style={{ background: idx % 2 === 0 ? '#fff' : '#f8fafc' }}>
-      <td style={{ ...td, fontWeight: 600 }}>{p.name || '—'}</td>
-      <td style={{ ...td, fontFamily: 'monospace', fontSize: 12 }}>{p.mrn}</td>
-      <td style={{ ...td, color: '#6b7280' }}>{fmtDob(p.dob, p.gender)}</td>
-      <td style={td}>{(p.scan_types ?? []).map(t => <ScanBadge key={t} type={t} />)}</td>
-      <td style={td}>{fmtDate(p.last_scan_date)}</td>
-      <td style={{ ...td, textAlign: 'center', color: '#6b7280' }}>{p.scan_count}</td>
-      <td style={{ ...td, textAlign: 'right' }}>
-        <div style={{ display: 'flex', gap: 6, justifyContent: 'flex-end' }}>
-          {p.has_osteo      && <Link href={`/report/osteo/${p.mrn}`}     style={btn('#0D7377')}>Osteo</Link>}
-          {p.has_total_body && <Link href={`/report/totalbody/${p.mrn}`} style={btn('#166534')}>Total Body</Link>}
-        </div>
-      </td>
-    </tr>
+    <>
+      {scans.map((scan, i) => {
+        const isFirst = i === 0
+        const scanDate = scan.scan_date.split('T')[0]
+        const isOsteo = OSTEO_TYPES.has(scan.scan_type)
+        const isTb = TB_TYPES.has(scan.scan_type)
+        const rowIdx = idx * 100 + i
+
+        return (
+          <tr key={`${p.mrn}-${scan.scan_date}-${scan.scan_type}`} style={{ background: rowIdx % 2 === 0 ? '#fff' : '#f8fafc' }}>
+            {isFirst ? (
+              <>
+                <td style={{ ...td, fontWeight: 600, rowSpan: scans.length }}>{p.name || '—'}</td>
+                <td style={{ ...td, fontFamily: 'monospace', fontSize: 12, rowSpan: scans.length }}>{p.mrn}</td>
+                <td style={{ ...td, color: '#6b7280', rowSpan: scans.length }}>{fmtDob(p.dob, p.gender)}</td>
+              </>
+            ) : null}
+            <td style={td}><ScanBadge type={scan.scan_type} /></td>
+            <td style={td}>{fmtDateShort(scan.scan_date)}</td>
+            <td style={{ ...td, textAlign: 'right' }}>
+              <div style={{ display: 'flex', gap: 6, justifyContent: 'flex-end', alignItems: 'center' }}>
+                {isOsteo && <Link href={`/report/osteo/${p.mrn}?date=${scanDate}`} style={btn('#0D7377')}>Osteo</Link>}
+                {isTb && <Link href={`/report/totalbody/${p.mrn}?date=${scanDate}`} style={btn('#166534')}>Total Body</Link>}
+                {isFirst && <button onClick={() => onArchiveClick(p)} style={{ ...btn('#666666'), cursor: 'pointer' }}>🗄️</button>}
+              </div>
+            </td>
+          </tr>
+        )
+      })}
+    </>
   )
 }
+
+const OSTEO_TYPES = new Set(['osteo', 'spine_only', 'spine_femur', 'dual_femur'])
+const TB_TYPES = new Set(['total_body'])
 
 function TableHead() {
   return (
@@ -93,13 +120,15 @@ function TableHead() {
 }
 
 export default function PatientTable() {
-  const [q,        setQ]        = useState('')
-  const [patients, setPatients] = useState([])
-  const [total,    setTotal]    = useState(0)
-  const [pages,    setPages]    = useState(1)
-  const [page,     setPage]     = useState(0)
-  const [loading,  setLoading]  = useState(true)
-  const [error,    setError]    = useState('')
+  const [q,           setQ]           = useState('')
+  const [patients,    setPatients]    = useState([])
+  const [total,       setTotal]       = useState(0)
+  const [pages,       setPages]       = useState(1)
+  const [page,        setPage]        = useState(0)
+  const [loading,     setLoading]     = useState(true)
+  const [error,       setError]       = useState('')
+  const [archiveOpen, setArchiveOpen] = useState(false)
+  const [archivePatient, setArchivePatient] = useState(null)
   const timerRef = useRef(null)
 
   const fetchPage = useCallback(async (p, search) => {
@@ -165,7 +194,7 @@ export default function PatientTable() {
           </div>
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
             <TableHead />
-            <tbody>{rows.map((p, i) => <PatientRow key={p.mrn} p={p} idx={i} />)}</tbody>
+            <tbody>{rows.map((p, i) => <PatientRow key={p.mrn} p={p} idx={i} onArchiveClick={() => { setArchivePatient(p); setArchiveOpen(true) }} />)}</tbody>
           </table>
         </div>
       ))}
@@ -173,7 +202,7 @@ export default function PatientTable() {
       {isSearching && patients.length > 0 && (
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
           <TableHead />
-          <tbody>{patients.map((p, i) => <PatientRow key={p.mrn} p={p} idx={i} />)}</tbody>
+          <tbody>{patients.map((p, i) => <PatientRow key={p.mrn} p={p} idx={i} onArchiveClick={() => { setArchivePatient(p); setArchiveOpen(true) }} />)}</tbody>
         </table>
       )}
 
@@ -186,6 +215,14 @@ export default function PatientTable() {
           <button onClick={() => fetchPage(page + 1, '')}  disabled={page >= pages - 1 || loading} style={pgBtn(page >= pages - 1 || loading)}>Next ›</button>
           <button onClick={() => fetchPage(pages - 1, '')} disabled={page >= pages - 1 || loading} style={pgBtn(page >= pages - 1 || loading)}>»</button>
         </div>
+      )}
+
+      {archiveOpen && archivePatient && (
+        <LinkStudyModal
+          currentPids={new Set([archivePatient.mrn])}
+          onClose={() => { setArchiveOpen(false); setArchivePatient(null); fetchPage(page, q) }}
+          archiveMode={true}
+        />
       )}
     </>
   )

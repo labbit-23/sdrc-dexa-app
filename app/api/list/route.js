@@ -37,6 +37,7 @@ function buildRows(patients, scans) {
         scan_types:     types,
         has_osteo:      types.some(t => OSTEO_TYPES.has(t)),
         has_total_body: types.some(t => TB_TYPES.has(t)),
+        scans:          sorted,  // Include individual scans sorted by date (newest first)
       }
     })
     .filter(Boolean)
