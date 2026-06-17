@@ -266,12 +266,12 @@ export default function FetchStudiesPage() {
             </div>
             <div style={{ marginTop: 6, fontSize: 10, color: C.gray }}>
               {recentSt === 'loading' && 'Scanning MDB…'}
-              {recentSt === 'done'    && `${mdbFiltered.length} of ${recent.length} patient(s)${lastFetched ? ` · ${new Date(lastFetched).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}` : ''}`}
+              {recentSt === 'done'    && `${mdbFiltered.length} of ${recent.length} scan(s)${lastFetched ? ` · ${new Date(lastFetched).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}` : ''}`}
               {recentSt === 'error'   && <span style={{ color: C.amber }}>{bmdOffline ? '⚠ BMD PC unreachable' : `Error: ${recentErr}`}</span>}
               {offline && !bmdOffline && <span style={{ color: '#f59e0b' }}> · API offline</span>}
               {recentSt === 'done' && (
                 <span style={{ marginLeft: 10 }}>
-                  <span style={{ color: '#4ade80' }}>● In DB</span>
+                  <span style={{ color: '#4ade80' }}>● Uploaded</span>
                   {'  '}
                   <span style={{ color: '#3a4a5a' }}>● Not uploaded</span>
                 </span>
@@ -293,15 +293,17 @@ export default function FetchStudiesPage() {
               const ip       = info.patient ?? {}
               const ipid     = ip.patient_id ?? ''
               const iname    = `${ip.title ?? ''} ${ip.name ?? ''}`.trim() || '—'
-              const iinDb    = dbMrns.has(ipid)
-              const isel     = selected?.patient?.patient_id === ipid
+              const iuploaded= info.exists_in_db
+              const isel     = selected?.patient?.patient_id === ipid && selected?.scan_date === info.scan_date
               const icomps   = info.scan_components ?? []
               const iType    = info.mdb_scan_type ?? 'osteo'
               const tagColor = iType === 'total_body' && !info.has_osteo ? C.purple : C.teal
+              const key      = `${ipid}-${info.scan_date}`
+
               return (
                 <div
-                  key={ipid}
-                  onClick={() => { setSelected(info); setUploadDone(false); setUploadLog([]) }}
+                  key={key}
+                  onClick={() => { setSelected(info); setUploadLog([]) }}
                   style={{
                     padding: '8px 14px', cursor: 'pointer',
                     borderBottom: `1px solid #0f2030`,
@@ -312,7 +314,7 @@ export default function FetchStudiesPage() {
                   onMouseLeave={e => { if (!isel) e.currentTarget.style.background = 'transparent' }}
                 >
                   <div style={{ display: 'grid', gridTemplateColumns: '14px 74px 1fr 78px', gap: 8, alignItems: 'center' }}>
-                    <div style={{ color: iinDb ? '#4ade80' : '#2a3a4a', fontSize: 9 }}>●</div>
+                    <div style={{ color: iuploaded ? '#4ade80' : '#2a3a4a', fontSize: 9 }}>●</div>
                     <div style={{ color: C.lt, fontFamily: 'monospace', fontSize: 11, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{ipid}</div>
                     <div style={{ color: isel ? C.white : C.lt, fontWeight: isel ? 600 : 400, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{iname}</div>
                     <div style={{ color: C.gray, fontSize: 10, textAlign: 'right' }}>{fmtDateShort(info.scan_date)}</div>
