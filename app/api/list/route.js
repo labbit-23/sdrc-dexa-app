@@ -16,8 +16,13 @@ const TB_TYPES    = new Set(['total_body'])
 
 function buildRows(patients, scans) {
   const byPatient = {}
+  const trendsByPatient = {}
   for (const s of scans) {
-    if (TREND_TYPES.has(s.scan_type)) continue
+    if (TREND_TYPES.has(s.scan_type)) {
+      if (!trendsByPatient[s.patient_id]) trendsByPatient[s.patient_id] = []
+      trendsByPatient[s.patient_id].push(s)
+      continue
+    }
     if (!byPatient[s.patient_id]) byPatient[s.patient_id] = []
     byPatient[s.patient_id].push(s)
   }
@@ -27,6 +32,10 @@ function buildRows(patients, scans) {
       if (!ps.length) return null
       const sorted = [...ps].sort((a, b) => b.scan_date.localeCompare(a.scan_date))
       const types  = [...new Set(ps.map(s => s.scan_type))]
+      const trends = trendsByPatient[p.id] ?? []
+      // hasTrends: true if trend records exist OR same scan type appears multiple times
+      const typeCounts = ps.reduce((acc, s) => { acc[s.scan_type] = (acc[s.scan_type] ?? 0) + 1; return acc }, {})
+      const hasTrends = trends.length > 0 || Object.values(typeCounts).some(count => count > 1)
       return {
         mrn:            p.mrn,
         name:           `${p.last_name || ''} ${p.first_name || ''}`.trim(),
@@ -37,6 +46,7 @@ function buildRows(patients, scans) {
         scan_types:     types,
         has_osteo:      types.some(t => OSTEO_TYPES.has(t)),
         has_total_body: types.some(t => TB_TYPES.has(t)),
+        has_trends:     hasTrends,
         scans:          sorted,  // Include individual scans sorted by date (newest first)
       }
     })

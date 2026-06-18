@@ -1,5 +1,5 @@
 'use client'
-import { useState, useEffect, useRef, useCallback } from 'react'
+import React, { useState, useEffect, useRef, useCallback } from 'react'
 import Link from 'next/link'
 import BASE from '@/lib/basepath'
 import LinkStudyModal from '@/components/LinkStudyModal'
@@ -18,6 +18,52 @@ function ScanBadge({ type }) {
     <span style={{ display: 'inline-block', padding: '2px 8px', borderRadius: 10,
       fontSize: 11, fontWeight: 600, background: b.bg, color: b.color, marginRight: 4 }}>
       {b.label}
+    </span>
+  )
+}
+
+function getTrendInfo(patient) {
+  const scanCount = patient.scan_count ?? 0
+  if (scanCount <= 1) return null
+
+  // Multiple scans in Supabase = has trends
+  return {
+    label: '📈',
+    tooltip: `${scanCount} scans · Trends available`,
+    source: 'Supabase'
+  }
+}
+
+function TrendsBadge({ patient }) {
+  const info = getTrendInfo(patient)
+  if (!info) return null
+
+  const [showTooltip, setShowTooltip] = useState(false)
+
+  return (
+    <span style={{ position: 'relative', display: 'inline-block', marginLeft: 4 }}>
+      <span
+        onMouseEnter={() => setShowTooltip(true)}
+        onMouseLeave={() => setShowTooltip(false)}
+        style={{ cursor: 'help', fontSize: 14 }}
+      >
+        {info.label}
+      </span>
+      {showTooltip && (
+        <div style={{
+          position: 'absolute', bottom: '100%', left: '50%', transform: 'translateX(-50%)',
+          background: '#1f2937', color: '#fff', padding: '6px 10px', borderRadius: 4,
+          fontSize: 11, whiteSpace: 'nowrap', marginBottom: 4, zIndex: 1000,
+          boxShadow: '0 2px 8px rgba(0,0,0,0.15)'
+        }}>
+          {info.tooltip}
+          <div style={{
+            position: 'absolute', top: '100%', left: '50%', transform: 'translateX(-50%)',
+            width: 0, height: 0, borderLeft: '4px solid transparent',
+            borderRight: '4px solid transparent', borderTop: '4px solid #1f2937'
+          }} />
+        </div>
+      )}
     </span>
   )
 }
@@ -73,16 +119,6 @@ function PatientRow({ p, idx, onArchiveClick }) {
   // Each scan (type+date) is its own row
   const scans = (p.scans ?? []).sort((a, b) => b.scan_date.localeCompare(a.scan_date))
 
-  // Check if trends data exists: from API field or calculated from scans
-  const hasTrends = p.has_trends ?? (() => {
-    const typeGroups = {}
-    for (const s of scans) {
-      if (!typeGroups[s.scan_type]) typeGroups[s.scan_type] = []
-      typeGroups[s.scan_type].push(s)
-    }
-    return Object.values(typeGroups).some(group => group.length > 1)
-  })()
-
   return (
     <>
       {scans.map((scan, i) => {
@@ -97,14 +133,8 @@ function PatientRow({ p, idx, onArchiveClick }) {
             {isFirst ? (
               <>
                 <td style={{ ...td, fontWeight: 600, rowSpan: scans.length }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    {p.name || '—'}
-                    {hasTrends && (
-                      <span style={{ display: 'inline-block', padding: '2px 6px', borderRadius: 4, fontSize: 10, fontWeight: 600, background: '#d1fae5', color: '#065f46' }}>
-                        Trends
-                      </span>
-                    )}
-                  </div>
+                  {p.name || '—'}
+                  <TrendsBadge patient={p} />
                 </td>
                 <td style={{ ...td, fontFamily: 'monospace', fontSize: 12, rowSpan: scans.length }}>{p.mrn}</td>
                 <td style={{ ...td, color: '#6b7280', rowSpan: scans.length }}>{fmtDob(p.dob, p.gender)}</td>
@@ -156,12 +186,11 @@ export default function PatientTable() {
   const [total,       setTotal]       = useState(0)
   const [pages,       setPages]       = useState(1)
   const [page,        setPage]        = useState(0)
-  const [loading,     setLoading]     = useState(false)
+  const [loading,     setLoading]     = useState(true)
   const [error,       setError]       = useState('')
   const [archiveOpen, setArchiveOpen] = useState(false)
   const [archivePatient, setArchivePatient] = useState(null)
   const timerRef = useRef(null)
-  const mountedRef = useRef(false)
 
   const fetchPage = useCallback(async (p, search) => {
     setLoading(true)
@@ -182,19 +211,7 @@ export default function PatientTable() {
     setLoading(false)
   }, [])
 
-  if (!mountedRef.current && typeof window !== 'undefined' && typeof fetch === 'function') {
-    mountedRef.current = true
-    fetch('/api/list?page=0').then(r => r.json()).then(json => {
-      setPatients(json.patients ?? [])
-      setTotal(json.total ?? 0)
-      setPages(json.pages ?? 1)
-      setPage(json.page ?? 0)
-      setLoading(false)
-    }).catch(e => {
-      setError(e.message)
-      setLoading(false)
-    })
-  }
+  useEffect(() => { fetchPage(0, '') }, [fetchPage])
 
   useEffect(() => {
     clearTimeout(timerRef.current)

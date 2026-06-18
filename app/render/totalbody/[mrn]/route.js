@@ -27,8 +27,8 @@ function parseRaw(raw_json) {
   return typeof raw === 'object' && raw !== null ? raw : null
 }
 
-export async function GET(req, { params }) {
-  const { mrn } = params
+export async function GET(req, { params: paramsPromise }) {
+  const { mrn } = await paramsPromise
 
   if (!mrn || !/^[\w-]+$/.test(mrn)) {
     return new NextResponse('Invalid MRN', { status: 400 })
@@ -37,7 +37,8 @@ export async function GET(req, { params }) {
   try {
     const targetDate = req.nextUrl.searchParams.get('date')
     const result = await selectTotalbodyAndHistory(mrn, targetDate)
-    console.log(`[render/totalbody] MRN=${mrn} targetDate=${targetDate} found=${!!result} priorScans=${result?.priorScans?.length ?? 0}`)
+    const debugMsg = `[render/totalbody] MRN=${mrn} targetDate=${targetDate} found=${!!result} priorScans=${result?.priorScans?.length ?? 0}`
+    console.log(debugMsg)
     if (!result) {
       return new NextResponse(
         `<html><body style="font-family:sans-serif;padding:40px">
@@ -85,15 +86,24 @@ export async function GET(req, { params }) {
     }
 
     // Build history array: compute report data for each prior scan, skip failures
+    const historyDebug = []
     const history = priorScans
       .map(s => {
         try {
           const raw = parseRaw(s.raw_json)
-          if (!raw) return null
+          if (!raw) {
+            historyDebug.push(`${s.scan_date}: parseRaw failed`)
+            return null
+          }
           const report = computeReportData(raw, mrn, '')
+          if (!report) {
+            historyDebug.push(`${s.scan_date}: computeReportData returned null`)
+            return null
+          }
+          historyDebug.push(`${s.scan_date}: OK`)
           return report
         } catch (histErr) {
-          console.warn(`[render/totalbody] Could not compute history for scan ${s.scan_date}:`, histErr.message)
+          historyDebug.push(`${s.scan_date}: ${histErr.message}`)
           return null
         }
       })
@@ -127,13 +137,15 @@ export async function GET(req, { params }) {
       ? [{ ...reportData, patient: { ...reportData.patient, scan_date: 'Preview (no prior scan)' } }]
       : history
 
+    const debugHtml = `<!-- DEBUG: priorScans=${priorScans.length}, history=${history.length}, historyForRender=${historyForRender.length}\n${historyDebug.map(d => '  ' + d).join('\n')}\n-->`
+
     const html = tpl === 'studio'
       ? generateEditorialHtml(reportData, { letterhead, history: historyForRender, preview })
       : tpl === 'comprehensive'
       ? generateComprehensiveHtml(reportData, { letterhead, history: historyForRender, preview })
       : generateReportHtml(reportData, { dark: false, letterhead, history: historyForRender, preview })
 
-    return new NextResponse(html, {
+    return new NextResponse(debugHtml + html, {
       headers: { 'Content-Type': 'text/html; charset=utf-8' },
     })
   } catch (error) {

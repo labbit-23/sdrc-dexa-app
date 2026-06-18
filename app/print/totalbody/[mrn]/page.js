@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, use } from 'react'
 import WaSendModal from '@/components/WaSendModal'
 import BASE from '@/lib/basepath'
 import { darkPage, darkToolbar, sdrcLogoStyle, labitInvertedStyle, toolbarLabel } from '@/lib/theme'
@@ -55,8 +55,9 @@ const TEMPLATES = [
   },
 ]
 
-export default function PrintPreviewTotalbody({ params, searchParams }) {
-  const { mrn } = params
+export default function PrintPreviewTotalbody({ params: paramsPromise, searchParams: searchParamsPromise }) {
+  const { mrn } = use(paramsPromise)
+  const searchParams = use(searchParamsPromise)
   const date = searchParams?.date || ''
   const [lh, setLh]       = useState(false)
   const [tpl, setTpl]     = useState('standard')

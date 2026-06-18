@@ -25,8 +25,8 @@ function parseRaw(raw_json) {
   return typeof raw === 'object' && raw !== null ? raw : null
 }
 
-export async function GET(req, { params }) {
-  const { mrn } = params
+export async function GET(req, { params: paramsPromise }) {
+  const { mrn } = await paramsPromise
 
   if (!mrn || !/^[\w-]+$/.test(mrn)) {
     return new NextResponse('Invalid MRN', { status: 400 })

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, use } from 'react'
 import WaSendModal from '@/components/WaSendModal'
 import BASE from '@/lib/basepath'
 import { C, darkPage, darkToolbar, sdrcLogoStyle, labitInvertedStyle, toolbarLabel } from '@/lib/theme'
@@ -27,8 +27,9 @@ function PdfBtn({ href, label, bg, faint }) {
   )
 }
 
-export default function PrintPreviewOsteo({ params, searchParams }) {
-  const { mrn } = params
+export default function PrintPreviewOsteo({ params: paramsPromise, searchParams: searchParamsPromise }) {
+  const { mrn } = use(paramsPromise)
+  const searchParams = use(searchParamsPromise)
   const date = searchParams?.date || ''
   const [lh, setLh] = useState(false)
   const [waOpen, setWaOpen] = useState(false)

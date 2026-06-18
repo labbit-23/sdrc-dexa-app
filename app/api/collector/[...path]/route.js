@@ -5,9 +5,10 @@
 
 const SIDECAR = 'http://127.0.0.1:7437'
 
-async function proxy(req, { params }) {
-  const path = (await params).path.join('/')
-  const url  = new URL(`${SIDECAR}/${path}`)
+async function proxy(req, { params: paramsPromise }) {
+  const { path } = await paramsPromise
+  const pathStr = Array.isArray(path) ? path.join('/') : path
+  const url  = new URL(`${SIDECAR}/${pathStr}`)
 
   // Forward query params
   req.nextUrl.searchParams.forEach((v, k) => url.searchParams.set(k, v))
