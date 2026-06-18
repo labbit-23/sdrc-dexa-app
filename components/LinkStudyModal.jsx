@@ -146,9 +146,9 @@ export default function LinkStudyModal({ currentPids, onClose, archiveMode = fal
               {matches.map(info => <ModalPatientRow key={info.patient?.patient_id} info={info} highlight selected={selected?.patient?.patient_id === info.patient?.patient_id} onClick={() => setSelected(info)} onDoubleClick={() => { setSelected(info); setConfirm(true) }} />)}
             </>
           )}
-          {showAll && others.length > 0 && (
+          {(showAll || matches.length === 0) && others.length > 0 && (
             <>
-              {matches.length > 0 && <div style={{ padding: '6px 14px', background: '#f0f4f8', color: '#6b7280', fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5 }}>All patients</div>}
+              {matches.length > 0 && <div style={{ padding: '6px 14px', background: '#f0f4f8', color: '#6b7280', fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5 }}>Archive or other patients</div>}
               {others.map(info => <ModalPatientRow key={info.patient?.patient_id} info={info} selected={selected?.patient?.patient_id === info.patient?.patient_id} onClick={() => setSelected(info)} onDoubleClick={() => { setSelected(info); setConfirm(true) }} />)}
             </>
           )}
