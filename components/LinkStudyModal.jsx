@@ -41,7 +41,8 @@ export default function LinkStudyModal({ currentPids, onClose, archiveMode = fal
   const doLink = async (scanType) => {
     const pid = selected.patient?.patient_id
     const mdb = selected.archive_label
-    const url = mdb ? `${trendBase}/${pid}?mdb=${encodeURIComponent(mdb)}` : `${trendBase}/${pid}`
+    const date = selected.scan_date ? `&date=${encodeURIComponent(selected.scan_date)}` : ''
+    const url = mdb ? `${trendBase}/${pid}?mdb=${encodeURIComponent(mdb)}${date}` : `${trendBase}/${pid}${date}`
     setUploading(true)
     try {
       const res = await fetch(url, {
