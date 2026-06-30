@@ -69,9 +69,8 @@ export async function GET(req, { params: paramsPromise }) {
     right_femur_overlay_url: imageUrls.right_femur_overlay_url,
   }
 
-  // Build history array: compute OsteoReportData for each prior scan, skip failures and trends
+  // Build history array: compute OsteoReportData for each prior scan, skip failures
   const history = priorScans
-    .filter(s => !s.scan_type?.includes('_trend'))  // Skip trend scans (different raw_json structure)
     .map(s => {
       const raw = parseRaw(s.raw_json)
       if (!raw) return null
