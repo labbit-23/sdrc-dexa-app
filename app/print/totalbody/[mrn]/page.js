@@ -98,7 +98,7 @@ export default function PrintPreviewTotalbody({ params: paramsPromise, searchPar
     }
     window.addEventListener('keydown', handler)
     return () => window.removeEventListener('keydown', handler)
-  }, [lh, tpl])
+  }, [lh, tpl, anonymize, doPrint])
 
   const symmetry = meta?.symmetry
 

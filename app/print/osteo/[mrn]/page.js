@@ -61,7 +61,7 @@ export default function PrintPreviewOsteo({ params: paramsPromise, searchParams:
     }
     window.addEventListener('keydown', handler)
     return () => window.removeEventListener('keydown', handler)
-  }, [lh])
+  }, [lh, anonymize, doPrint])
 
   return (
     <div style={darkPage}>
