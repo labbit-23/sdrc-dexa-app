@@ -34,14 +34,17 @@ export default function PrintPreviewOsteo({ params: paramsPromise, searchParams:
   const [lh, setLh] = useState(false)
   const [waOpen, setWaOpen] = useState(false)
 
+  const [anonymize, setAnonymize] = useState(false)
+
   const dateParam = date ? `&date=${date}` : ''
+  const anonParam = anonymize ? '&anonymize=1' : ''
   const previewUrl = lh
-    ? `${BASE}/render/osteo/${mrn}?lh=1&preview=1${dateParam}`
-    : `${BASE}/render/osteo/${mrn}?preview=1${dateParam}`
+    ? `${BASE}/render/osteo/${mrn}?lh=1&preview=1${dateParam}${anonParam}`
+    : `${BASE}/render/osteo/${mrn}?preview=1${dateParam}${anonParam}`
 
   const pdfHref = lh
-    ? `${BASE}/api/pdf?mrn=${mrn}&lh=1${dateParam}`
-    : `${BASE}/api/pdf?mrn=${mrn}${dateParam}`
+    ? `${BASE}/api/pdf?mrn=${mrn}&lh=1${dateParam}${anonParam}`
+    : `${BASE}/api/pdf?mrn=${mrn}${dateParam}${anonParam}`
 
   const doPrint = () => {
     const win = window.open(previewUrl, '_blank')
@@ -70,6 +73,16 @@ export default function PrintPreviewOsteo({ params: paramsPromise, searchParams:
         <img src={`${BASE}/labit-logo-inverted.png`} alt="Labit" style={labitInvertedStyle} />
         <span style={toolbarLabel()}>Bone Density Report · MRN {mrn}</span>
         <div style={{ flex: 1 }} />
+
+        <label style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', fontSize: 11, color: '#cbd5e1', marginRight: '16px' }}>
+          <input
+            type="checkbox"
+            checked={anonymize}
+            onChange={e => setAnonymize(e.target.checked)}
+            style={{ cursor: 'pointer' }}
+          />
+          🔒 Anonymized
+        </label>
 
         <button
           onClick={() => setLh(l => !l)}

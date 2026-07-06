@@ -36,6 +36,8 @@ export async function GET(req) {
   const lh       = req.nextUrl.searchParams.get('lh') === '1'
   const tpl      = req.nextUrl.searchParams.get('tpl') ?? 'standard'
   const scanType = req.nextUrl.searchParams.get('type') === 'totalbody' ? 'totalbody' : 'osteo'
+  const date     = req.nextUrl.searchParams.get('date')
+  const anonymize = req.nextUrl.searchParams.get('anonymize') === '1'
   // Patient-friendly filename passed from the print page (via tb-meta)
   const dlParam  = req.nextUrl.searchParams.get('dl')
   // Puppeteer runs server-side — always hit localhost directly to avoid routing
@@ -45,6 +47,8 @@ export async function GET(req) {
   const qp = new URLSearchParams()
   if (lh) qp.set('lh', '1')
   if (tpl !== 'standard') qp.set('tpl', tpl)
+  if (date) qp.set('date', date)
+  if (anonymize) qp.set('anonymize', '1')
   const qs = qp.toString()
   const renderUrl = `http://localhost:${port}${base}/render/${scanType}/${mrn}${qs ? '?' + qs : ''}`
 

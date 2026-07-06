@@ -61,6 +61,7 @@ export default function PrintPreviewTotalbody({ params: paramsPromise, searchPar
   const date = searchParams?.date || ''
   const [lh, setLh]       = useState(false)
   const [tpl, setTpl]     = useState('standard')
+  const [anonymize, setAnonymize] = useState(false)
   const [waOpen, setWaOpen] = useState(false)
   const [meta, setMeta]   = useState(null) // { name, scan_date, filename, symmetry }
 
@@ -75,11 +76,12 @@ export default function PrintPreviewTotalbody({ params: paramsPromise, searchPar
 
   const dateParam  = date ? `&date=${date}` : ''
   const tplParam   = tpl !== 'standard' ? `&tpl=${tpl}` : ''
-  const previewUrl = `${BASE}/render/totalbody/${mrn}?preview=1${lh ? '&lh=1' : ''}${tplParam}${dateParam}`
+  const anonParam  = anonymize ? '&anonymize=1' : ''
+  const previewUrl = `${BASE}/render/totalbody/${mrn}?preview=1${lh ? '&lh=1' : ''}${tplParam}${dateParam}${anonParam}`
 
   // Include patient-friendly filename hint in the PDF URL
   const nameParam = meta?.filename ? `&dl=${encodeURIComponent(meta.filename)}` : ''
-  const pdfHref   = `${BASE}/api/pdf?mrn=${mrn}&type=totalbody${lh ? '&lh=1' : ''}${tplParam}${nameParam}${dateParam}`
+  const pdfHref   = `${BASE}/api/pdf?mrn=${mrn}&type=totalbody${lh ? '&lh=1' : ''}${tplParam}${nameParam}${dateParam}${anonParam}`
 
   const doPrint = () => {
     const win = window.open(previewUrl, '_blank')
@@ -116,6 +118,16 @@ export default function PrintPreviewTotalbody({ params: paramsPromise, searchPar
           {meta?.scan_date ? ` · ${meta.scan_date}` : ''}
         </span>
         <div style={{ flex: 1 }} />
+
+        <label style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', fontSize: 11, color: '#cbd5e1', marginRight: '16px' }}>
+          <input
+            type="checkbox"
+            checked={anonymize}
+            onChange={e => setAnonymize(e.target.checked)}
+            style={{ cursor: 'pointer' }}
+          />
+          🔒 Anonymized
+        </label>
 
         {/* Template selector dropdown */}
         <select
