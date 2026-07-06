@@ -111,8 +111,27 @@ export async function GET(req, { params: paramsPromise }) {
 
     const letterhead   = req.nextUrl.searchParams.get('lh') === '1'
     const preview      = req.nextUrl.searchParams.get('preview') === '1'
+    const anonymize    = req.nextUrl.searchParams.get('anonymize') === '1'
     const tpl          = req.nextUrl.searchParams.get('tpl') ?? 'standard'
     const forceTrends  = req.nextUrl.searchParams.get('trends') === '1'
+
+    // Anonymize PII if requested
+    const anonizePiiInData = (data) => {
+      data.patient.id = 'SAMPLE'
+      data.patient.name = 'Sample Patient'
+      data.patient.first_name = 'Sample'
+      data.patient.last_name = 'Patient'
+      data.patient.dob_str = ''
+      data.patient.physician = ''
+      data.patient.scan_date = 'SAMPLE DATE'
+      data.patient.scan_time = '00:00:00'
+    }
+
+    if (anonymize) {
+      anonizePiiInData(reportData)
+      history.forEach(anonizePiiInData)
+      if (reportData.scan_delta) reportData.scan_delta.scan_date_prev = 'SAMPLE DATE'
+    }
 
     // Scan delta: diff between current and most recent prior scan (non-fatal if it fails)
     const prevData = history[history.length - 1] ?? null
