@@ -82,25 +82,33 @@ export async function GET(req, { params: paramsPromise }) {
   const preview    = req.nextUrl.searchParams.get('preview') === '1'
   const anonymize  = req.nextUrl.searchParams.get('anonymize') === '1'
 
-  if (anonymize) {
-    reportData.patient.id = 'SAMPLE'
-    reportData.patient.name = 'Sample Patient'
-    reportData.patient.first_name = 'Sample'
-    reportData.patient.last_name = 'Patient'
-    reportData.patient.dob_str = ''
-    reportData.patient.physician = ''
-    reportData.patient.scan_date = 'SAMPLE DATE'
-    reportData.patient.scan_time = '00:00:00'
-    history.forEach(h => {
-      h.patient.id = 'SAMPLE'
-      h.patient.name = 'Sample Patient'
-      h.patient.first_name = 'Sample'
-      h.patient.last_name = 'Patient'
-      h.patient.dob_str = ''
-      h.patient.physician = ''
-      h.patient.scan_date = 'SAMPLE DATE'
-      h.patient.scan_time = '00:00:00'
-    })
+  try {
+    if (anonymize && reportData?.patient) {
+      reportData.patient.id = 'SAMPLE'
+      reportData.patient.name = 'Sample Patient'
+      reportData.patient.first_name = 'Sample'
+      reportData.patient.last_name = 'Patient'
+      reportData.patient.dob_str = ''
+      reportData.patient.physician = ''
+      reportData.patient.scan_date = 'SAMPLE DATE'
+      reportData.patient.scan_time = '00:00:00'
+      if (Array.isArray(history)) {
+        history.forEach(h => {
+          if (h?.patient) {
+            h.patient.id = 'SAMPLE'
+            h.patient.name = 'Sample Patient'
+            h.patient.first_name = 'Sample'
+            h.patient.last_name = 'Patient'
+            h.patient.dob_str = ''
+            h.patient.physician = ''
+            h.patient.scan_date = 'SAMPLE DATE'
+            h.patient.scan_time = '00:00:00'
+          }
+        })
+      }
+    }
+  } catch (err) {
+    console.error('[render/osteo] Anonymize failed:', err.message)
   }
 
   const html = generateOsteoHtml(reportData, { dark: false, letterhead, history, preview })

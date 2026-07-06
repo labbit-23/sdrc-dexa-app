@@ -117,20 +117,28 @@ export async function GET(req, { params: paramsPromise }) {
 
     // Anonymize PII if requested
     const anonizePiiInData = (data) => {
-      data.patient.id = 'SAMPLE'
-      data.patient.name = 'Sample Patient'
-      data.patient.first_name = 'Sample'
-      data.patient.last_name = 'Patient'
-      data.patient.dob_str = ''
-      data.patient.physician = ''
-      data.patient.scan_date = 'SAMPLE DATE'
-      data.patient.scan_time = '00:00:00'
+      if (data?.patient) {
+        data.patient.id = 'SAMPLE'
+        data.patient.name = 'Sample Patient'
+        data.patient.first_name = 'Sample'
+        data.patient.last_name = 'Patient'
+        data.patient.dob_str = ''
+        data.patient.physician = ''
+        data.patient.scan_date = 'SAMPLE DATE'
+        data.patient.scan_time = '00:00:00'
+      }
     }
 
     if (anonymize) {
-      anonizePiiInData(reportData)
-      history.forEach(anonizePiiInData)
-      if (reportData.scan_delta) reportData.scan_delta.scan_date_prev = 'SAMPLE DATE'
+      try {
+        anonizePiiInData(reportData)
+        if (Array.isArray(history)) {
+          history.forEach(anonizePiiInData)
+        }
+        if (reportData?.scan_delta) reportData.scan_delta.scan_date_prev = 'SAMPLE DATE'
+      } catch (err) {
+        console.error('[render/totalbody] Anonymize failed:', err.message)
+      }
     }
 
     // Scan delta: diff between current and most recent prior scan (non-fatal if it fails)
