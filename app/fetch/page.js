@@ -48,14 +48,14 @@ function _scanType(result) {
 // ── Styles ────────────────────────────────────────────────────────────────────
 
 const navBtn = {
-  background: 'rgba(255,255,255,0.15)', color: '#fff', textDecoration: 'none',
+  background: C.teal, color: '#fff', textDecoration: 'none',
   padding: '6px 14px', borderRadius: 5, fontSize: 12, fontWeight: 600,
-  border: '1px solid rgba(255,255,255,0.25)',
+  border: `1px solid ${C.teal}`,
 }
 
 const dateInput = {
   background: C.card, border: `1px solid ${C.border}`, borderRadius: 4,
-  color: C.white, fontSize: 11, padding: '3px 5px', outline: 'none', colorScheme: 'dark',
+  color: C.white, fontSize: 11, padding: '3px 5px', outline: 'none', colorScheme: 'light',
 }
 
 
