@@ -307,17 +307,17 @@ export default function FetchStudiesPage() {
                   onClick={() => { setSelected(info); setUploadLog([]) }}
                   style={{
                     padding: '8px 14px', cursor: 'pointer',
-                    borderBottom: `1px solid #0f2030`,
-                    background: isel ? '#1a3a55' : 'transparent',
+                    borderBottom: `1px solid ${C.border}`,
+                    background: isel ? '#e0f2fe' : 'transparent',
                     fontSize: 12,
                   }}
-                  onMouseEnter={e => { if (!isel) e.currentTarget.style.background = '#0f2030' }}
+                  onMouseEnter={e => { if (!isel) e.currentTarget.style.background = '#f0f9ff' }}
                   onMouseLeave={e => { if (!isel) e.currentTarget.style.background = 'transparent' }}
                 >
                   <div style={{ display: 'grid', gridTemplateColumns: '14px 74px 1fr 78px', gap: 8, alignItems: 'center' }}>
-                    <div style={{ color: iuploaded ? '#4ade80' : '#2a3a4a', fontSize: 9 }}>●</div>
+                    <div style={{ color: iuploaded ? '#22c55e' : '#9ca3af', fontSize: 9 }}>●</div>
                     <div style={{ color: C.lt, fontFamily: 'monospace', fontSize: 11, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{ipid}</div>
-                    <div style={{ color: isel ? C.white : C.lt, fontWeight: isel ? 600 : 400, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{iname}</div>
+                    <div style={{ color: isel ? C.teal : C.lt, fontWeight: isel ? 600 : 400, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{iname}</div>
                     <div style={{ color: C.gray, fontSize: 10, textAlign: 'right' }}>{fmtDateShort(info.scan_date)}</div>
                   </div>
                   {icomps.length > 0 && (
