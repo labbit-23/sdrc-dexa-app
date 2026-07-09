@@ -7,19 +7,19 @@ import WaSendModal from '@/components/WaSendModal'
 import LinkStudyModal from '@/components/LinkStudyModal'
 
 const C = {
-  dark:   '#0D1B2A',
-  card:   '#1a2f45',
+  dark:   '#FFFFFF',
+  card:   '#f5f7fa',
   teal:   '#0D7377',
   green:  '#2E7D32',
   amber:  '#E65100',
   red:    '#B71C1C',
   purple: '#6a1b9a',
-  white:  '#FFFFFF',
-  gray:   '#9E9E9E',
-  lt:     '#B0BEC5',
-  cyan:   '#4FC3F7',
+  white:  '#1a1a2e',
+  gray:   '#718096',
+  lt:     '#4a5568',
+  cyan:   '#2196F3',
   pink:   '#E91E8C',
-  border: '#1e3a5a',
+  border: '#d0dce8',
 }
 
 function fmtDate(iso) {
