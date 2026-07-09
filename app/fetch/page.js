@@ -234,7 +234,7 @@ export default function FetchStudiesPage() {
       <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
 
         {/* ── LEFT PANEL: date-filtered list ─────────────────────────────── */}
-        <div style={{ width: 400, flexShrink: 0, borderRight: `1px solid ${C.border}`, display: 'flex', flexDirection: 'column', background: '#0a1624' }}>
+        <div style={{ width: 400, flexShrink: 0, borderRight: `1px solid ${C.border}`, display: 'flex', flexDirection: 'column', background: '#f9fafb' }}>
 
           {/* Header: search + date range + gather */}
           <div style={{ padding: '10px 14px', borderBottom: `1px solid ${C.border}`, flexShrink: 0 }}>
@@ -245,7 +245,7 @@ export default function FetchStudiesPage() {
               value={mdbQ}
               onChange={e => setMdbQ(e.target.value)}
               placeholder="Search MRN or name…"
-              style={{ width: '100%', background: C.card, border: `1px solid ${C.border}`, borderRadius: 5, padding: '7px 11px', color: C.white, fontSize: 12, outline: 'none', boxSizing: 'border-box', marginBottom: 8 }}
+              style={{ width: '100%', background: C.card, border: `1px solid ${C.border}`, borderRadius: 5, padding: '7px 11px', color: C.white, fontSize: 12, outline: 'none', boxSizing: 'border-box', marginBottom: 8, colorScheme: 'light' }}
             />
             <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
               <label style={{ fontSize: 11, color: C.gray, display: 'flex', alignItems: 'center', gap: 3 }}>
