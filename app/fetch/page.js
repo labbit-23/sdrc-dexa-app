@@ -359,9 +359,9 @@ export default function FetchStudiesPage() {
         <div style={{ flex: 1, overflowY: 'auto', padding: 20 }}>
 
           {bmdOffline && (
-            <div style={{ marginBottom: 16, background: '#2a1400', border: `1px solid ${C.amber}`, borderLeft: `4px solid ${C.amber}`, borderRadius: 6, padding: '12px 16px' }}>
+            <div style={{ marginBottom: 16, background: '#fffbeb', border: `1px solid ${C.amber}`, borderLeft: `4px solid ${C.amber}`, borderRadius: 6, padding: '12px 16px' }}>
               <div style={{ color: C.amber, fontWeight: 700, fontSize: 13 }}>⚠ BMD PC unreachable</div>
-              <div style={{ color: '#ffcc80', fontSize: 12, marginTop: 4 }}>Turn on the GE Lunar scanner PC and click ⟳ to retry.</div>
+              <div style={{ color: '#b45309', fontSize: 12, marginTop: 4 }}>Turn on the GE Lunar scanner PC and click ⟳ to retry.</div>
             </div>
           )}
 
@@ -571,8 +571,8 @@ function ScanBadges({ components, mdbScanType }) {
 
 function Btn({ label, bg, textColor, border, href, onClick, disabled, title, bold, style: extra }) {
   const s = {
-    background:     disabled ? '#1a2a3a' : bg,
-    color:          disabled ? '#4a6a8a' : (textColor ?? C.white),
+    background:     disabled ? '#e5e7eb' : bg,
+    color:          disabled ? '#9ca3af' : (textColor ?? C.white),
     border:         border ? `1px solid ${border}` : 'none',
     borderRadius:   4,
     padding:        '5px 12px',
