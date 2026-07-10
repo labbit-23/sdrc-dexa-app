@@ -67,6 +67,8 @@ export async function GET(req, { params: paramsPromise }) {
     spine_overlay_url:       imageUrls.spine_overlay_url,
     left_femur_overlay_url:  imageUrls.left_femur_overlay_url,
     right_femur_overlay_url: imageUrls.right_femur_overlay_url,
+    left_forearm_overlay_url:  imageUrls.left_forearm_overlay_url,
+    right_forearm_overlay_url: imageUrls.right_forearm_overlay_url,
   }
 
   // Build history array: compute OsteoReportData for each prior scan, skip failures

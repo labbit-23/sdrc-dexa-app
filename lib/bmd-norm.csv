@@ -8,9 +8,11 @@
 #            SUVARNA RAO excluded as outlier (age-82 degenerative spine, peak=1.220 on machine).
 #            Male values estimated; age curve from NHANES III shape.
 #   totalbody — GE Lunar published iDXA total body norms (female peak 1.220, male 1.285)
+#   forearm  — GE Lunar Radius 33% normative database (ages 20-40; female peak 0.820, male 0.988)
+#              Used for Radius UD, Radius 33%, Radius Total diagnostic sites
 #
 # Hip T-score zones: always female reference (NHANES white female, GE Lunar WHO classification standard)
-# Spine/Total body: gender-specific values
+# Spine/Forearm/Total body: gender-specific values
 #
 # To update: edit values below and restart the app. Verify against machine-printed T-scores.
 # Leave age cells blank if no reference data exists at that age.
@@ -20,5 +22,7 @@ neck,female,1.038,0.139,0.850,0.910,0.975,1.030,,1.038,,0.975,,0.928,0.910,0.864
 neck,male,1.068,0.131,0.880,0.940,1.005,1.060,,1.068,,1.045,,1.020,,0.967,0.942,0.878,0.854,0.835,0.810,0.780
 spine,female,1.180,0.120,0.950,1.025,1.100,1.156,,1.180,,1.146,,1.092,1.060,1.010,0.967,0.924,0.882,0.839,,0.790
 spine,male,1.220,0.120,0.975,1.055,1.130,1.190,,1.220,,1.195,,1.144,1.109,1.064,1.018,0.976,0.933,0.889,,0.837
+forearm,female,0.917,0.119,0.680,0.780,0.850,0.887,,0.917,,0.905,,0.885,0.865,0.845,0.825,0.805,0.785,0.765,,0.735
+forearm,male,1.002,0.100,0.820,0.900,0.950,0.975,,1.002,,0.990,,0.970,0.950,0.930,0.910,0.890,0.870,0.850,,0.810
 totalbody,female,1.125,0.080,1.010,1.075,1.140,1.195,,1.220,,1.190,,1.155,1.130,1.095,1.058,1.020,0.982,0.945,,0.900
 totalbody,male,1.285,0.080,1.090,1.120,1.155,1.230,,1.285,,1.267,,1.245,1.230,1.215,1.195,1.175,1.152,1.130,,1.080
