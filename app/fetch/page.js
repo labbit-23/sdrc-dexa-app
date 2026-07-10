@@ -76,9 +76,10 @@ export default function FetchStudiesPage() {
   const [bmdOffline,  setBmdOffline]  = useState(false)
 
   // Selection + upload
-  const [selected,      setSelected]      = useState(null)
-  const [xpsTyped,      setXpsTyped]      = useState([])   // [{path, name, type}]
-  const [xpsLoading,    setXpsLoading]    = useState(false)
+  const [selected,       setSelected]      = useState(null)
+  const [xpsTyped,       setXpsTyped]      = useState([])   // [{path, name, sites}]
+  const [selectedXpsPath, setSelectedXpsPath] = useState(null) // path of selected XPS
+  const [xpsLoading,     setXpsLoading]    = useState(false)
   const [uploadLog,     setUploadLog]     = useState([])
   const [uploadingType, setUploadingType] = useState(null) // null | 'osteo' | 'total_body'
   const [doneTypes,     setDoneTypes]     = useState(new Set())
@@ -379,6 +380,8 @@ export default function FetchStudiesPage() {
               doneTypes={doneTypes}
               uploadLog={uploadLog}
               logEnd={logEnd}
+              selectedXpsPath={selectedXpsPath}
+              setSelectedXpsPath={setSelectedXpsPath}
               onUpload={(xpsPaths, scanTypeOverride) => doUpload(selPid, xpsPaths, scanTypeOverride, selected?.scan_date)}
               onWa={() => { setWaMrn(selPid); setWaName(selName); setWaOpen(true) }}
             />
@@ -415,7 +418,7 @@ export default function FetchStudiesPage() {
 
 // ── Selected patient detail (right panel) ─────────────────────────────────────
 
-function SelectedDetail({ info, xpsTyped, xpsLoading, inDb, uploadingType, doneTypes, uploadLog, logEnd, onUpload, onWa }) {
+function SelectedDetail({ info, xpsTyped, xpsLoading, inDb, uploadingType, doneTypes, uploadLog, logEnd, onUpload, onWa, selectedXpsPath, setSelectedXpsPath }) {
   const p           = info.patient ?? {}
   const pid         = p.patient_id ?? ''
   const name        = `${p.title ?? ''} ${p.name ?? ''}`.trim() || pid
@@ -426,26 +429,81 @@ function SelectedDetail({ info, xpsTyped, xpsLoading, inDb, uploadingType, doneT
 
   const [xpsWarn, setXpsWarn] = useState(null) // { forType, msg }
 
-  // Clear warning when XPS list refreshes (new patient selected)
-  useEffect(() => { setXpsWarn(null) }, [xpsTyped])
+  // Auto-select best matching XPS when list changes
+  useEffect(() => {
+    setXpsWarn(null)
+    if (!xpsTyped || xpsTyped.length === 0) {
+      setSelectedXpsPath(null)
+      return
+    }
+
+    // Score each XPS: date proximity + content match
+    const scanDate = info?.scan_date ? new Date(info.scan_date) : null
+    const scanComponents = info?.scan_components ?? []
+    const hasLeftFa = scanComponents.includes('Left Forearm')
+    const hasRightFa = scanComponents.includes('Right Forearm')
+    const hasSpine = scanComponents.includes('AP Spine')
+    const hasLeftFemur = scanComponents.includes('Left Femur')
+    const hasRightFemur = scanComponents.includes('Right Femur')
+    const hasTotalBody = scanComponents.includes('Total Body')
+
+    const scored = xpsTyped.map(x => {
+      let score = 0
+      let reason = []
+
+      // Content matching: boost score if XPS sites match scan components
+      if (hasTotalBody && x.sites === 'total_body') { score += 100; reason.push('total body') }
+      if (hasLeftFa && x.sites === 'left_forearm') { score += 100; reason.push('left forearm') }
+      if (hasRightFa && x.sites === 'right_forearm') { score += 100; reason.push('right forearm') }
+      if (hasSpine && x.sites === 'spine') { score += 100; reason.push('spine') }
+      if (hasLeftFemur && x.sites === 'left_femur') { score += 100; reason.push('left hip') }
+      if (hasRightFemur && x.sites === 'right_femur') { score += 100; reason.push('right hip') }
+      if ((hasLeftFa || hasRightFa || hasSpine || hasLeftFemur || hasRightFemur) && x.sites === 'combined') { score += 50; reason.push('combined osteo') }
+
+      // Date proximity: if within 1 hour, boost score
+      if (scanDate && x.modified) {
+        const xDate = new Date(x.modified)
+        const hourDiff = Math.abs(scanDate - xDate) / (1000 * 60 * 60)
+        if (hourDiff <= 1) { score += 50; reason.push('date matched') }
+        else if (hourDiff <= 24) { score += 10; reason.push('same day') }
+      }
+
+      return { ...x, score, matchReason: reason.join(', ') || 'no match' }
+    })
+
+    // Select highest scoring XPS
+    const best = scored.reduce((a, b) => a.score > b.score ? a : b)
+    if (best.score > 0) {
+      setSelectedXpsPath(best.path)
+    } else {
+      setSelectedXpsPath(null)
+    }
+  }, [xpsTyped, info?.scan_date, info?.scan_components, setSelectedXpsPath])
 
   function handleOsteo() {
     setXpsWarn(null)
-    const matched = xpsTyped.filter(x => x.type === 'osteo').map(x => x.path)
+    // If user selected an XPS, use that; otherwise use all osteo-compatible XPS
+    const matched = selectedXpsPath
+      ? [selectedXpsPath]
+      : xpsTyped.filter(x => x.sites && (x.sites.includes('forearm') || x.sites.includes('spine') || x.sites.includes('femur') || x.sites === 'combined')).map(x => x.path)
+
     // XPS files exist but none are osteo-compatible — block and warn
     if (matched.length === 0 && xpsTyped.length > 0) {
-      setXpsWarn({ forType: 'osteo', msg: 'No compatible Osteo XPS found. Please export the spine / femur scan from the BMD PC first.' })
+      setXpsWarn({ forType: 'osteo', msg: 'No compatible Osteo XPS found. Please select an XPS file or export from the BMD PC first.' })
       return
     }
-    // No XPS at all → MDB-only upload (images skipped) — valid
     onUpload(matched, 'osteo')
   }
 
   function handleTb() {
     setXpsWarn(null)
-    const matched = xpsTyped.filter(x => x.type === 'total_body').map(x => x.path)
+    // If user selected an XPS, use that; otherwise use all total_body XPS
+    const matched = selectedXpsPath
+      ? [selectedXpsPath]
+      : xpsTyped.filter(x => x.sites === 'total_body').map(x => x.path)
+
     if (matched.length === 0 && xpsTyped.length > 0) {
-      setXpsWarn({ forType: 'total_body', msg: 'No compatible Total Body XPS found. Please export the total body scan from the BMD PC first.' })
+      setXpsWarn({ forType: 'total_body', msg: 'No compatible Total Body XPS found. Please select an XPS file or export from the BMD PC first.' })
       return
     }
     onUpload(matched, 'total_body')
@@ -474,16 +532,58 @@ function SelectedDetail({ info, xpsTyped, xpsLoading, inDb, uploadingType, doneT
         {xpsLoading ? (
           <div style={{ color: C.gray, fontSize: 12 }}>Checking…</div>
         ) : xpsTyped.length > 0 ? (
-          xpsTyped.map((x, i) => {
-            const tc = x.type === 'total_body' ? C.purple : x.type === 'osteo' ? C.teal : C.gray
-            const tl = x.type === 'total_body' ? 'Total Body' : x.type === 'osteo' ? 'Osteo' : 'Unknown'
-            return (
-              <div key={i} style={{ color: C.cyan, fontSize: 12, marginBottom: 3, display: 'flex', alignItems: 'center', gap: 6 }}>
-                ✓ {x.name}
-                <span style={{ background: tc + '22', border: `1px solid ${tc}55`, color: tc, borderRadius: 2, padding: '0 5px', fontSize: 9, fontWeight: 700, letterSpacing: 0.3 }}>{tl}</span>
-              </div>
-            )
-          })
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            {xpsTyped.map((x, i) => {
+              const siteLabel = {
+                'left_forearm': '← Left Forearm',
+                'right_forearm': 'Right Forearm →',
+                'spine': 'AP Spine',
+                'left_femur': '← Left Hip',
+                'right_femur': 'Right Hip →',
+                'combined': 'Combined (Osteo)',
+                'total_body': 'Total Body',
+                'unknown': 'Unknown',
+              }[x.sites] || x.sites
+
+              const isSelected = selectedXpsPath === x.path
+              const bg = isSelected ? C.teal + '15' : 'transparent'
+              const border = isSelected ? `1px solid ${C.teal}` : `1px solid ${C.border}`
+              const matchReason = x.matchReason || 'no match'
+              const showMatch = isSelected && matchReason !== 'no match'
+
+              return (
+                <div
+                  key={i}
+                  onClick={() => setSelectedXpsPath(isSelected ? null : x.path)}
+                  style={{
+                    background: bg,
+                    border,
+                    borderRadius: 4,
+                    padding: '8px 10px',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 8,
+                    fontSize: 12,
+                  }}
+                >
+                  <input
+                    type="radio"
+                    checked={isSelected}
+                    onChange={() => {}}
+                    style={{ cursor: 'pointer' }}
+                  />
+                  <div style={{ flex: 1 }}>
+                    <div style={{ color: C.cyan, fontWeight: 500, display: 'flex', gap: 8, alignItems: 'center' }}>
+                      ✓ {x.name}
+                      {showMatch && <span style={{ color: '#4ade80', fontSize: 9, fontWeight: 600 }}>↔ {matchReason}</span>}
+                    </div>
+                    <div style={{ color: C.gray, fontSize: 10, marginTop: 2 }}>{siteLabel}</div>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
         ) : (
           <div style={{ color: '#f59e0b', fontSize: 12 }}>⚠ No XPS files found — MDB data only</div>
         )}
