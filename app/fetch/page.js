@@ -41,8 +41,21 @@ function basename(p) { return (p || '').split(/[\\/]/).pop() }
 
 function _scanType(result) {
   const prefix = result?.storage_prefix ?? ''
-  if (prefix.startsWith('raw-totalbody') || result?.scan_type === 'total_body') return 'total_body'
-  return 'osteo'
+  const scanType = result?.scan_type ?? 'osteo'
+
+  // Map database scan_type to display label
+  const typeMap = {
+    'total_body': 'Total Body',
+    'total_body_trend': 'Total Body Trend',
+    'spine_only': 'Spine',
+    'dual_femur': 'Hip',
+    'spine_femur': 'Spine+Hip',
+    'forearm': 'Forearm',
+    'osteo_trend': 'Osteo Trend',
+    'osteo': 'Osteo',
+  }
+
+  return typeMap[scanType] || 'Osteo'
 }
 
 // ── Styles ────────────────────────────────────────────────────────────────────
