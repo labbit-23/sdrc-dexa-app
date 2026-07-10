@@ -11,7 +11,7 @@ export const dynamic = 'force-dynamic'
 
 const PAGE_SIZE  = 20
 const TREND_TYPES = new Set(['osteo_trend', 'total_body_trend'])
-const OSTEO_TYPES = new Set(['osteo', 'spine_only', 'spine_femur', 'dual_femur'])
+const OSTEO_TYPES = new Set(['osteo', 'spine_only', 'spine_femur', 'dual_femur', 'forearm'])
 const TB_TYPES    = new Set(['total_body'])
 
 function buildRows(patients, scans) {

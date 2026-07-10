@@ -8,6 +8,7 @@ const SCAN_BADGE = {
   spine_only:  { label: 'AP Spine',   bg: '#e0f2fe', color: '#0369a1' },
   spine_femur: { label: 'Spine+Hip',  bg: '#e0f2fe', color: '#0369a1' },
   dual_femur:  { label: 'Dual Femur', bg: '#e0f2fe', color: '#0369a1' },
+  forearm:     { label: 'Forearm',    bg: '#e0f2fe', color: '#0369a1' },
   osteo:       { label: 'Osteo',      bg: '#e0f2fe', color: '#0369a1' },
   total_body:  { label: 'Total Body', bg: '#f0fdf4', color: '#166534' },
 }
@@ -132,7 +133,7 @@ function PatientRow({ p, idx, onArchiveClick }) {
   )
 }
 
-const OSTEO_TYPES = new Set(['osteo', 'spine_only', 'spine_femur', 'dual_femur'])
+const OSTEO_TYPES = new Set(['osteo', 'spine_only', 'spine_femur', 'dual_femur', 'forearm'])
 const TB_TYPES = new Set(['total_body'])
 
 function TableHead() {
