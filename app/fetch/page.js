@@ -437,7 +437,7 @@ function SelectedDetail({ info, xpsTyped, xpsLoading, inDb, uploadingType, doneT
       return
     }
 
-    // Score each XPS: date proximity + content match
+    // Score each XPS: content match (primary) + date (tiebreaker)
     const scanDate = info?.scan_date ? new Date(info.scan_date) : null
     const scanComponents = info?.scan_components ?? []
     const hasLeftFa = scanComponents.includes('Left Forearm')
@@ -451,21 +451,19 @@ function SelectedDetail({ info, xpsTyped, xpsLoading, inDb, uploadingType, doneT
       let score = 0
       let reason = []
 
-      // Content matching: boost score if XPS sites match scan components
-      if (hasTotalBody && x.sites === 'total_body') { score += 100; reason.push('total body') }
-      if (hasLeftFa && x.sites === 'left_forearm') { score += 100; reason.push('left forearm') }
-      if (hasRightFa && x.sites === 'right_forearm') { score += 100; reason.push('right forearm') }
-      if (hasSpine && x.sites === 'spine') { score += 100; reason.push('spine') }
-      if (hasLeftFemur && x.sites === 'left_femur') { score += 100; reason.push('left hip') }
-      if (hasRightFemur && x.sites === 'right_femur') { score += 100; reason.push('right hip') }
-      if ((hasLeftFa || hasRightFa || hasSpine || hasLeftFemur || hasRightFemur) && x.sites === 'combined') { score += 50; reason.push('combined osteo') }
+      // Content matching: primary criterion
+      if (hasTotalBody && x.sites === 'total_body') { score += 1000; reason.push('total body') }
+      if (hasLeftFa && x.sites === 'left_forearm') { score += 1000; reason.push('left forearm') }
+      if (hasRightFa && x.sites === 'right_forearm') { score += 1000; reason.push('right forearm') }
+      if (hasSpine && x.sites === 'spine') { score += 1000; reason.push('spine') }
+      if (hasLeftFemur && x.sites === 'left_femur') { score += 1000; reason.push('left hip') }
+      if (hasRightFemur && x.sites === 'right_femur') { score += 1000; reason.push('right hip') }
+      if ((hasLeftFa || hasRightFa || hasSpine || hasLeftFemur || hasRightFemur) && x.sites === 'combined') { score += 500; reason.push('combined osteo') }
 
-      // Date proximity: if within 1 hour, boost score
-      if (scanDate && x.modified) {
-        const xDate = new Date(x.modified)
-        const hourDiff = Math.abs(scanDate - xDate) / (1000 * 60 * 60)
-        if (hourDiff <= 1) { score += 50; reason.push('date matched') }
-        else if (hourDiff <= 24) { score += 10; reason.push('same day') }
+      // Date: tiebreaker (newer files preferred)
+      if (x.modified) {
+        const xDate = new Date(x.modified).getTime()
+        score += xDate / 1e12  // Normalize to small value for tiebreaking
       }
 
       return { ...x, score, matchReason: reason.join(', ') || 'no match' }
@@ -576,9 +574,12 @@ function SelectedDetail({ info, xpsTyped, xpsLoading, inDb, uploadingType, doneT
                   <div style={{ flex: 1 }}>
                     <div style={{ color: C.cyan, fontWeight: 500, display: 'flex', gap: 8, alignItems: 'center' }}>
                       ✓ {x.name}
-                      {showMatch && <span style={{ color: '#4ade80', fontSize: 9, fontWeight: 600 }}>↔ {matchReason}</span>}
+                      {showMatch && <span style={{ color: '#4ade80', fontSize: 9, fontWeight: 600 }}>✓ {matchReason}</span>}
                     </div>
-                    <div style={{ color: C.gray, fontSize: 10, marginTop: 2 }}>{siteLabel}</div>
+                    <div style={{ color: C.gray, fontSize: 10, marginTop: 2, display: 'flex', gap: 12, justifyContent: 'space-between' }}>
+                      <span>{siteLabel}</span>
+                      {x.modified && <span>{new Date(x.modified).toLocaleDateString('en-IN', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>}
+                    </div>
                   </div>
                 </div>
               )
