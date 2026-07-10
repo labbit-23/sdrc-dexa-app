@@ -511,7 +511,7 @@ function SelectedDetail({ info, xpsTyped, xpsLoading, inDb, uploadingType, doneT
         {hasOsteo && (
           <Btn
             label={uploadingType === 'osteo' ? '🦴 Uploading…' : doneTypes.has('osteo') ? '🦴 ✓ Osteo' : inDb ? '🦴 ↻ Osteo' : '🦴 Upload Osteo'}
-            bg={doneTypes.has('osteo') ? '#166534' : '#0f4a36'}
+            bg={doneTypes.has('osteo') ? '#16a34a' : '#4ade80'}
             border={doneTypes.has('osteo') ? '#4ade80' : undefined}
             disabled={busy || xpsLoading}
             onClick={handleOsteo}
@@ -521,8 +521,8 @@ function SelectedDetail({ info, xpsTyped, xpsLoading, inDb, uploadingType, doneT
         {hasTb && (
           <Btn
             label={uploadingType === 'total_body' ? '📊 Uploading…' : doneTypes.has('total_body') ? '📊 ✓ Total Body' : inDb ? '📊 ↻ Total Body' : '📊 Upload Total Body'}
-            bg={doneTypes.has('total_body') ? '#4a1d96' : '#2d1b69'}
-            border={doneTypes.has('total_body') ? '#a78bfa' : undefined}
+            bg={doneTypes.has('total_body') ? '#7c3aed' : '#8b5cf6'}
+            border={doneTypes.has('total_body') ? '#c4b5fd' : undefined}
             disabled={busy || xpsLoading}
             onClick={handleTb}
             bold
@@ -531,14 +531,14 @@ function SelectedDetail({ info, xpsTyped, xpsLoading, inDb, uploadingType, doneT
         {!hasOsteo && !hasTb && (
           <Btn
             label={busy ? 'Uploading…' : '↑ Upload'}
-            bg="#166534"
+            bg="#16a34a"
             disabled={busy || xpsLoading}
             onClick={() => onUpload(xpsTyped.map(x => x.path), 'osteo')}
             bold
           />
         )}
         {(inDb || doneTypes.size > 0) && (
-          <Btn label="📱 WA" bg="#1a5c2a" textColor="#4ade80" onClick={onWa} />
+          <Btn label="📱 WA" bg="#059669" textColor="#ffffff" onClick={onWa} />
         )}
       </div>
     </div>
