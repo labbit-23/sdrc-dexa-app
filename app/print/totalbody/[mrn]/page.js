@@ -104,9 +104,49 @@ export default function PrintPreviewTotalbody({ params: paramsPromise, searchPar
 
   return (
     <div style={darkPage}>
+      <style>{`
+        @media (max-width: 768px) {
+          [data-toolbar="true"] {
+            flex-wrap: wrap;
+            height: auto;
+            gap: 6px;
+            padding: 8px;
+          }
+          [data-toolbar="true"] img {
+            display: none;
+          }
+          [data-toolbar="true"] span {
+            font-size: 10px !important;
+            flex-basis: 100%;
+            order: -1;
+          }
+          [data-toolbar="true"] > div[style*="flex: 1"] {
+            display: none;
+          }
+          [data-toolbar="true"] label {
+            font-size: 9px !important;
+            margin-right: 4px !important;
+          }
+          [data-toolbar="true"] select {
+            font-size: 10px !important;
+            padding: 4px 6px !important;
+          }
+          [data-toolbar="true"] button {
+            font-size: 10px !important;
+            padding: 3px 8px !important;
+          }
+          [data-toolbar="true"] div[style*="flex-direction: column"] {
+            flex-direction: row !important;
+            gap: 0 !important;
+          }
+          [data-toolbar="true"] div[style*="flex-direction: column"] > span {
+            display: none;
+          }
+        }
+      `}</style>
 
       {/* Toolbar */}
-      <div style={darkToolbar}>
+      <div data-toolbar="true" style={darkToolbar}>
         {/* Branding */}
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src={`${BASE}/sdrc-logo.png`} alt="SDRC" style={sdrcLogoStyle} />
