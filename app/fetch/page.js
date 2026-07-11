@@ -272,12 +272,28 @@ export default function FetchStudiesPage() {
                 <input type="date" value={dateTo} min={dateFrom} max={todayStr}
                   onChange={e => { setDateTo(e.target.value); e.target.blur() }} style={dateInput} />
               </label>
-              <Btn
-                label={recentSt === 'loading' ? '…' : '⟳'}
-                bg={C.teal} bold
-                disabled={recentSt === 'loading'}
+              <button
                 onClick={() => gather(dateFrom, dateTo)}
-              />
+                disabled={recentSt === 'loading'}
+                title="Search MDB for studies in date range"
+                style={{
+                  background: recentSt === 'loading' ? '#e5e7eb' : C.teal,
+                  color: recentSt === 'loading' ? '#9ca3af' : '#fff',
+                  border: 'none',
+                  borderRadius: 5,
+                  padding: '5px 12px',
+                  fontSize: 12,
+                  fontWeight: 600,
+                  cursor: recentSt === 'loading' ? 'not-allowed' : 'pointer',
+                  opacity: recentSt === 'loading' ? 0.5 : 1,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 4,
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                {recentSt === 'loading' ? '…' : '🔍'} Search
+              </button>
             </div>
             <div style={{ marginTop: 6, fontSize: 10, color: C.gray }}>
               {recentSt === 'loading' && 'Scanning MDB…'}
