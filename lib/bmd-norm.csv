@@ -7,7 +7,7 @@
 #            patients (SD stdev=0.0007); consistent with GE Lunar AP Spine iDXA female reference.
 #            SUVARNA RAO excluded as outlier (age-82 degenerative spine, peak=1.220 on machine).
 #            Male values estimated; age curve from NHANES III shape.
-#   totalbody — GE Lunar published iDXA total body norms (female peak 1.125, male peak 1.145)
+#   totalbody — GE Lunar published iDXA total body norms (female peak 1.165 SD 0.056, male peak 1.250 SD 0.11)
 #   forearm  — GE Lunar Radius 33% normative database (ages 20-40; female peak 0.820, male 0.988)
 #              Used for Radius UD, Radius 33%, Radius Total diagnostic sites
 #
@@ -24,5 +24,5 @@ spine,female,1.180,0.120,0.950,1.025,1.100,1.156,,1.180,,1.146,,1.092,1.060,1.01
 spine,male,1.220,0.120,0.975,1.055,1.130,1.190,,1.220,,1.195,,1.144,1.109,1.064,1.018,0.976,0.933,0.889,,0.837
 forearm,female,0.917,0.119,0.680,0.780,0.850,0.887,,0.917,,0.905,,0.885,0.865,0.845,0.825,0.805,0.785,0.765,,0.735
 forearm,male,1.002,0.100,0.820,0.900,0.950,0.975,,1.002,,0.990,,0.970,0.950,0.930,0.910,0.890,0.870,0.850,,0.810
-totalbody,female,1.125,0.080,1.010,1.055,1.090,1.095,,1.125,,1.115,,1.065,1.050,1.010,0.970,0.930,0.890,0.850,,0.800
-totalbody,male,1.145,0.080,1.090,1.120,1.140,1.145,,1.145,,1.140,,1.120,1.100,1.080,1.060,1.040,1.020,1.000,,0.960
+totalbody,female,1.165,0.056,1.010,1.055,1.100,1.125,,1.165,,1.150,,1.110,1.095,1.055,1.015,0.975,0.930,0.890,,0.840
+totalbody,male,1.250,0.110,1.090,1.155,1.195,1.220,,1.250,,1.245,,1.215,1.190,1.155,1.120,1.085,1.050,1.015,,0.970
