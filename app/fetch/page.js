@@ -91,7 +91,7 @@ export default function FetchStudiesPage() {
   // Selection + upload
   const [selected,       setSelected]      = useState(null)
   const [xpsTyped,       setXpsTyped]      = useState([])   // [{path, name, sites}]
-  const [selectedXpsPath, setSelectedXpsPath] = useState(null) // path of selected XPS
+  const [selectedXpsPaths, setSelectedXpsPaths] = useState([]) // paths of checked XPS files
   const [xpsLoading,     setXpsLoading]    = useState(false)
   const [uploadLog,     setUploadLog]     = useState([])
   const [uploadingType, setUploadingType] = useState(null) // null | 'osteo' | 'total_body'
@@ -409,8 +409,8 @@ export default function FetchStudiesPage() {
               doneTypes={doneTypes}
               uploadLog={uploadLog}
               logEnd={logEnd}
-              selectedXpsPath={selectedXpsPath}
-              setSelectedXpsPath={setSelectedXpsPath}
+              selectedXpsPaths={selectedXpsPaths}
+              setSelectedXpsPaths={setSelectedXpsPaths}
               onUpload={(xpsPaths, scanTypeOverride) => doUpload(selPid, xpsPaths, scanTypeOverride, selected?.scan_date)}
               onWa={() => { setWaMrn(selPid); setWaName(selName); setWaOpen(true) }}
             />
@@ -447,7 +447,7 @@ export default function FetchStudiesPage() {
 
 // ── Selected patient detail (right panel) ─────────────────────────────────────
 
-function SelectedDetail({ info, xpsTyped, xpsLoading, inDb, uploadingType, doneTypes, uploadLog, logEnd, onUpload, onWa, selectedXpsPath, setSelectedXpsPath }) {
+function SelectedDetail({ info, xpsTyped, xpsLoading, inDb, uploadingType, doneTypes, uploadLog, logEnd, onUpload, onWa, selectedXpsPaths, setSelectedXpsPaths }) {
   const p           = info.patient ?? {}
   const pid         = p.patient_id ?? ''
   const name        = `${p.title ?? ''} ${p.name ?? ''}`.trim() || pid
@@ -458,11 +458,14 @@ function SelectedDetail({ info, xpsTyped, xpsLoading, inDb, uploadingType, doneT
 
   const [xpsWarn, setXpsWarn] = useState(null) // { forType, msg }
 
-  // Auto-select best matching XPS when list changes
+  // Auto-check every content-matching XPS when list changes (a visit can
+  // legitimately span more than one file — e.g. combined spine+femur plus a
+  // separately-saved forearm export — so default to all of them, not just
+  // the single best match).
   useEffect(() => {
     setXpsWarn(null)
     if (!xpsTyped || xpsTyped.length === 0) {
-      setSelectedXpsPath(null)
+      setSelectedXpsPaths([])
       return
     }
 
@@ -498,20 +501,22 @@ function SelectedDetail({ info, xpsTyped, xpsLoading, inDb, uploadingType, doneT
       return { ...x, score, matchReason: reason.join(', ') || 'no match' }
     })
 
-    // Select highest scoring XPS
-    const best = scored.reduce((a, b) => a.score > b.score ? a : b)
-    if (best.score > 0) {
-      setSelectedXpsPath(best.path)
-    } else {
-      setSelectedXpsPath(null)
-    }
-  }, [xpsTyped, info?.scan_date, info?.scan_components, setSelectedXpsPath])
+    // Default-check every file that content-matches something in this visit
+    const matching = scored.filter(x => x.score > 0).map(x => x.path)
+    setSelectedXpsPaths(matching)
+  }, [xpsTyped, info?.scan_date, info?.scan_components, setSelectedXpsPaths])
+
+  function toggleXps(path) {
+    setSelectedXpsPaths(prev =>
+      prev.includes(path) ? prev.filter(p => p !== path) : [...prev, path]
+    )
+  }
 
   function handleOsteo() {
     setXpsWarn(null)
-    // If user selected an XPS, use that; otherwise use all osteo-compatible XPS
-    const matched = selectedXpsPath
-      ? [selectedXpsPath]
+    // Use whatever is checked; fall back to all osteo-compatible XPS if nothing's checked
+    const matched = selectedXpsPaths.length > 0
+      ? selectedXpsPaths
       : xpsTyped.filter(x => x.sites && (x.sites.includes('forearm') || x.sites.includes('spine') || x.sites.includes('femur') || x.sites === 'combined')).map(x => x.path)
 
     // XPS files exist but none are osteo-compatible — block and warn
@@ -524,9 +529,9 @@ function SelectedDetail({ info, xpsTyped, xpsLoading, inDb, uploadingType, doneT
 
   function handleTb() {
     setXpsWarn(null)
-    // If user selected an XPS, use that; otherwise use all total_body XPS
-    const matched = selectedXpsPath
-      ? [selectedXpsPath]
+    // Use whatever is checked; fall back to all total_body XPS if nothing's checked
+    const matched = selectedXpsPaths.length > 0
+      ? selectedXpsPaths
       : xpsTyped.filter(x => x.sites === 'total_body').map(x => x.path)
 
     if (matched.length === 0 && xpsTyped.length > 0) {
@@ -572,7 +577,7 @@ function SelectedDetail({ info, xpsTyped, xpsLoading, inDb, uploadingType, doneT
                 'unknown': 'Unknown',
               }[x.sites] || x.sites
 
-              const isSelected = selectedXpsPath === x.path
+              const isSelected = selectedXpsPaths.includes(x.path)
               const bg = isSelected ? C.teal + '15' : 'transparent'
               const border = isSelected ? `1px solid ${C.teal}` : `1px solid ${C.border}`
               const matchReason = x.matchReason || 'no match'
@@ -581,7 +586,7 @@ function SelectedDetail({ info, xpsTyped, xpsLoading, inDb, uploadingType, doneT
               return (
                 <div
                   key={i}
-                  onClick={() => setSelectedXpsPath(isSelected ? null : x.path)}
+                  onClick={() => toggleXps(x.path)}
                   style={{
                     background: bg,
                     border,
@@ -595,7 +600,7 @@ function SelectedDetail({ info, xpsTyped, xpsLoading, inDb, uploadingType, doneT
                   }}
                 >
                   <input
-                    type="radio"
+                    type="checkbox"
                     checked={isSelected}
                     onChange={() => {}}
                     style={{ cursor: 'pointer' }}
