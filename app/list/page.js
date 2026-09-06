@@ -9,12 +9,15 @@ export default function ListPage() {
       <div style={tealToolbar}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={`${BASE}/sdrc-logo.png`} alt="SDRC" style={sdrcLogoStyle} />
+          <Link href="/" aria-label="Back to Labit workspace"><img src={`${BASE}/sdrc-logo.png`} alt="SDRC" style={sdrcLogoStyle} /></Link>
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={`${BASE}/labit-logo-inverted.png`} alt="Labit" style={labitInvertedStyle} />
+          <Link href="/" aria-label="Back to Labit workspace"><img src={`${BASE}/labit-logo-inverted.png`} alt="Labit" style={labitInvertedStyle} /></Link>
           <span style={{ color: '#b2dfdb', fontSize: 13 }}>Bone Density &amp; Body Composition Reports</span>
         </div>
-        <Link href="/fetch" style={tealNavBtn}>⟳ Fetch Studies</Link>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <Link href="/" style={tealNavBtn}>← Workspace</Link>
+          <Link href="/fetch" style={tealNavBtn}>⟳ Fetch Studies</Link>
+        </div>
       </div>
       <div style={{ maxWidth: 960, margin: '32px auto', padding: '0 16px' }}>
         <PatientTable />

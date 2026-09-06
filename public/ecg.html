@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ECG Management · Labit</title>
+  <link rel="icon" type="image/x-icon" href="favicon.ico">
+  <style>
+    :root { --ink:#173b52; --muted:#718798; --line:#e1edf1; --teal:#0e8c85; --pink:#e0507b; --bg:#f5f8fb; }
+    * { box-sizing:border-box; }
+    body { margin:0; color:var(--ink); font-family:Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif; font-size:15px; background:radial-gradient(circle at 80% 0%,#ffeef2 0,transparent 30%),var(--bg); }
+    .topbar { height:74px; display:flex; justify-content:space-between; align-items:center; padding:0 clamp(20px,5vw,72px); background:rgba(255,255,255,.9); border-bottom:1px solid var(--line); backdrop-filter:blur(18px); }
+    .brand { display:flex; align-items:center; gap:13px; }
+    .brand img { width:106px; display:block; }
+    .divider { height:22px; width:1px; background:#dbe7ec; }
+    .brand-label { color:#6c8392; font-size:11px; text-transform:uppercase; letter-spacing:.1em; font-weight:800; }
+    .back { color:#496b7c; background:#fff; border:1px solid #dce9ee; border-radius:999px; text-decoration:none; padding:9px 15px; font-size:12px; font-weight:750; }
+    .wrap { max-width:1180px; margin:0 auto; padding:48px 24px 70px; }
+    .heading { display:flex; justify-content:space-between; align-items:end; gap:24px; margin-bottom:30px; }
+    .kicker { color:var(--pink); text-transform:uppercase; letter-spacing:.12em; font-size:11px; font-weight:850; margin-bottom:12px; }
+    h1 { margin:0; font-size:clamp(30px,4vw,48px); line-height:1.05; letter-spacing:-.05em; }
+    .subtitle { color:var(--muted); font-size:14px; margin:12px 0 0; }
+    .live { display:flex; align-items:center; gap:8px; padding:9px 13px; color:#2c7663; background:#effaf6; border:1px solid #d5f0e6; border-radius:999px; font-size:11px; font-weight:800; white-space:nowrap; }
+    .dot { width:7px; height:7px; border-radius:50%; background:#25b47c; box-shadow:0 0 0 4px #dff6ec; }
+    .panel { background:rgba(255,255,255,.92); border:1px solid var(--line); border-radius:20px; padding:24px; box-shadow:0 14px 42px rgba(43,75,98,.06); margin-bottom:22px; }
+    .panel.accent-pink { border-top:4px solid var(--pink); }
+    .panel-head { display:flex; align-items:center; gap:13px; margin-bottom:21px; }
+    .panel-icon { display:grid; place-items:center; width:44px; height:44px; border-radius:14px; font-size:23px; background:#ffeef2; }
+    h2 { margin:0; font-size:16px; letter-spacing:-.02em; }
+    .panel-note { margin:4px 0 0; color:#8a9ca7; font-size:11px; }
+    label { display:block; color:#607888; font-size:13px; font-weight:800; margin-bottom:7px; }
+    input { width:100%; height:44px; padding:0 12px; color:var(--ink); background:#fbfdfe; border:1px solid #d9e7ed; border-radius:10px; outline:none; font:inherit; font-size:15px; }
+    input:focus { border-color:#ea87a3; box-shadow:0 0 0 3px #ffe9ee; }
+    .date-row { display:flex; align-items:end; gap:14px; flex-wrap:wrap; }
+    .date-field { max-width:220px; flex:1; min-width:170px; }
+    .button { height:44px; padding:0 18px; border:0; border-radius:10px; color:white; font:inherit; font-size:14px; font-weight:800; cursor:pointer; white-space:nowrap; }
+    .button.primary { background:linear-gradient(135deg,#e0507b,#b8355c); box-shadow:0 7px 15px rgba(184,53,92,.2); }
+    .quick-row { display:flex; gap:7px; }
+    .quick { padding:0 10px; height:44px; border:1px solid #d9e7ed; border-radius:10px; color:#527182; background:#fff; font:inherit; font-size:12px; font-weight:800; cursor:pointer; }
+    .quick:hover { border-color:#e0507b; color:#e0507b; background:#fff5f7; }
+    .button:disabled { cursor:wait; opacity:.65; }
+    .loading-msg { min-height:20px; margin:12px 2px 0; color:#68808e; font-size:13px; font-weight:700; }
+    .results { overflow:hidden; background:rgba(255,255,255,.92); border:1px solid var(--line); border-radius:20px; box-shadow:0 14px 42px rgba(43,75,98,.06); }
+    .results-head { display:flex; align-items:center; justify-content:space-between; padding:20px 23px; border-bottom:1px solid var(--line); }
+    .results-title { display:flex; align-items:center; gap:10px; font-size:14px; font-weight:850; }
+    .count { color:#778e9b; font-size:11px; font-weight:700; }
+    .study-search { width:210px; height:34px; padding:0 11px; font-size:11px; }
+    table { width:100%; border-collapse:collapse; font-size:14px; }
+    th { padding:14px 18px; color:#8095a0; background:#f8fbfc; text-align:left; text-transform:uppercase; letter-spacing:.08em; font-size:11px; font-weight:850; }
+    td { padding:16px 18px; border-top:1px solid #edf3f5; color:#547080; }
+    tr.data-row { cursor:pointer; transition:background .15s ease; } tr.data-row:hover { background:#fff5f7; }
+    .reqno { user-select:text; cursor:text; }
+    td:first-child { color:#204a60; font-weight:800; }
+    .badge { display:inline-flex; align-items:center; gap:5px; padding:5px 10px; border-radius:999px; font-size:11px; font-weight:800; }
+    .badge.normal { color:#168468; background:#e5f7ef; }
+    .badge.abnormal { color:#c5485b; background:#fdecee; }
+    .badge.unknown { color:#8095a0; background:#eef2f4; }
+    .sent { color:#168468; font-weight:800; }
+    .sent-pending { color:#b98a1a; font-weight:750; }
+    .pdf-link { display:inline-grid; place-items:center; width:34px; height:30px; border-radius:9px; color:#e0507b; background:#ffeef2; font-size:16px; text-decoration:none; }
+    .diagnosis-cell { max-width:280px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .empty { padding:45px 20px; color:#90a2ac; text-align:center; font-size:13px; }
+    @media(max-width:760px) { .heading { display:block; } .live { display:inline-flex; margin-top:20px; } .panel { margin-bottom:15px; } .date-row { display:block; } .quick-row { margin-top:12px; } .results { overflow-x:auto; } table { min-width:760px; } .brand-label { display:none; } }
+  </style>
+</head>
+<body>
+  <header class="topbar"><div class="brand"><img src="labit-logo.png" alt="Labit"><span class="divider"></span><span class="brand-label">Radiology Information System</span></div><a class="back" href="./">← Workspace</a></header>
+  <main class="wrap">
+    <div class="heading"><div><div class="kicker">ECG · Mirth / Tricog</div><h1>♥ ECG Management</h1><p class="subtitle">Report delivery and send activity</p></div><div class="live"><span class="dot"></span> Operations console</div></div>
+    <section class="panel accent-pink">
+      <div class="panel-head"><div class="panel-icon">◷</div><div><h2>Study activity</h2><p class="panel-note">Inspect ECG ingestion and WhatsApp delivery status by date</p></div></div>
+      <div class="date-row">
+        <div class="date-field"><label for="studyDate">Study date</label><input id="studyDate" type="date" max=""></div>
+        <div class="quick-row"><button class="quick" onclick="setStudyDate(0)">Today</button><button class="quick" onclick="setStudyDate(1)">Yesterday</button></div>
+        <button class="button primary" onclick="loadStudies()">Load study activity →</button>
+      </div>
+      <div class="loading-msg" id="loadingMsg" style="display:none">Loading activity…</div>
+    </section>
+    <section class="results" id="studyResults"><div class="results-head"><div class="results-title">Study activity <span class="count" id="resultCount"></span></div><input class="study-search" id="studySearch" type="search" placeholder="Search accession, patient…" oninput="filterStudyRows()"></div><div id="tableWrap"><div class="empty">Choose a date above to load ECG studies.</div></div></section>
+  </main>
+<script>
+function localCalendarDate() {
+  const now = new Date();
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+}
+function setStudyDate(daysAgo) {
+  const date = new Date();
+  date.setHours(12, 0, 0, 0);
+  date.setDate(date.getDate() - daysAgo);
+  const value = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+  document.getElementById('studyDate').value = value;
+  loadStudies();
+}
+function statusBadge(status) {
+  const s = String(status || '').toLowerCase();
+  if (s === 'normal') return '<span class="badge normal">Normal</span>';
+  if (s === 'abnormal') return '<span class="badge abnormal">Abnormal</span>';
+  return `<span class="badge unknown">${status || '—'}</span>`;
+}
+function sentCell(study) {
+  if (!study.whatsapp_sent_at) return '<span class="sent-pending">Pending</span>';
+  const t = new Date(study.whatsapp_sent_at);
+  const timeStr = t.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
+  return `<span class="sent">✓ Sent</span> <span style="color:#9aacb5;font-size:11px">${timeStr}</span>`;
+}
+function filterStudyRows() {
+  const query = document.getElementById('studySearch').value.trim().toLowerCase();
+  document.querySelectorAll('#studyTable tr').forEach(row => { row.style.display = !query || row.innerText.toLowerCase().includes(query) ? '' : 'none'; });
+}
+function loadStudies() {
+  const dateInput = document.getElementById('studyDate').value, loading = document.getElementById('loadingMsg'), button = document.querySelector('.button.primary');
+  if (!dateInput) { alert('Please select a date.'); return; }
+  if (dateInput > localCalendarDate()) { alert('Future dates are not allowed.'); return; }
+  loading.style.display = 'block'; button.disabled = true; button.innerText = 'Loading…';
+  fetch(window.location.pathname.replace(/\/ecg\.html$/, '') + '/api/ecg', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ action:'LIST', date: dateInput.replaceAll('-', '') }) })
+    .then(res => { if (!res.ok) throw new Error('Request failed'); return res.json(); })
+    .then(data => {
+      const rows = data.map(study => {
+        const time = study.acquired_at ? new Date(study.acquired_at).toLocaleTimeString('en-IN', { hour:'2-digit', minute:'2-digit' }) : '—';
+        return `<tr class="data-row" ${study.pdf_url ? `onclick="window.open('${study.pdf_url}','_blank')"` : ''}>
+          <td class="reqno" onclick="event.stopPropagation()">${study.accession_no || '—'}</td>
+          <td>${study.patient_name || '—'}${study.age ? ` <span style="color:#9aacb5">· ${study.age}${study.sex ? study.sex : ''}</span>` : ''}</td>
+          <td class="diagnosis-cell" title="${(study.diagnosis || '').replace(/"/g, '&quot;')}">${study.diagnosis || '—'}</td>
+          <td>${statusBadge(study.status)}</td>
+          <td>${sentCell(study)}</td>
+          <td>${time}</td>
+          <td style="text-align:right">${study.pdf_url ? `<a class="pdf-link" href="${study.pdf_url}" target="_blank" rel="noopener" onclick="event.stopPropagation()" title="Open ECG PDF">📄</a>` : '—'}</td>
+        </tr>`;
+      }).join('');
+      document.getElementById('resultCount').innerText = `${data.length} ${data.length === 1 ? 'study' : 'studies'}`;
+      document.getElementById('tableWrap').innerHTML = rows ? `<table><thead><tr><th>Accession</th><th>Patient</th><th>Diagnosis</th><th>Status</th><th>Sent</th><th>Time</th><th style="text-align:right">Report</th></tr></thead><tbody id="studyTable">${rows}</tbody></table>` : '<div class="empty">No ECG studies found for this date.</div>';
+      document.getElementById('studyResults').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    })
+    .catch(err => { document.getElementById('tableWrap').innerHTML = '<div class="empty">Unable to load study activity.</div>'; console.error(err); })
+    .finally(() => { loading.style.display='none'; button.disabled=false; button.innerText='Load study activity →'; });
+}
+(function(){ const local=localCalendarDate(); document.getElementById('studyDate').value=local; document.getElementById('studyDate').max=local; loadStudies(); })();
+</script>
+</body>
+</html>

@@ -157,7 +157,9 @@ export default function PatientTable() {
   const [total,       setTotal]       = useState(0)
   const [pages,       setPages]       = useState(1)
   const [page,        setPage]        = useState(0)
-  const [loading,     setLoading]     = useState(false)
+  // Start in a loading state so the empty-state copy is never flashed before
+  // the first reports response arrives.
+  const [loading,     setLoading]     = useState(true)
   const [error,       setError]       = useState('')
   const [archiveOpen, setArchiveOpen] = useState(false)
   const [archivePatient, setArchivePatient] = useState(null)
@@ -227,6 +229,16 @@ export default function PatientTable() {
 
       {error && <p style={{ color: '#b91c1c' }}>Error: {error}</p>}
 
+      {loading && patients.length === 0 && !error && (
+        <div style={{ padding: '34px 20px', border: '1px solid #e2edf2', borderRadius: 16,
+          background: 'rgba(255,255,255,.86)', color: '#718798', textAlign: 'center',
+          boxShadow: '0 12px 30px rgba(36,73,95,.05)' }}>
+          <div style={{ fontSize: 22, marginBottom: 8 }}>◌</div>
+          <div style={{ fontSize: 13, fontWeight: 750, color: '#406276' }}>Loading reports</div>
+          <div style={{ fontSize: 11, marginTop: 5 }}>Fetching the latest BMD studies…</div>
+        </div>
+      )}
+
       {!loading && patients.length === 0 && (
         <p style={{ color: '#6b7280' }}>{q ? 'No matches.' : 'No scans uploaded yet.'}</p>
       )}
@@ -273,10 +285,10 @@ export default function PatientTable() {
   )
 }
 
-const th    = { padding: '8px 12px', textAlign: 'left', fontWeight: 600, fontSize: 12 }
-const td    = { padding: '10px 12px', borderBottom: '1px solid #e5eaf0', color: '#374151', verticalAlign: 'middle' }
+const th    = { padding: '11px 14px', textAlign: 'left', fontWeight: 800, fontSize: 10, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#6e8795', background: '#f5fafb', borderBottom: '1px solid #deebef' }
+const td    = { padding: '13px 14px', borderBottom: '1px solid #e8f0f2', color: '#466577', verticalAlign: 'middle' }
 const btn   = bg => ({ padding: '4px 10px', borderRadius: 4, fontSize: 11,
-  background: bg, color: '#fff', textDecoration: 'none', fontWeight: 600 })
+  background: bg, color: '#fff', textDecoration: 'none', fontWeight: 750, boxShadow: '0 3px 8px rgba(24,70,85,.12)' })
 const pgBtn = disabled => ({
   padding: '6px 14px', borderRadius: 5, fontSize: 13, fontWeight: 600,
   cursor: disabled ? 'default' : 'pointer',
