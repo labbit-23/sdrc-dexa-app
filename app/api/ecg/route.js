@@ -37,7 +37,7 @@ export async function POST(req) {
   const sb = getServiceClient()
   const { data, error } = await sb
     .from('ecg_studies')
-    .select('accession_no, patient_name, age, sex, branch_center_name, diagnosis, status, acquired_at, pdf_url, whatsapp_sent_at, whatsapp_message_id')
+    .select('accession_no, patient_name, age, sex, branch_center_name, diagnosis, status, acquired_at, pdf_url, pdf_url_plain, whatsapp_sent_at, whatsapp_message_id')
     .gte('acquired_at', startUtc)
     .lt('acquired_at', endUtc)
     .order('acquired_at', { ascending: false })

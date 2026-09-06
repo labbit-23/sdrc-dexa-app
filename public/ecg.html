@@ -58,6 +58,9 @@
     .sent { color:#168468; font-weight:800; }
     .sent-pending { color:#b98a1a; font-weight:750; }
     .pdf-link { display:inline-grid; place-items:center; width:34px; height:30px; border-radius:9px; color:#e0507b; background:#ffeef2; font-size:16px; text-decoration:none; }
+    .report-links { display:inline-flex; gap:6px; }
+    .print-link { display:inline-grid; place-items:center; width:34px; height:30px; border-radius:9px; color:#527182; background:#eef2f4; font-size:16px; text-decoration:none; }
+    .print-link.disabled { opacity:.4; cursor:not-allowed; pointer-events:none; }
     .diagnosis-cell { max-width:280px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
     .empty { padding:45px 20px; color:#90a2ac; text-align:center; font-size:13px; }
     @media(max-width:760px) { .heading { display:block; } .live { display:inline-flex; margin-top:20px; } .panel { margin-bottom:15px; } .date-row { display:block; } .quick-row { margin-top:12px; } .results { overflow-x:auto; } table { min-width:760px; } .brand-label { display:none; } }
@@ -124,11 +127,11 @@ function loadStudies() {
           <td>${statusBadge(study.status)}</td>
           <td>${sentCell(study)}</td>
           <td>${time}</td>
-          <td style="text-align:right">${study.pdf_url ? `<a class="pdf-link" href="${study.pdf_url}" target="_blank" rel="noopener" onclick="event.stopPropagation()" title="Open ECG PDF">📄</a>` : '—'}</td>
+          <td style="text-align:right"><span class="report-links">${study.pdf_url ? `<a class="pdf-link" href="${study.pdf_url}" target="_blank" rel="noopener" onclick="event.stopPropagation()" title="Open ECG report">📄</a>` : '—'}${study.pdf_url_plain ? `<a class="print-link" href="${study.pdf_url_plain}" target="_blank" rel="noopener" onclick="event.stopPropagation()" title="Print plain ECG (no letterhead)">🖨️</a>` : `<span class="print-link disabled" title="Plain PDF not available for this ECG">🖨️</span>`}</span></td>
         </tr>`;
       }).join('');
       document.getElementById('resultCount').innerText = `${data.length} ${data.length === 1 ? 'study' : 'studies'}`;
-      document.getElementById('tableWrap').innerHTML = rows ? `<table><thead><tr><th>Accession</th><th>Patient</th><th>Diagnosis</th><th>Status</th><th>Sent</th><th>Time</th><th style="text-align:right">Report</th></tr></thead><tbody id="studyTable">${rows}</tbody></table>` : '<div class="empty">No ECG studies found for this date.</div>';
+      document.getElementById('tableWrap').innerHTML = rows ? `<table><thead><tr><th>Accession</th><th>Patient</th><th>Diagnosis</th><th>Status</th><th>Sent</th><th>Time</th><th style="text-align:right">Report / Print</th></tr></thead><tbody id="studyTable">${rows}</tbody></table>` : '<div class="empty">No ECG studies found for this date.</div>';
       document.getElementById('studyResults').scrollIntoView({ behavior: 'smooth', block: 'start' });
     })
     .catch(err => { document.getElementById('tableWrap').innerHTML = '<div class="empty">Unable to load study activity.</div>'; console.error(err); })
