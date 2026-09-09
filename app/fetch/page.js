@@ -3,7 +3,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import BASE from '@/lib/basepath'
 import { tealToolbar, sdrcLogoStyle, labitInvertedStyle } from '@/lib/theme'
-import WaSendModal from '@/components/WaSendModal'
 import LinkStudyModal from '@/components/LinkStudyModal'
 
 const C = {
@@ -102,9 +101,6 @@ export default function FetchStudiesPage() {
   const [linkOpen,     setLinkOpen]     = useState(false)
   const [archiveOpen,  setArchiveOpen]  = useState(false)
   const [archiveAvail, setArchiveAvail] = useState(null)
-  const [waOpen,       setWaOpen]       = useState(false)
-  const [waMrn,        setWaMrn]        = useState(null)
-  const [waName,       setWaName]       = useState('')
 
   const logEnd = useRef(null)
 
@@ -223,7 +219,6 @@ export default function FetchStudiesPage() {
     : recent
 
   const selPid  = selected?.patient?.patient_id ?? ''
-  const selName = `${selected?.patient?.title ?? ''} ${selected?.patient?.name ?? ''}`.trim()
   const selInDb = selected?.exists_in_db ?? false
 
   return (
@@ -412,7 +407,6 @@ export default function FetchStudiesPage() {
               selectedXpsPaths={selectedXpsPaths}
               setSelectedXpsPaths={setSelectedXpsPaths}
               onUpload={(xpsPaths, scanTypeOverride) => doUpload(selPid, xpsPaths, scanTypeOverride, selected?.scan_date)}
-              onWa={() => { setWaMrn(selPid); setWaName(selName); setWaOpen(true) }}
             />
           )}
         </div>
@@ -432,14 +426,6 @@ export default function FetchStudiesPage() {
           onClose={() => setLinkOpen(false)}
         />
       )}
-      {waOpen && waMrn && (
-        <WaSendModal
-          mrn={waMrn}
-          patientName={waName}
-          scanType="osteo"
-          onClose={() => { setWaOpen(false); setWaMrn(null) }}
-        />
-      )}
     </div>
   )
 }
@@ -447,7 +433,7 @@ export default function FetchStudiesPage() {
 
 // ── Selected patient detail (right panel) ─────────────────────────────────────
 
-function SelectedDetail({ info, xpsTyped, xpsLoading, inDb, uploadingType, doneTypes, uploadLog, logEnd, onUpload, onWa, selectedXpsPaths, setSelectedXpsPaths }) {
+function SelectedDetail({ info, xpsTyped, xpsLoading, inDb, uploadingType, doneTypes, uploadLog, logEnd, onUpload, selectedXpsPaths, setSelectedXpsPaths }) {
   const p           = info.patient ?? {}
   const pid         = p.patient_id ?? ''
   const name        = `${p.title ?? ''} ${p.name ?? ''}`.trim() || pid
@@ -671,9 +657,6 @@ function SelectedDetail({ info, xpsTyped, xpsLoading, inDb, uploadingType, doneT
             onClick={() => onUpload(xpsTyped.map(x => x.path), 'osteo')}
             bold
           />
-        )}
-        {(inDb || doneTypes.size > 0) && (
-          <Btn label="📱 WA" bg="#059669" textColor="#ffffff" onClick={onWa} />
         )}
       </div>
     </div>

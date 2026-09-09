@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, use } from 'react'
-import WaSendModal from '@/components/WaSendModal'
+import LabitPushModal from '@/components/LabitPushModal'
 import BASE from '@/lib/basepath'
 import { C, darkPage, darkToolbar, sdrcLogoStyle, labitInvertedStyle, toolbarLabel } from '@/lib/theme'
 
@@ -32,7 +32,7 @@ export default function PrintPreviewOsteo({ params: paramsPromise, searchParams:
   const searchParams = use(searchParamsPromise)
   const date = searchParams?.date || ''
   const [lh, setLh] = useState(false)
-  const [waOpen, setWaOpen] = useState(false)
+  const [pushOpen, setPushOpen] = useState(false)
 
   const [anonymize, setAnonymize] = useState(false)
 
@@ -110,14 +110,14 @@ export default function PrintPreviewOsteo({ params: paramsPromise, searchParams:
         </button>
 
         <button
-          onClick={() => setWaOpen(true)}
+          onClick={() => setPushOpen(true)}
           style={{
             padding: '5px 14px', borderRadius: 5, fontSize: 12, fontWeight: 700,
             background: '#1a5c2a', color: '#4ade80',
             border: '1px solid #2d6a3f', cursor: 'pointer',
           }}
         >
-          📱 WhatsApp
+          📤 Push to Labit
         </button>
       </div>
 
@@ -128,11 +128,11 @@ export default function PrintPreviewOsteo({ params: paramsPromise, searchParams:
         title="Bone Density Report"
       />
 
-      {waOpen && (
-        <WaSendModal
+      {pushOpen && (
+        <LabitPushModal
           mrn={mrn}
           scanType="osteo"
-          onClose={() => setWaOpen(false)}
+          onClose={() => setPushOpen(false)}
         />
       )}
     </div>

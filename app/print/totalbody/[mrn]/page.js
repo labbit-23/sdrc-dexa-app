@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, use } from 'react'
-import WaSendModal from '@/components/WaSendModal'
+import LabitPushModal from '@/components/LabitPushModal'
 import BASE from '@/lib/basepath'
 import { darkPage, darkToolbar, sdrcLogoStyle, labitInvertedStyle, toolbarLabel } from '@/lib/theme'
 
@@ -62,7 +62,7 @@ export default function PrintPreviewTotalbody({ params: paramsPromise, searchPar
   const [lh, setLh]       = useState(false)
   const [tpl, setTpl]     = useState('standard')
   const [anonymize, setAnonymize] = useState(false)
-  const [waOpen, setWaOpen] = useState(false)
+  const [pushOpen, setPushOpen] = useState(false)
   const [meta, setMeta]   = useState(null) // { name, scan_date, filename, symmetry }
 
   const tmpl = TEMPLATES.find(t => t.tpl === tpl) ?? TEMPLATES[0]
@@ -224,14 +224,14 @@ export default function PrintPreviewTotalbody({ params: paramsPromise, searchPar
         </button>
 
         <button
-          onClick={() => setWaOpen(true)}
+          onClick={() => setPushOpen(true)}
           style={{
             padding: '5px 14px', borderRadius: 5, fontSize: 12, fontWeight: 700,
             background: '#1a5c2a', color: '#4ade80',
             border: '1px solid #2d6a3f', cursor: 'pointer',
           }}
         >
-          📱 WhatsApp
+          📤 Push to Labit
         </button>
       </div>
 
@@ -269,11 +269,11 @@ export default function PrintPreviewTotalbody({ params: paramsPromise, searchPar
         title="Total Body Composition Report"
       />
 
-      {waOpen && (
-        <WaSendModal
+      {pushOpen && (
+        <LabitPushModal
           mrn={mrn}
           scanType="totalbody"
-          onClose={() => setWaOpen(false)}
+          onClose={() => setPushOpen(false)}
         />
       )}
     </div>
