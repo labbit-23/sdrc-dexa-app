@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import BASE from '@/lib/basepath'
 
-export default function LabitPushModal({ mrn, scanType = 'osteo', patientName = '', onClose }) {
+export default function LabitPushModal({ mrn, scanType = 'osteo', patientName = '', onClose, lh = false, anonymize = false, date = '', tpl = '' }) {
   const [busy,   setBusy]   = useState(false)
   const [result, setResult] = useState(null)
 
@@ -11,10 +11,14 @@ export default function LabitPushModal({ mrn, scanType = 'osteo', patientName = 
     setBusy(true)
     setResult(null)
     try {
+      // Push exactly the report the operator is currently looking at — same
+      // letterhead/anonymize/date/template as the preview iframe — so the PDF
+      // sent to Labit is never a re-render that could differ from what was
+      // visually confirmed before clicking push.
       const res  = await fetch(`${BASE}/api/labit-push`, {
         method:  'POST',
         headers: { 'Content-Type': 'application/json' },
-        body:    JSON.stringify({ mrn, scanType }),
+        body:    JSON.stringify({ mrn, scanType, lh, anonymize, date, tpl }),
       })
       const data = await res.json()
       setResult(res.ok ? { ok: true, ...data } : { error: data.error ?? 'Push failed', detail: data.detail })

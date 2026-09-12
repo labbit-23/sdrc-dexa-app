@@ -132,6 +132,9 @@ export default function PrintPreviewOsteo({ params: paramsPromise, searchParams:
         <LabitPushModal
           mrn={mrn}
           scanType="osteo"
+          lh={lh}
+          anonymize={anonymize}
+          date={date}
           onClose={() => setPushOpen(false)}
         />
       )}

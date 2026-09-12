@@ -273,6 +273,10 @@ export default function PrintPreviewTotalbody({ params: paramsPromise, searchPar
         <LabitPushModal
           mrn={mrn}
           scanType="totalbody"
+          lh={lh}
+          anonymize={anonymize}
+          date={date}
+          tpl={tpl}
           onClose={() => setPushOpen(false)}
         />
       )}

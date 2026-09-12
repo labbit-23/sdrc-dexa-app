@@ -7,7 +7,14 @@
  * delivery to the patient. This route does not send anything to the patient
  * directly — it only hands the PDF to Labit Core.
  *
- * Body: { mrn, scanType }
+ * Body: { mrn, scanType, lh, anonymize, date, tpl }
+ *
+ * lh/anonymize/date/tpl mirror exactly what the operator has open on the
+ * print page (letterhead toggle, anonymize toggle, the scan date being
+ * viewed, and — for total body — the letterhead template). The PDF handed
+ * to Labit is generated with these same params, and testRef is derived from
+ * the same scan date, so the pushed report is never a re-render that could
+ * differ from what was visually confirmed on screen before pushing.
  *
  * testRef for total body is a single fixed code. testRef for osteo is NOT
  * fixed — Labit's schema splits it into a spine code and a hip code, joined
@@ -28,7 +35,6 @@
  */
 
 import { NextResponse } from 'next/server'
-import { computeOsteoData } from '@/lib/osteo-compute.js'
 import { selectScanAndHistory } from '@/lib/fetch-scan.js'
 
 const LABIT_BASE      = (process.env.LABIT_CORE_BASE_URL ?? '').replace(/\/+$/, '')
@@ -47,23 +53,28 @@ function parseRaw(raw_json) {
   return typeof raw === 'object' && raw !== null ? raw : null
 }
 
-/** Builds the comma-joined osteo testRef from which regions were actually scanned. */
-async function osteoTestRef(mrn) {
+/**
+ * Builds the comma-joined osteo testRef from which regions were actually
+ * scanned, for the exact same scan date the operator is pushing. This is a
+ * pure structural check on the raw scan JSON (which region keys are
+ * present) — not a BMD/T-score computation — so it can never disagree with
+ * what computeOsteoData produced for the report the operator is viewing.
+ */
+async function osteoTestRef(mrn, date) {
   if (!SPINE_AP_REF || !HIP_SINGLE_REF || !HIP_BOTH_REF) {
     return { error: 'LABIT_BMD_SPINE_AP_TEST_REF / LABIT_BMD_HIP_SINGLE_TEST_REF / LABIT_BMD_HIP_BOTH_TEST_REF not configured' }
   }
 
-  const result = await selectScanAndHistory(mrn)
-  if (!result) return { error: `No osteo scan found for MRN ${mrn}` }
+  const result = await selectScanAndHistory(mrn, date || null)
+  if (!result) return { error: `No osteo scan found for MRN ${mrn}${date ? ` on ${date}` : ''}` }
 
   const rawData = parseRaw(result.scan.raw_json)
   if (!rawData) return { error: `Malformed scan data for MRN ${mrn}` }
 
-  const { spine, left_femur, right_femur } = computeOsteoData(rawData, mrn, '')
-
-  const hasSpine = Object.keys(spine || {}).length > 0
-  const hasLeft  = Object.keys(left_femur || {}).length > 0
-  const hasRight = Object.keys(right_femur || {}).length > 0
+  const session = rawData.session || {}
+  const hasSpine = Object.keys(session.spine || {}).length > 0
+  const hasLeft  = Object.keys(session.left_femur || {}).length > 0
+  const hasRight = Object.keys(session.right_femur || {}).length > 0
 
   const parts = []
   if (hasSpine) parts.push(SPINE_AP_REF)
@@ -82,7 +93,7 @@ export async function POST(req) {
     )
   }
 
-  const { mrn, scanType } = await req.json()
+  const { mrn, scanType, lh, anonymize, date, tpl } = await req.json()
 
   if (!mrn) {
     return NextResponse.json({ error: 'mrn is required' }, { status: 400 })
@@ -97,7 +108,7 @@ export async function POST(req) {
     }
     testRef = TB_TEST_REF
   } else {
-    const resolved = await osteoTestRef(mrn)
+    const resolved = await osteoTestRef(mrn, date)
     if (resolved.error) {
       return NextResponse.json({ error: resolved.error }, { status: 503 })
     }
@@ -106,10 +117,18 @@ export async function POST(req) {
 
   // Generate the PDF ourselves via our own render pipeline — always hit
   // localhost directly (same convention as /api/pdf's internal Puppeteer
-  // navigation) to avoid routing back out through the reverse proxy.
+  // navigation) to avoid routing back out through the reverse proxy. Mirror
+  // the exact params (letterhead/anonymize/date/template) the operator has
+  // open on the print page so this is the same report they confirmed, not
+  // an independent re-render (e.g. always-latest-scan, always-with-letterhead).
   const port = process.env.PORT ?? '3010'
   const base = process.env.NEXT_PUBLIC_BASEPATH ?? ''
-  const pdfUrl = `http://localhost:${port}${base}/api/pdf?mrn=${encodeURIComponent(mrn)}&type=${type}&lh=1`
+  const pdfParams = new URLSearchParams({ mrn, type })
+  if (lh) pdfParams.set('lh', '1')
+  if (anonymize) pdfParams.set('anonymize', '1')
+  if (date) pdfParams.set('date', date)
+  if (tpl && tpl !== 'standard') pdfParams.set('tpl', tpl)
+  const pdfUrl = `http://localhost:${port}${base}/api/pdf?${pdfParams.toString()}`
 
   let pdfBytes
   try {
@@ -131,7 +150,7 @@ export async function POST(req) {
   form.append('report_ready_at', new Date().toISOString())
   form.append('file', new Blob([pdfBytes], { type: 'application/pdf' }), `${mrn}_${type}.pdf`)
 
-  log(`push → ${dispatchUrl}`, { mrn, type, testRef })
+  log(`push → ${dispatchUrl}`, { mrn, type, testRef, lh: !!lh, anonymize: !!anonymize, date: date || 'latest' })
 
   try {
     const res  = await fetch(dispatchUrl, {
