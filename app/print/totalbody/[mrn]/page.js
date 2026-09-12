@@ -83,12 +83,13 @@ export default function PrintPreviewTotalbody({ params: paramsPromise, searchPar
   const nameParam = meta?.filename ? `&dl=${encodeURIComponent(meta.filename)}` : ''
   const pdfHref   = `${BASE}/api/pdf?mrn=${mrn}&type=totalbody${lh ? '&lh=1' : ''}${tplParam}${nameParam}${dateParam}${anonParam}`
 
-  // Never push an anonymized or letterhead-less report to Labit — that
-  // pipeline is for doctor approval + patient delivery of the official
-  // document, not an internal/teaching preview.
-  const pushBlocked = !lh || anonymize
-  const pushBlockedReason = !lh
-    ? 'Enable letterhead before pushing to Labit'
+  // Never push an anonymized or logo-less report to Labit — that pipeline is
+  // for doctor approval + patient delivery of the official document, not an
+  // internal preview for printing onto pre-printed letterhead paper (which
+  // is what the "Letterhead" toggle is for — it hides the in-PDF logo).
+  const pushBlocked = lh || anonymize
+  const pushBlockedReason = lh
+    ? 'Disable letterhead (so the logo shows) before pushing to Labit'
     : anonymize
       ? 'Disable Anonymize before pushing to Labit'
       : ''

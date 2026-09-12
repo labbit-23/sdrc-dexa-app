@@ -9,10 +9,11 @@ export default function LabitPushModal({ mrn, scanType = 'osteo', patientName = 
 
   // Belt-and-suspenders: the toolbar button that opens this modal is already
   // disabled in this state, but never trust only the caller — an anonymized
-  // or letterhead-less report must never reach Labit's doctor-approval /
-  // patient-delivery pipeline.
-  const blockedReason = !lh
-    ? 'Letterhead is off. Enable letterhead before pushing to Labit.'
+  // or logo-less report must never reach Labit's doctor-approval /
+  // patient-delivery pipeline. "Letterhead" means printing onto pre-printed
+  // stationery, which hides the in-PDF logo — the opposite of what Labit needs.
+  const blockedReason = lh
+    ? 'Letterhead is on (logo hidden). Disable letterhead before pushing to Labit.'
     : anonymize
       ? 'Anonymize is on. Disable it before pushing to Labit.'
       : null
@@ -31,7 +32,9 @@ export default function LabitPushModal({ mrn, scanType = 'osteo', patientName = 
         body:    JSON.stringify({ mrn, scanType, lh, anonymize, date, tpl }),
       })
       const data = await res.json()
-      setResult(res.ok ? { ok: true, ...data } : { error: data.error ?? 'Push failed', detail: data.detail })
+      setResult(res.ok
+        ? { ok: true, ...data }
+        : { error: data.error ?? 'Push failed', detail: data.detail, noPendingItem: data.noPendingItem })
     } catch (e) {
       setResult({ error: e.message })
     } finally {
@@ -77,17 +80,26 @@ export default function LabitPushModal({ mrn, scanType = 'osteo', patientName = 
           </div>
         ) : result ? (
           <div style={{ textAlign: 'center', padding: '12px 0 4px' }}>
-            <div style={{ fontSize: 40 }}>{result.ok ? '✅' : '❌'}</div>
-            <div style={{ fontWeight: 700, marginTop: 12, color: result.ok ? '#4ade80' : '#f87171' }}>
-              {result.ok ? (result.alreadyExists ? 'Already pushed' : 'Pushed to Labit') : 'Push failed'}
+            <div style={{ fontSize: 40 }}>{result.ok ? '✅' : result.noPendingItem ? '🟠' : '❌'}</div>
+            <div style={{ fontWeight: 700, marginTop: 12, color: result.ok ? '#4ade80' : result.noPendingItem ? '#f59e0b' : '#f87171' }}>
+              {result.ok
+                ? (result.alreadyExists ? 'Already pushed' : 'Pushed to Labit')
+                : result.noPendingItem ? 'No open slot found in Labit' : 'Push failed'}
             </div>
             {result.ok && (
               <div style={{ color: '#9E9E9E', fontSize: 12, marginTop: 6 }}>
                 Awaiting doctor approval in Labit. Delivery to the patient happens automatically from there once approved.
               </div>
             )}
+            {result.noPendingItem && (
+              <div style={{ color: '#e5c07b', fontSize: 12, marginTop: 6, lineHeight: 1.5 }}>
+                Labit has no pending (unattached) item for this test on this patient — this usually
+                means it was <strong>already pushed and fulfilled</strong> earlier, or no matching
+                order exists there for this test. Check Labit Core directly to confirm which.
+              </div>
+            )}
             {result.error && (
-              <div style={{ color: '#fca5a5', fontSize: 12, marginTop: 8 }}>{result.error}</div>
+              <div style={{ color: result.noPendingItem ? '#9E9E9E' : '#fca5a5', fontSize: result.noPendingItem ? 10 : 12, marginTop: 8 }}>{result.error}</div>
             )}
             {result.detail && (
               <div style={{ color: '#9E9E9E', fontSize: 10, marginTop: 4, fontFamily: 'monospace', wordBreak: 'break-all' }}>

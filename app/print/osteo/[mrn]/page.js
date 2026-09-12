@@ -35,6 +35,16 @@ export default function PrintPreviewOsteo({ params: paramsPromise, searchParams:
   const [pushOpen, setPushOpen] = useState(false)
 
   const [anonymize, setAnonymize] = useState(false)
+  const [meta, setMeta] = useState(null) // { name, scan_date, missing_overlays }
+
+  useEffect(() => {
+    fetch(`${BASE}/api/osteo-meta?mrn=${mrn}`)
+      .then(r => r.ok ? r.json() : null)
+      .then(data => { if (data) setMeta(data) })
+      .catch(() => {})
+  }, [mrn])
+
+  const missingOverlays = meta?.missing_overlays
 
   const dateParam = date ? `&date=${date}` : ''
   const anonParam = anonymize ? '&anonymize=1' : ''
@@ -46,12 +56,13 @@ export default function PrintPreviewOsteo({ params: paramsPromise, searchParams:
     ? `${BASE}/api/pdf?mrn=${mrn}&lh=1${dateParam}${anonParam}`
     : `${BASE}/api/pdf?mrn=${mrn}${dateParam}${anonParam}`
 
-  // Never push an anonymized or letterhead-less report to Labit — that
-  // pipeline is for doctor approval + patient delivery of the official
-  // document, not an internal/teaching preview.
-  const pushBlocked = !lh || anonymize
-  const pushBlockedReason = !lh
-    ? 'Enable letterhead before pushing to Labit'
+  // Never push an anonymized or logo-less report to Labit — that pipeline is
+  // for doctor approval + patient delivery of the official document, not an
+  // internal preview for printing onto pre-printed letterhead paper (which
+  // is what the "Letterhead" toggle is for — it hides the in-PDF logo).
+  const pushBlocked = lh || anonymize
+  const pushBlockedReason = lh
+    ? 'Disable letterhead (so the logo shows) before pushing to Labit'
     : anonymize
       ? 'Disable Anonymize before pushing to Labit'
       : ''
@@ -134,6 +145,29 @@ export default function PrintPreviewOsteo({ params: paramsPromise, searchParams:
           📤 Push to Labit
         </button>
       </div>
+
+      {/* Missing-ROI-overlay warning — screen only, not part of the printed report */}
+      {missingOverlays && missingOverlays.length > 0 && (
+        <div style={{
+          background: '#2d1a00',
+          borderBottom: '2px solid #f59e0b',
+          padding: '7px 16px',
+          display: 'flex',
+          alignItems: 'flex-start',
+          gap: 10,
+          flexShrink: 0,
+        }}>
+          <span style={{ fontSize: 13, fontWeight: 700, color: '#f59e0b', flexShrink: 0, marginTop: 1 }}>
+            🟠 ROI CHECK REQUIRED
+          </span>
+          <div style={{ fontSize: 11, color: '#e5c07b', lineHeight: 1.5 }}>
+            <strong>Missing ROI overlay:</strong>{' '}
+            {missingOverlays.map(m => `${m.label}${m.hasPlain ? ' (plain scan image shown, no ROI box)' : ' (no image available)'}`).join(' · ')}.{' '}
+            This region's site placement has not been visually confirmed on this report.{' '}
+            <strong>Action:</strong> re-export/re-fetch the XPS for this region to regenerate the ROI overlay before relying on this report.
+          </div>
+        </div>
+      )}
 
       <iframe
         key={previewUrl}

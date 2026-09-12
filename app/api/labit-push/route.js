@@ -100,11 +100,14 @@ export async function POST(req) {
   }
 
   // Labit is the doctor-approval / patient-delivery pipeline — never accept
-  // a push for a report rendered without letterhead or with demographics
-  // stripped. This is the authoritative check; the print-page UI also
-  // disables the push button in this state, but that's client-side only.
-  if (!lh) {
-    return NextResponse.json({ error: 'Refusing to push: letterhead is off. Enable letterhead before pushing to Labit.' }, { status: 400 })
+  // a push for a report with the logo hidden or with demographics stripped.
+  // "Letterhead" (lh) means printing onto pre-printed stationery, which
+  // hides the in-PDF logo (see osteo/bmd/editorial html templates) — so the
+  // report Labit needs is the one with letterhead OFF. This is the
+  // authoritative check; the print-page UI also disables the push button in
+  // this state, but that's client-side only.
+  if (lh) {
+    return NextResponse.json({ error: 'Refusing to push: letterhead is on (logo hidden). Disable letterhead before pushing to Labit.' }, { status: 400 })
   }
   if (anonymize) {
     return NextResponse.json({ error: 'Refusing to push: report is anonymized. Disable Anonymize before pushing to Labit.' }, { status: 400 })
@@ -170,10 +173,19 @@ export async function POST(req) {
       body:    form,
     })
     const data = await res.json().catch(() => ({}))
+    const detailMsg = typeof data.detail === 'string' ? data.detail : (data.message ?? data.error ?? res.statusText)
 
     if (!res.ok && res.status !== 409) {
+      // Labit returns 404 "No pending (attachment-free) item found" both when
+      // no matching order exists for this test AND when it was already
+      // fulfilled by an earlier push (the slot is no longer attachment-free
+      // either way) — this response alone can't distinguish the two, so flag
+      // it as its own state rather than reporting a flat, misleading failure
+      // (previously this fell through to res.statusText — "Not Found" — which
+      // buried Labit's actual explanation entirely).
+      const noPendingItem = res.status === 404 && /no pending/i.test(detailMsg)
       return NextResponse.json(
-        { error: data.message ?? data.error ?? res.statusText, detail: data },
+        { error: detailMsg, detail: data, noPendingItem },
         { status: res.status },
       )
     }
