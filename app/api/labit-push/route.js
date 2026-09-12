@@ -99,6 +99,17 @@ export async function POST(req) {
     return NextResponse.json({ error: 'mrn is required' }, { status: 400 })
   }
 
+  // Labit is the doctor-approval / patient-delivery pipeline — never accept
+  // a push for a report rendered without letterhead or with demographics
+  // stripped. This is the authoritative check; the print-page UI also
+  // disables the push button in this state, but that's client-side only.
+  if (!lh) {
+    return NextResponse.json({ error: 'Refusing to push: letterhead is off. Enable letterhead before pushing to Labit.' }, { status: 400 })
+  }
+  if (anonymize) {
+    return NextResponse.json({ error: 'Refusing to push: report is anonymized. Disable Anonymize before pushing to Labit.' }, { status: 400 })
+  }
+
   const type = scanType === 'totalbody' ? 'totalbody' : 'osteo'
 
   let testRef

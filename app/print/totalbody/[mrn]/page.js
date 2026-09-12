@@ -83,6 +83,16 @@ export default function PrintPreviewTotalbody({ params: paramsPromise, searchPar
   const nameParam = meta?.filename ? `&dl=${encodeURIComponent(meta.filename)}` : ''
   const pdfHref   = `${BASE}/api/pdf?mrn=${mrn}&type=totalbody${lh ? '&lh=1' : ''}${tplParam}${nameParam}${dateParam}${anonParam}`
 
+  // Never push an anonymized or letterhead-less report to Labit — that
+  // pipeline is for doctor approval + patient delivery of the official
+  // document, not an internal/teaching preview.
+  const pushBlocked = !lh || anonymize
+  const pushBlockedReason = !lh
+    ? 'Enable letterhead before pushing to Labit'
+    : anonymize
+      ? 'Disable Anonymize before pushing to Labit'
+      : ''
+
   const doPrint = () => {
     const win = window.open(previewUrl, '_blank')
     if (!win) return
@@ -224,11 +234,15 @@ export default function PrintPreviewTotalbody({ params: paramsPromise, searchPar
         </button>
 
         <button
-          onClick={() => setPushOpen(true)}
+          onClick={() => !pushBlocked && setPushOpen(true)}
+          disabled={pushBlocked}
+          title={pushBlocked ? pushBlockedReason : undefined}
           style={{
             padding: '5px 14px', borderRadius: 5, fontSize: 12, fontWeight: 700,
-            background: '#1a5c2a', color: '#4ade80',
-            border: '1px solid #2d6a3f', cursor: 'pointer',
+            background: pushBlocked ? '#243528' : '#1a5c2a',
+            color:      pushBlocked ? '#5a7a63' : '#4ade80',
+            border: `1px solid ${pushBlocked ? '#33443a' : '#2d6a3f'}`,
+            cursor: pushBlocked ? 'not-allowed' : 'pointer',
           }}
         >
           📤 Push to Labit
