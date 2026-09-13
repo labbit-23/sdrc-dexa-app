@@ -17,14 +17,23 @@
  * differ from what was visually confirmed on screen before pushing.
  *
  * testRef for total body is a single fixed code. testRef for osteo is NOT
- * fixed — Labit's schema splits it into a spine code and a hip code, joined
- * with a comma (e.g. "BAP,BBH"), reflecting which views were actually done:
- *   Spine: BAP (AP) — Lateral spine (BLSL) is out of scope, not done here.
- *   Hip:   BHIP (single hip) or BBH (both hips)
+ * fixed — Labit's schema splits it into a spine code, a hip code, and a
+ * forearm code, joined with a comma (e.g. "BAP,BBH,BMW"), reflecting which
+ * views were actually done:
+ *   Spine:   BAP (AP) — Lateral spine (BLSL) is out of scope, not done here.
+ *   Hip:     BHIP (single hip) or BBH (both hips)
+ *   Forearm: BMW (BMD Scan Of Forearm/Wrist) — added 2026-09-13; earlier
+ *            pushes never included it even when a forearm was scanned, since
+ *            osteoTestRef() only ever checked spine/hip presence. Labit's
+ *            BMW mapping was already correctly configured the whole time —
+ *            this was purely a gap on the sending side.
  * Spine is hardcoded to the AP code — this worker's MDB/XPS parsers
  * (parse_mdb.py, parse_xps.py) don't produce Lateral spine data anyway.
- * Hip is genuinely per-patient (whichever side(s) were actually scanned),
- * so it's computed per report from left_femur/right_femur presence.
+ * Hip and forearm are genuinely per-patient (whichever side(s) were
+ * actually scanned), so both are computed per report from raw region
+ * presence — forearm is optional (a patient can have no forearm scan at
+ * all), so its ref isn't required to be configured unless a report
+ * actually has forearm data.
  *
  * Env:  LABIT_CORE_BASE_URL              — e.g. https://labit.sdrc.in
  *       LABIT_ATTACHMENT_INTERNAL_TOKEN  — shared secret, sent as X-Internal-Token
@@ -32,6 +41,7 @@
  *       LABIT_BMD_SPINE_AP_TEST_REF      — osteo spine (e.g. BAP)
  *       LABIT_BMD_HIP_SINGLE_TEST_REF    — osteo hip, one side scanned (e.g. BHIP)
  *       LABIT_BMD_HIP_BOTH_TEST_REF      — osteo hip, both sides scanned (e.g. BBH)
+ *       LABIT_BMD_FOREARM_TEST_REF       — osteo forearm/wrist (e.g. BMW)
  */
 
 import { NextResponse } from 'next/server'
@@ -43,6 +53,7 @@ const TB_TEST_REF      = process.env.LABIT_BMD_TB_TEST_REF
 const SPINE_AP_REF     = process.env.LABIT_BMD_SPINE_AP_TEST_REF
 const HIP_SINGLE_REF   = process.env.LABIT_BMD_HIP_SINGLE_TEST_REF
 const HIP_BOTH_REF     = process.env.LABIT_BMD_HIP_BOTH_TEST_REF
+const FOREARM_REF      = process.env.LABIT_BMD_FOREARM_TEST_REF
 const log              = (...a) => console.log('[labit-push]', ...a)
 
 function parseRaw(raw_json) {
@@ -72,15 +83,22 @@ async function osteoTestRef(mrn, date) {
   if (!rawData) return { error: `Malformed scan data for MRN ${mrn}` }
 
   const session = rawData.session || {}
-  const hasSpine = Object.keys(session.spine || {}).length > 0
-  const hasLeft  = Object.keys(session.left_femur || {}).length > 0
-  const hasRight = Object.keys(session.right_femur || {}).length > 0
+  const hasSpine        = Object.keys(session.spine || {}).length > 0
+  const hasLeft         = Object.keys(session.left_femur || {}).length > 0
+  const hasRight        = Object.keys(session.right_femur || {}).length > 0
+  const hasLeftForearm  = Object.keys(session.left_forearm || {}).length > 0
+  const hasRightForearm = Object.keys(session.right_forearm || {}).length > 0
+  const hasForearm      = hasLeftForearm || hasRightForearm
 
   const parts = []
   if (hasSpine) parts.push(SPINE_AP_REF)
   if (hasLeft || hasRight) parts.push(hasLeft && hasRight ? HIP_BOTH_REF : HIP_SINGLE_REF)
+  if (hasForearm) {
+    if (!FOREARM_REF) return { error: 'Scan has forearm data but LABIT_BMD_FOREARM_TEST_REF is not configured' }
+    parts.push(FOREARM_REF)
+  }
 
-  if (parts.length === 0) return { error: `Scan for MRN ${mrn} has neither spine nor hip data — nothing to derive a testRef from` }
+  if (parts.length === 0) return { error: `Scan for MRN ${mrn} has no spine, hip, or forearm data — nothing to derive a testRef from` }
 
   return { testRef: parts.join(',') }
 }
