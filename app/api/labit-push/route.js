@@ -45,7 +45,8 @@
  */
 
 import { NextResponse } from 'next/server'
-import { selectScanAndHistory } from '@/lib/fetch-scan.js'
+import { selectScanAndHistory, selectTotalbodyAndHistory } from '@/lib/fetch-scan.js'
+import { getServiceClient } from '@/lib/supabase.js'
 
 const LABIT_BASE      = (process.env.LABIT_CORE_BASE_URL ?? '').replace(/\/+$/, '')
 const TOKEN            = process.env.LABIT_ATTACHMENT_INTERNAL_TOKEN
@@ -100,7 +101,30 @@ async function osteoTestRef(mrn, date) {
 
   if (parts.length === 0) return { error: `Scan for MRN ${mrn} has no spine, hip, or forearm data — nothing to derive a testRef from` }
 
-  return { testRef: parts.join(',') }
+  return { testRef: parts.join(','), scanId: result.scan.id }
+}
+
+/** Resolve the total_body scan id for the same date being pushed, for push-status tracking. */
+async function totalbodyScanId(mrn, date) {
+  const result = await selectTotalbodyAndHistory(mrn, date || null)
+  return result?.scan?.id ?? null
+}
+
+/**
+ * Record a successful push on the scan row so /list can show a "Pushed"
+ * indicator. Best-effort: a failure here must never fail the push response
+ * itself — the PDF already reached Labit Core by this point.
+ */
+async function recordPushStatus(scanId, testRef) {
+  if (!scanId) return
+  try {
+    const sb = getServiceClient()
+    await sb.from('bmd_scans')
+      .update({ labit_pushed_at: new Date().toISOString(), labit_test_ref: testRef })
+      .eq('id', scanId)
+  } catch (e) {
+    log('recordPushStatus failed (push itself still succeeded)', e.message)
+  }
 }
 
 export async function POST(req) {
@@ -134,17 +158,20 @@ export async function POST(req) {
   const type = scanType === 'totalbody' ? 'totalbody' : 'osteo'
 
   let testRef
+  let scanId
   if (type === 'totalbody') {
     if (!TB_TEST_REF) {
       return NextResponse.json({ error: 'LABIT_BMD_TB_TEST_REF not configured' }, { status: 503 })
     }
     testRef = TB_TEST_REF
+    scanId = await totalbodyScanId(mrn, date)
   } else {
     const resolved = await osteoTestRef(mrn, date)
     if (resolved.error) {
       return NextResponse.json({ error: resolved.error }, { status: 503 })
     }
     testRef = resolved.testRef
+    scanId = resolved.scanId
   }
 
   // Generate the PDF ourselves via our own render pipeline — always hit
@@ -207,6 +234,10 @@ export async function POST(req) {
         { status: res.status },
       )
     }
+
+    // Record push status on any successful outcome, including 409 (already
+    // exists) — either way the report is confirmed present on Labit Core.
+    await recordPushStatus(scanId, testRef)
 
     return NextResponse.json({ ok: true, alreadyExists: res.status === 409, testRef, ...data })
   } catch (e) {

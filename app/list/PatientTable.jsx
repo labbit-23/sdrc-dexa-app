@@ -23,6 +23,21 @@ function ScanBadge({ type }) {
   )
 }
 
+// Shows whether this specific scan's report has been pushed to Labit Core —
+// written by /api/labit-push on a confirmed (200/409) response, never
+// inferred, so this reflects an actual confirmed push, not a guess.
+function PushedBadge({ pushedAt, testRef }) {
+  if (!pushedAt) return null
+  const title = `Pushed to Labit ${fmtDateShort(pushedAt)}${testRef ? ` · ${testRef}` : ''}`
+  return (
+    <span title={title} style={{ display: 'inline-flex', alignItems: 'center', gap: 3,
+      padding: '2px 7px', borderRadius: 10, fontSize: 10, fontWeight: 700,
+      background: '#dcfce7', color: '#166534' }}>
+      📤 Pushed
+    </span>
+  )
+}
+
 function fmtDate(d) {
   if (!d) return '—'
   const [y, m, day] = d.slice(0, 10).split('-')
@@ -117,7 +132,10 @@ function PatientRow({ p, idx, onArchiveClick }) {
                 <td style={td} />
               </>
             )}
-            <td style={td}><ScanBadge type={scan.scan_type} /></td>
+            <td style={td}>
+              <ScanBadge type={scan.scan_type} />
+              <PushedBadge pushedAt={scan.labit_pushed_at} testRef={scan.labit_test_ref} />
+            </td>
             <td style={td}>{fmtDateShort(scan.scan_date)}</td>
             <td style={{ ...td, textAlign: 'right', padding: '10px 12px' }}>
               <div style={{ display: 'flex', gap: 6, justifyContent: 'flex-end', alignItems: 'center' }}>

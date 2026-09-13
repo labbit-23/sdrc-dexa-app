@@ -71,10 +71,14 @@ export async function GET(req) {
 
       if (pErr || !patients?.length) return NextResponse.json({ patients: [], total: 0, pages: 0 })
 
-      const { data: scans } = await sb
+      const { data: scans, error: sErr } = await sb
         .from('bmd_scans')
-        .select('patient_id, scan_date, scan_type')
+        .select('patient_id, scan_date, scan_type, labit_pushed_at, labit_test_ref')
         .in('patient_id', patients.map(p => p.id))
+      // Surface a real error instead of silently falling back to an empty
+      // list — a missing column (e.g. an unrun migration) or any other
+      // query failure here previously vanished every scan with no signal.
+      if (sErr) throw new Error(`bmd_scans query failed: ${sErr.message}`)
 
       const rows = buildRows(patients, scans ?? [])
       return NextResponse.json({ patients: rows, total: rows.length, pages: 1, page: 0 })
@@ -102,14 +106,17 @@ export async function GET(req) {
 
     if (!pageIds.length) return NextResponse.json({ patients: [], total, pages, page })
 
-    const [{ data: patients }, { data: scans }] = await Promise.all([
+    const [{ data: patients, error: pErr2 }, { data: scans, error: sErr2 }] = await Promise.all([
       sb.from('bmd_patients')
         .select('id, mrn, first_name, last_name, dob, gender')
         .in('id', pageIds),
       sb.from('bmd_scans')
-        .select('patient_id, scan_date, scan_type')
+        .select('patient_id, scan_date, scan_type, labit_pushed_at, labit_test_ref')
         .in('patient_id', pageIds),
     ])
+    // Same as above — fail loudly rather than silently emptying the page.
+    if (pErr2) throw new Error(`bmd_patients query failed: ${pErr2.message}`)
+    if (sErr2) throw new Error(`bmd_scans query failed: ${sErr2.message}`)
 
     const rows = buildRows(patients ?? [], scans ?? [])
     return NextResponse.json({ patients: rows, total, pages, page })
