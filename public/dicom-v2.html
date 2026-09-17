@@ -72,11 +72,13 @@
     .empty { padding:45px 20px; color:#90a2ac; text-align:center; font-size:13px; }
     .ct-series-block { margin-bottom:28px; }
     .ct-series-block:last-child { margin-bottom:0; }
-    .ct-series-head { font-size:12px; font-weight:850; color:#8095a0; text-transform:uppercase; letter-spacing:.07em; margin-bottom:11px; }
+    .ct-series-head { display:flex; align-items:center; gap:9px; font-size:12px; font-weight:850; color:#8095a0; text-transform:uppercase; letter-spacing:.07em; margin-bottom:11px; }
+    .ct-series-head-check { width:16px; height:16px; accent-color:var(--purple); cursor:pointer; }
     .ct-thumb-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(108px,1fr)); gap:10px; }
     .ct-thumb { position:relative; cursor:pointer; border-radius:10px; overflow:hidden; border:2px solid var(--line); background:#0b1420; aspect-ratio:1; }
     .ct-thumb img { width:100%; height:100%; object-fit:cover; display:block; }
     .ct-thumb.selected { border-color:var(--purple); box-shadow:0 0 0 3px #ece9ff; }
+    .ct-thumb-check { position:absolute; top:5px; right:5px; width:18px; height:18px; accent-color:var(--purple); cursor:pointer; z-index:1; }
     .ct-thumb-badge { position:absolute; top:5px; left:5px; min-width:21px; height:21px; padding:0 5px; border-radius:7px; background:var(--purple); color:#fff; font-size:11px; font-weight:850; display:grid; place-items:center; }
     .ct-thumb-move { position:absolute; bottom:4px; right:4px; display:flex; gap:3px; }
     .ct-thumb-move button { width:21px; height:21px; border:0; border-radius:6px; background:rgba(10,15,25,.72); color:#fff; font-size:11px; cursor:pointer; line-height:1; }
@@ -108,9 +110,10 @@
       </section>
       <section class="results" id="ctStudyResults"><div class="results-head"><div class="results-title">CT studies <span class="count" id="ctResultCount"></span></div></div><div id="ctTableWrap"><div class="empty">Choose a date above to load CT studies.</div></div></section>
       <section class="results" id="ctSelectionPanel" style="display:none;margin-top:20px;">
-        <div class="results-head"><div class="results-title" id="ctSelectionTitle">Select images</div><div style="display:flex;align-items:center;gap:16px;"><span class="count" id="ctSelectionCount"></span><button class="button primary" style="margin:0;height:36px;" onclick="saveCtSelection()">Save selection →</button></div></div>
+        <div class="results-head"><div class="results-title" id="ctSelectionTitle">Select images</div><div style="display:flex;align-items:center;gap:16px;"><span class="count" id="ctSelectionCount"></span><button class="button primary" style="margin:0;height:36px;" onclick="saveCtSelection()">Queueing for send →</button></div></div>
         <div class="status" id="ctSelectionStatus" style="padding:0 23px;"></div>
         <div id="ctSeriesWrap" style="padding:20px 23px;"></div>
+        <div style="padding:0 23px 23px;display:flex;justify-content:flex-end;"><button class="button primary" style="margin:0;height:36px;" onclick="saveCtSelection()">Queueing for send →</button></div>
       </section>
     </div>
   </main>
@@ -226,26 +229,73 @@ function openCtSelection(studyId, patientName) {
       already.sort((a, b) => a.selectedOrder - b.selectedOrder);
       ctSelection = already.map(i => i.instanceId);
       renderCtSeries();
-      document.getElementById('ctSelectionPanel').scrollIntoView({ behavior:'smooth', block:'start' });
+      // Scroll to the actual image grid, not just the panel's title/save-
+      // button header -- Pavan's ask was so the tech immediately sees
+      // what needs selecting, not just that a panel opened.
+      document.getElementById('ctSeriesWrap').scrollIntoView({ behavior:'smooth', block:'start' });
     }).catch(err => { document.getElementById('ctSeriesWrap').innerHTML = '<div class="empty">Unable to load images for this study.</div>'; console.error(err); });
+}
+
+// This series's currently-selected instance IDs, in their current
+// relative order -- badges and move-earlier/later are scoped to this per-
+// series subsequence, not the global flat ctSelection array. Found live:
+// with a global numbering scheme, deselecting a series then selecting
+// fresh elsewhere continued numbering from wherever the array happened to
+// end, which read as broken even though the backend only ever cares about
+// relative order WITHIN a series (ct.py sorts per-series independently
+// when building pages, so this display choice doesn't touch correctness).
+function seriesSelectedOrder(seriesId) {
+  const series = ctState.series.find(s => s.seriesId === seriesId);
+  if (!series) return [];
+  const ids = new Set(series.instances.map(i => i.instanceId));
+  return ctSelection.filter(id => ids.has(id));
 }
 
 function renderCtSeries() {
   if (!ctState) return;
-  const blocks = ctState.series.filter(s => s.instances.length > 0).map(s => {
+  const blocks = ctState.series
+    .filter(s => s.instances.length > 0)
+    .slice()
+    .sort((a, b) => (parseInt(a.seriesNumber, 10) || 0) - (parseInt(b.seriesNumber, 10) || 0))
+    .map(s => {
     const label = s.seriesDescription ? `Series ${s.seriesNumber} — ${s.seriesDescription}` : `Series ${s.seriesNumber}`;
+    const allSelected = s.instances.every(inst => ctSelection.includes(inst.instanceId));
+    const someSelected = s.instances.some(inst => ctSelection.includes(inst.instanceId));
+    const localOrder = seriesSelectedOrder(s.seriesId);
     const thumbs = s.instances.map(inst => {
-      const pos = ctSelection.indexOf(inst.instanceId);
+      const pos = localOrder.indexOf(inst.instanceId);
       const selected = pos !== -1;
       const badge = selected ? `<span class="ct-thumb-badge">${pos + 1}</span>` : '';
       const moveButtons = selected
-        ? `<span class="ct-thumb-move" onclick="event.stopPropagation()"><button onclick="moveCtThumb('${inst.instanceId}',-1)" ${pos===0?'disabled':''} aria-label="Move earlier">‹</button><button onclick="moveCtThumb('${inst.instanceId}',1)" ${pos===ctSelection.length-1?'disabled':''} aria-label="Move later">›</button></span>`
+        ? `<span class="ct-thumb-move" onclick="event.stopPropagation()"><button onclick="moveCtThumb('${inst.instanceId}',-1)" ${pos===0?'disabled':''} aria-label="Move earlier">‹</button><button onclick="moveCtThumb('${inst.instanceId}',1)" ${pos===localOrder.length-1?'disabled':''} aria-label="Move later">›</button></span>`
         : '';
-      return `<div class="ct-thumb${selected ? ' selected' : ''}" onclick="toggleCtThumb('${inst.instanceId}')"><img src="${thumbUrl(inst.instanceId)}" loading="lazy" alt="">${badge}${moveButtons}</div>`;
+      // The checkbox and the tile share one toggle path (toggleCtThumb) --
+      // the checkbox's own onclick stops propagation so clicking it doesn't
+      // ALSO fire the parent tile's onclick (which would double-toggle back
+      // to unselected). Its checked state is always driven by render, never
+      // by native checkbox click behavior, so there's one source of truth.
+      const checkbox = `<input type="checkbox" class="ct-thumb-check" ${selected ? 'checked' : ''} onclick="event.stopPropagation(); toggleCtThumb('${inst.instanceId}')" aria-label="Select image">`;
+      return `<div class="ct-thumb${selected ? ' selected' : ''}" onclick="toggleCtThumb('${inst.instanceId}')">${checkbox}<img src="${thumbUrl(inst.instanceId)}" loading="lazy" alt="">${badge}${moveButtons}</div>`;
     }).join('');
-    return `<div class="ct-series-block"><div class="ct-series-head">${label}</div><div class="ct-thumb-grid">${thumbs}</div></div>`;
+    // Series-level "select all" checkbox: Pavan's ask -- much faster to
+    // grab a whole series in one click and uncheck the one bad instance
+    // than to click 100+ individual thumbnails one at a time. Selecting
+    // appends not-yet-selected instances in their natural (Orthanc/
+    // instance) order; deselecting removes every instance of this series
+    // from the selection, wherever each currently sits in the order.
+    const seriesCheckbox = `<input type="checkbox" class="ct-series-head-check" data-series-id="${s.seriesId}" ${allSelected ? 'checked' : ''} onclick="toggleCtSeriesAll('${s.seriesId}')" aria-label="Select all images in this series">`;
+    return `<div class="ct-series-block"><div class="ct-series-head">${seriesCheckbox}${label}</div><div class="ct-thumb-grid">${thumbs}</div></div>`;
   }).join('');
   document.getElementById('ctSeriesWrap').innerHTML = blocks || '<div class="empty">No CT images found in this study.</div>';
+  // indeterminate can only be set via JS, not an HTML attribute -- shows a
+  // dash instead of empty/checked when a series is partially selected.
+  ctState.series.forEach(s => {
+    const el = document.querySelector(`.ct-series-head-check[data-series-id="${s.seriesId}"]`);
+    if (!el) return;
+    const allSelected = s.instances.every(inst => ctSelection.includes(inst.instanceId));
+    const someSelected = s.instances.some(inst => ctSelection.includes(inst.instanceId));
+    el.indeterminate = someSelected && !allSelected;
+  });
   updateCtCount();
 }
 
@@ -255,11 +305,35 @@ function toggleCtThumb(instanceId) {
   renderCtSeries();
 }
 
+function toggleCtSeriesAll(seriesId) {
+  const series = ctState.series.find(s => s.seriesId === seriesId);
+  if (!series) return;
+  const instanceIds = series.instances.map(inst => inst.instanceId);
+  const allSelected = instanceIds.every(id => ctSelection.includes(id));
+  if (allSelected) {
+    ctSelection = ctSelection.filter(id => !instanceIds.includes(id));
+  } else {
+    instanceIds.forEach(id => { if (!ctSelection.includes(id)) ctSelection.push(id); });
+  }
+  renderCtSeries();
+}
+
 function moveCtThumb(instanceId, direction) {
-  const pos = ctSelection.indexOf(instanceId);
-  const target = pos + direction;
-  if (pos === -1 || target < 0 || target >= ctSelection.length) return;
-  [ctSelection[pos], ctSelection[target]] = [ctSelection[target], ctSelection[pos]];
+  // Scoped to the SAME series as instanceId (matches the per-series badge
+  // display) -- finds the neighbor within that series's own selected
+  // subsequence, then swaps their actual positions in the global
+  // ctSelection array. This never lets "move earlier/later" jump an
+  // instance into a different series' block of the saved order.
+  const series = ctState.series.find(s => s.instances.some(i => i.instanceId === instanceId));
+  if (!series) return;
+  const localOrder = seriesSelectedOrder(series.seriesId);
+  const localPos = localOrder.indexOf(instanceId);
+  const targetLocalPos = localPos + direction;
+  if (localPos === -1 || targetLocalPos < 0 || targetLocalPos >= localOrder.length) return;
+  const otherId = localOrder[targetLocalPos];
+  const globalA = ctSelection.indexOf(instanceId);
+  const globalB = ctSelection.indexOf(otherId);
+  [ctSelection[globalA], ctSelection[globalB]] = [ctSelection[globalB], ctSelection[globalA]];
   renderCtSeries();
 }
 
@@ -275,10 +349,10 @@ function updateCtCount() {
 function saveCtSelection() {
   if (!ctState) return;
   const status = document.getElementById('ctSelectionStatus');
-  status.className = 'status'; status.innerText = 'Saving…';
+  status.className = 'status'; status.innerText = 'Queueing for send…';
   fetch(apiBase(), { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({action:'SAVE_SELECTION', studyId: ctState.studyId, selectedInstanceIds: ctSelection}) })
     .then(res => { if (!res.ok) throw new Error('Request failed'); return res.json(); })
-    .then(() => { status.className = 'status success'; status.innerText = `Selection saved -- ${ctSelection.length} image(s).`; })
+    .then(() => { status.className = 'status success'; status.innerText = `Queued for send -- ${ctSelection.length} image(s). Will be sent on the next cycle.`; })
     .catch(err => { status.className = 'status error'; status.innerText = 'Could not save selection.'; console.error(err); });
 }
 
