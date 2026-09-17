@@ -139,15 +139,17 @@ function loadStudies() {
       const rows = data.filter(study => study.studyId).map(study => {
         const modality = modalityLabel(study);
         const pdfUrl = study.pdfUrl || '';
-        // Row click opens the real PDF when we have one (studies sent by
-        // this worker); falls back to the old guessed-folder link for
-        // studies this worker never touched (e.g. sent by Mirth before
-        // cutover, which never wrote pdfUrl) so nothing regresses.
+        // The FTP folder is shared per patient/day and can genuinely hold
+        // more than one PDF (e.g. an auto-send plus a later manual resend
+        // use different filenames, so neither overwrites the other) --
+        // WhatsappPdfUrl metadata only ever tracks the single latest one.
+        // Row click -> browse the whole folder. Icon click -> the one PDF
+        // we currently believe is current, when we know it.
         const folderUrl = `https://files.sdrc.in/${study.studyId}/`;
-        const rowUrl = pdfUrl || folderUrl;
+        const rowUrl = folderUrl;
         const viewCell = pdfUrl
           ? `<a href="${pdfUrl}" target="_blank" rel="noopener" aria-label="Open PDF report" title="Open PDF report" onclick="event.stopPropagation()"><span class="modality ${modality.cls}">${modalityGlyph(modality)}</span></a>`
-          : `<a href="${folderUrl}" target="_blank" rel="noopener" aria-label="Open study folder" title="No PDF logged yet -- open raw study folder" onclick="event.stopPropagation()"><span class="modality disabled">${modalityGlyph(modality)}</span></a>`;
+          : `<span class="modality disabled" aria-label="No PDF known yet" title="No PDF known yet -- click the row to browse the study folder">${modalityGlyph(modality)}</span>`;
         return `<tr class="data-row" onclick="window.open('${rowUrl}','_blank')"><td class="reqno" onclick="event.stopPropagation()">${study.accession || '—'}</td><td>${study.patientName || '—'}</td><td>${modality.label}</td><td style="font-weight:700;color:#426d7f">${study.phone || '—'}</td><td>${study.status || '—'}</td><td>${study.attempts ?? '—'}</td><td>${study.timestamp || '—'}</td><td style="text-align:right">${viewCell}</td></tr>`;
       }).join('');
       document.getElementById('resultCount').innerText = `${data.filter(s => s.studyId).length} studies`;
