@@ -2,7 +2,7 @@ import Link from 'next/link'
 import BASE from '@/lib/basepath'
 
 const modules = [
-  { href: '/dicom-v2', icon: '📡', eyebrow: 'Radiology operations', title: 'DICOM Operations', desc: 'Radiology studies · WhatsApp delivery', accent: '#6c63ff' },
+  { href: '/dicom-v2', icon: '🩻', eyebrow: 'Radiology operations', title: 'DICOM Operations', desc: 'Radiology studies · WhatsApp delivery', accent: '#6c63ff' },
   { href: '/ecg', icon: '♥', eyebrow: 'ECG · Mirth / Tricog', title: 'ECG Management', desc: 'Report delivery and send activity', accent: '#ff6f91' },
   { href: '/dicom', icon: '📡', eyebrow: 'Radiology operations · legacy', title: 'DICOM Operations (Classic)', desc: 'Previous dashboard · Mirth-backed', accent: '#9aa5b1' },
 ]
@@ -63,7 +63,7 @@ export default function HubPage() {
         .hero-note-value { display:flex; align-items:center; gap:8px; margin-top:9px; color:#1e465d; font-size:13px; font-weight:750; }
         .module-grid { display:grid; grid-template-columns:repeat(6, 1fr); gap:18px; }
         .module-grid > a, .module-grid > div { grid-column:span 2; text-decoration:none; }
-        .module-grid > :nth-child(1), .module-grid > :nth-child(2) { grid-column:span 3; }
+        .module-grid > :nth-child(1), .module-grid > :nth-child(2), .module-grid > :nth-child(3) { grid-column:span 2; }
         .module-card { position:relative; min-height:168px; overflow:hidden; padding:20px; border:1px solid #e2edf2; border-radius:20px; background:rgba(255,255,255,.9); box-shadow:0 12px 35px rgba(36,73,95,.055); transition:transform .18s ease, box-shadow .18s ease, border-color .18s ease; }
         .module-card:hover { transform:translateY(-4px); border-color:var(--accent); box-shadow:0 18px 42px rgba(36,73,95,.12); }
         .module-card.featured { min-height:190px; padding:23px; }
