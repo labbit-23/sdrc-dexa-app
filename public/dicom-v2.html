@@ -70,9 +70,17 @@
     .ct-glyph { position:relative; display:block; width:23px; height:21px; border:3px solid currentColor; border-radius:50%; }
     .ct-glyph:after { content:""; position:absolute; left:4px; top:4px; width:9px; height:9px; border-radius:50%; background:currentColor; opacity:.28; }
     .empty { padding:45px 20px; color:#90a2ac; text-align:center; font-size:13px; }
-    .ct-placeholder { padding:70px 20px; text-align:center; color:#8a9ca7; background:rgba(255,255,255,.92); border:1px solid var(--line); border-radius:20px; box-shadow:0 14px 42px rgba(43,75,98,.06); }
-    .ct-placeholder .big { font-size:40px; margin-bottom:14px; }
-    .ct-placeholder h2 { color:#5c7484; margin-bottom:8px; }
+    .ct-series-block { margin-bottom:28px; }
+    .ct-series-block:last-child { margin-bottom:0; }
+    .ct-series-head { font-size:12px; font-weight:850; color:#8095a0; text-transform:uppercase; letter-spacing:.07em; margin-bottom:11px; }
+    .ct-thumb-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(108px,1fr)); gap:10px; }
+    .ct-thumb { position:relative; cursor:pointer; border-radius:10px; overflow:hidden; border:2px solid var(--line); background:#0b1420; aspect-ratio:1; }
+    .ct-thumb img { width:100%; height:100%; object-fit:cover; display:block; }
+    .ct-thumb.selected { border-color:var(--purple); box-shadow:0 0 0 3px #ece9ff; }
+    .ct-thumb-badge { position:absolute; top:5px; left:5px; min-width:21px; height:21px; padding:0 5px; border-radius:7px; background:var(--purple); color:#fff; font-size:11px; font-weight:850; display:grid; place-items:center; }
+    .ct-thumb-move { position:absolute; bottom:4px; right:4px; display:flex; gap:3px; }
+    .ct-thumb-move button { width:21px; height:21px; border:0; border-radius:6px; background:rgba(10,15,25,.72); color:#fff; font-size:11px; cursor:pointer; line-height:1; }
+    .ct-thumb-move button:hover { background:rgba(10,15,25,.92); }
     @media(max-width:760px) { .heading { display:block; } .live { display:inline-flex; margin-top:20px; } .actions { display:block; } .panel { margin-bottom:15px; } .fields { grid-template-columns:1fr; } .results { overflow-x:auto; } table { min-width:760px; } .brand-label { display:none; } }
   </style>
 </head>
@@ -95,7 +103,15 @@
     </div>
 
     <div class="tab-panel" id="tabCT">
-      <div class="ct-placeholder"><div class="big">🩻</div><h2>CT study selection — coming soon</h2><p>Operator image selection for CT films will land here.</p></div>
+      <section class="actions">
+        <div class="panel accent-teal"><div class="panel-head"><div class="panel-icon">◷</div><div><h2>CT study activity</h2><p class="panel-note">Load CT studies for a date, then pick images to include in the report</p></div></div><div><label for="ctStudyDate">Study date</label><input id="ctStudyDate" type="date" max=""><div class="quick-row"><button class="quick" onclick="setCtStudyDate(0)">Today</button><button class="quick" onclick="setCtStudyDate(1)">Yesterday</button></div></div><button class="button secondary" onclick="loadCtStudies()">Load CT studies →</button><div class="status" id="ctLoadingMsg" style="display:none">Loading…</div></div>
+      </section>
+      <section class="results" id="ctStudyResults"><div class="results-head"><div class="results-title">CT studies <span class="count" id="ctResultCount"></span></div></div><div id="ctTableWrap"><div class="empty">Choose a date above to load CT studies.</div></div></section>
+      <section class="results" id="ctSelectionPanel" style="display:none;margin-top:20px;">
+        <div class="results-head"><div class="results-title" id="ctSelectionTitle">Select images</div><div style="display:flex;align-items:center;gap:16px;"><span class="count" id="ctSelectionCount"></span><button class="button primary" style="margin:0;height:36px;" onclick="saveCtSelection()">Save selection →</button></div></div>
+        <div class="status" id="ctSelectionStatus" style="padding:0 23px;"></div>
+        <div id="ctSeriesWrap" style="padding:20px 23px;"></div>
+      </section>
     </div>
   </main>
 <script>
@@ -166,6 +182,106 @@ function loadStudies() {
     }).catch(err => { document.getElementById('tableWrap').innerHTML = '<div class="empty">Unable to load study activity.</div>'; console.error(err); })
     .finally(() => { loading.style.display='none'; button.disabled=false; button.innerText='Load study activity →'; });
 }
+// --- CT selection tab -------------------------------------------------------
+function thumbUrl(instanceId) { return window.location.pathname.replace(/\/dicom-v2\.html$/, '') + '/api/dicom-v2/thumbnail/' + instanceId; }
+let ctState = null;      // { studyId, patientName, series: [...] } from GET_STUDY_INSTANCES
+let ctSelection = [];    // ordered array of instanceIds -- position in array = order
+
+function setCtStudyDate(daysAgo) {
+  const date = new Date();
+  date.setHours(12, 0, 0, 0);
+  date.setDate(date.getDate() - daysAgo);
+  const value = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+  document.getElementById('ctStudyDate').value = value;
+  loadCtStudies();
+}
+
+function loadCtStudies() {
+  const dateInput = document.getElementById('ctStudyDate').value, loading = document.getElementById('ctLoadingMsg'), button = document.querySelector('#tabCT .secondary');
+  if (!dateInput) { alert('Please select a date.'); return; }
+  if (dateInput > localCalendarDate()) { alert('Future dates are not allowed.'); return; }
+  loading.style.display = 'block'; button.disabled = true; button.innerText = 'Loading…';
+  fetch(apiBase(), { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({action:'LIST', date:formatDateToYYYYMMDD(dateInput)}) })
+    .then(res => res.json()).then(data => {
+      // LIST returns both CR and CT rows mixed -- this tab only cares about CT.
+      const ctRows = data.filter(s => s.studyId && String(s.modality || '').toUpperCase() === 'CT');
+      const rows = ctRows.map(study => `<tr class="data-row" onclick="openCtSelection('${study.studyId}','${(study.patientName || 'Patient').replace(/'/g, "\\'")}')"><td class="reqno">${study.accession || '—'}</td><td>${study.patientName || '—'}</td><td>${study.status || '—'}</td><td>${study.timestamp || '—'}</td></tr>`).join('');
+      document.getElementById('ctResultCount').innerText = `${ctRows.length} studies`;
+      document.getElementById('ctTableWrap').innerHTML = rows ? `<table><thead><tr><th>Accession</th><th>Patient</th><th>Status</th><th>Timestamp</th></tr></thead><tbody>${rows}</tbody></table>` : '<div class="empty">No CT studies found for this date.</div>';
+    }).catch(err => { document.getElementById('ctTableWrap').innerHTML = '<div class="empty">Unable to load CT study activity.</div>'; console.error(err); })
+    .finally(() => { loading.style.display='none'; button.disabled=false; button.innerText='Load CT studies →'; });
+}
+
+function openCtSelection(studyId, patientName) {
+  document.getElementById('ctSelectionPanel').style.display = 'block';
+  document.getElementById('ctSelectionTitle').innerText = `Select images — ${patientName}`;
+  document.getElementById('ctSeriesWrap').innerHTML = '<div class="empty">Loading images…</div>';
+  document.getElementById('ctSelectionStatus').innerText = '';
+  fetch(apiBase(), { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({action:'GET_STUDY_INSTANCES', studyId}) })
+    .then(res => res.json()).then(data => {
+      ctState = { studyId, patientName, series: data.series || [] };
+      // Seed the working selection from whatever was already saved, in order.
+      const already = [];
+      ctState.series.forEach(s => s.instances.forEach(i => { if (i.selectedOrder > 0) already.push(i); }));
+      already.sort((a, b) => a.selectedOrder - b.selectedOrder);
+      ctSelection = already.map(i => i.instanceId);
+      renderCtSeries();
+      document.getElementById('ctSelectionPanel').scrollIntoView({ behavior:'smooth', block:'start' });
+    }).catch(err => { document.getElementById('ctSeriesWrap').innerHTML = '<div class="empty">Unable to load images for this study.</div>'; console.error(err); });
+}
+
+function renderCtSeries() {
+  if (!ctState) return;
+  const blocks = ctState.series.filter(s => s.instances.length > 0).map(s => {
+    const label = s.seriesDescription ? `Series ${s.seriesNumber} — ${s.seriesDescription}` : `Series ${s.seriesNumber}`;
+    const thumbs = s.instances.map(inst => {
+      const pos = ctSelection.indexOf(inst.instanceId);
+      const selected = pos !== -1;
+      const badge = selected ? `<span class="ct-thumb-badge">${pos + 1}</span>` : '';
+      const moveButtons = selected
+        ? `<span class="ct-thumb-move" onclick="event.stopPropagation()"><button onclick="moveCtThumb('${inst.instanceId}',-1)" ${pos===0?'disabled':''} aria-label="Move earlier">‹</button><button onclick="moveCtThumb('${inst.instanceId}',1)" ${pos===ctSelection.length-1?'disabled':''} aria-label="Move later">›</button></span>`
+        : '';
+      return `<div class="ct-thumb${selected ? ' selected' : ''}" onclick="toggleCtThumb('${inst.instanceId}')"><img src="${thumbUrl(inst.instanceId)}" loading="lazy" alt="">${badge}${moveButtons}</div>`;
+    }).join('');
+    return `<div class="ct-series-block"><div class="ct-series-head">${label}</div><div class="ct-thumb-grid">${thumbs}</div></div>`;
+  }).join('');
+  document.getElementById('ctSeriesWrap').innerHTML = blocks || '<div class="empty">No CT images found in this study.</div>';
+  updateCtCount();
+}
+
+function toggleCtThumb(instanceId) {
+  const pos = ctSelection.indexOf(instanceId);
+  if (pos === -1) ctSelection.push(instanceId); else ctSelection.splice(pos, 1);
+  renderCtSeries();
+}
+
+function moveCtThumb(instanceId, direction) {
+  const pos = ctSelection.indexOf(instanceId);
+  const target = pos + direction;
+  if (pos === -1 || target < 0 || target >= ctSelection.length) return;
+  [ctSelection[pos], ctSelection[target]] = [ctSelection[target], ctSelection[pos]];
+  renderCtSeries();
+}
+
+function updateCtCount() {
+  // Pages = distinct series with >=1 selected image, since ct.py paginates
+  // one page per series -- matches the worker's actual pagination exactly.
+  const selectedSet = new Set(ctSelection);
+  const seriesWithSelection = new Set();
+  ctState.series.forEach(s => { if (s.instances.some(i => selectedSet.has(i.instanceId))) seriesWithSelection.add(s.seriesId); });
+  document.getElementById('ctSelectionCount').innerText = `${seriesWithSelection.size} page${seriesWithSelection.size===1?'':'s'}, ${ctSelection.length} image${ctSelection.length===1?'':'s'} selected`;
+}
+
+function saveCtSelection() {
+  if (!ctState) return;
+  const status = document.getElementById('ctSelectionStatus');
+  status.className = 'status'; status.innerText = 'Saving…';
+  fetch(apiBase(), { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({action:'SAVE_SELECTION', studyId: ctState.studyId, selectedInstanceIds: ctSelection}) })
+    .then(res => { if (!res.ok) throw new Error('Request failed'); return res.json(); })
+    .then(() => { status.className = 'status success'; status.innerText = `Selection saved -- ${ctSelection.length} image(s).`; })
+    .catch(err => { status.className = 'status error'; status.innerText = 'Could not save selection.'; console.error(err); });
+}
+
 function sendManual() {
   const accession=document.getElementById('accession').value.trim(), phone=document.getElementById('phone').value.trim(), status=document.getElementById('status');
   if (!accession || !phone) { status.className='status error'; status.innerText='Accession number and mobile number are required.'; return; }
@@ -173,7 +289,7 @@ function sendManual() {
   fetch(apiBase(), { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({accession,phone,sendMode:'MANUAL'}) })
     .then(res => { if (!res.ok) throw new Error('Request failed'); return res.text(); }).then(() => { status.className='status success'; status.innerText='Report delivery triggered successfully.'; }).catch(err => { status.className='status error'; status.innerText='Delivery could not be triggered.'; console.error(err); });
 }
-(function(){ const local=localCalendarDate(); document.getElementById('studyDate').value=local; document.getElementById('studyDate').max=local; })();
+(function(){ const local=localCalendarDate(); document.getElementById('studyDate').value=local; document.getElementById('studyDate').max=local; document.getElementById('ctStudyDate').value=local; document.getElementById('ctStudyDate').max=local; })();
 </script>
 </body>
 </html>
