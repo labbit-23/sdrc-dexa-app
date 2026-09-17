@@ -2,8 +2,9 @@ import Link from 'next/link'
 import BASE from '@/lib/basepath'
 
 const modules = [
-  { href: '/dicom', icon: '📡', eyebrow: 'Radiology operations', title: 'DICOM Operations', desc: 'Radiology studies · WhatsApp delivery', accent: '#6c63ff' },
+  { href: '/dicom-v2', icon: '📡', eyebrow: 'Radiology operations', title: 'DICOM Operations', desc: 'Radiology studies · WhatsApp delivery', accent: '#6c63ff' },
   { href: '/ecg', icon: '♥', eyebrow: 'ECG · Mirth / Tricog', title: 'ECG Management', desc: 'Report delivery and send activity', accent: '#ff6f91' },
+  { href: '/dicom', icon: '📡', eyebrow: 'Radiology operations · legacy', title: 'DICOM Operations (Classic)', desc: 'Previous dashboard · Mirth-backed', accent: '#9aa5b1' },
 ]
 
 const bmdServices = [
