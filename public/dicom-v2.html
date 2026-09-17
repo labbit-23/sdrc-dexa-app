@@ -65,7 +65,8 @@
     .modality { display:inline-grid; place-items:center; width:34px; height:30px; border-radius:9px; color:#536bda; background:#f0efff; font-size:17px; font-weight:850; text-decoration:none; }
     .modality.ct { color:#b25a28; background:#fff3e9; }
     .modality.disabled { color:#b7c4cc; background:#f2f5f7; cursor:default; }
-    .xray-glyph { display:grid; place-items:center; width:20px; height:20px; font-size:15px; line-height:1; }
+    .xray-glyph { display:grid; place-items:center; width:15px; height:20px; border:2px solid currentColor; border-radius:2px; font-size:10px; line-height:1; }
+    .xray-glyph.active { width:20px; height:20px; border:none; font-size:15px; }
     .ct-glyph { position:relative; display:block; width:23px; height:21px; border:3px solid currentColor; border-radius:50%; }
     .ct-glyph:after { content:""; position:absolute; left:4px; top:4px; width:9px; height:9px; border-radius:50%; background:currentColor; opacity:.28; }
     .empty { padding:45px 20px; color:#90a2ac; text-align:center; font-size:13px; }
@@ -122,7 +123,14 @@ function modalityLabel(study) {
   const raw = String(study.modality || study.studyModality || study.Modality || '').toUpperCase();
   return raw === 'CT' ? { label:'CT', cls:'ct' } : { label:'X-Ray / image study', cls:'' };
 }
-function modalityGlyph(modality) { return modality.cls === 'ct' ? '<span class="ct-glyph"></span>' : '<span class="xray-glyph">🩻</span>'; }
+function modalityGlyph(modality, active) {
+  if (modality.cls === 'ct') return '<span class="ct-glyph"></span>';
+  // Emoji glyphs render in their own fixed colors and ignore CSS
+  // currentColor, so they can't visually "grey out" -- use the emoji only
+  // once a PDF is known (active/lit state); keep the plain CSS-drawn box
+  // for the disabled/no-PDF-yet state so it still greys out correctly.
+  return active ? '<span class="xray-glyph active">🩻</span>' : '<span class="xray-glyph">✦</span>';
+}
 function filterStudyRows() {
   const query = document.getElementById('studySearch').value.trim().toLowerCase();
   document.querySelectorAll('#studyTable tr').forEach(row => { row.style.display = !query || row.innerText.toLowerCase().includes(query) ? '' : 'none'; });
@@ -148,8 +156,8 @@ function loadStudies() {
         const folderUrl = `https://files.sdrc.in/${study.studyId}/`;
         const rowUrl = folderUrl;
         const viewCell = pdfUrl
-          ? `<a href="${pdfUrl}" target="_blank" rel="noopener" aria-label="Open PDF report" title="Open PDF report" onclick="event.stopPropagation()"><span class="modality ${modality.cls}">${modalityGlyph(modality)}</span></a>`
-          : `<span class="modality disabled" aria-label="No PDF known yet" title="No PDF known yet -- click the row to browse the study folder">${modalityGlyph(modality)}</span>`;
+          ? `<a href="${pdfUrl}" target="_blank" rel="noopener" aria-label="Open PDF report" title="Open PDF report" onclick="event.stopPropagation()"><span class="modality ${modality.cls}">${modalityGlyph(modality, true)}</span></a>`
+          : `<span class="modality disabled" aria-label="No PDF known yet" title="No PDF known yet -- click the row to browse the study folder">${modalityGlyph(modality, false)}</span>`;
         return `<tr class="data-row" onclick="window.open('${rowUrl}','_blank')"><td class="reqno" onclick="event.stopPropagation()">${study.accession || '—'}</td><td>${study.patientName || '—'}</td><td>${modality.label}</td><td style="font-weight:700;color:#426d7f">${study.phone || '—'}</td><td>${study.status || '—'}</td><td>${study.attempts ?? '—'}</td><td>${study.timestamp || '—'}</td><td style="text-align:right">${viewCell}</td></tr>`;
       }).join('');
       document.getElementById('resultCount').innerText = `${data.filter(s => s.studyId).length} studies`;
