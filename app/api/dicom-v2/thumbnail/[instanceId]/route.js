@@ -15,8 +15,9 @@ export async function GET(req, { params }) {
     return new Response('DICOM_EXPORT_V2_URL not configured', { status: 503 })
   }
   const { instanceId } = await params
+  const source = new URL(req.url).searchParams.get('source') || 'primary'
   try {
-    const upstream = await fetch(`${BASE_URL}/api/dicom-thumbnail/${encodeURIComponent(instanceId)}`)
+    const upstream = await fetch(`${BASE_URL}/api/dicom-thumbnail/${encodeURIComponent(instanceId)}?source=${encodeURIComponent(source)}`)
     const buf = await upstream.arrayBuffer()
     return new Response(buf, {
       status: upstream.status,

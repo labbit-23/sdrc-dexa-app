@@ -186,8 +186,12 @@ function loadStudies() {
     .finally(() => { loading.style.display='none'; button.disabled=false; button.innerText='Load study activity →'; });
 }
 // --- CT selection tab -------------------------------------------------------
-function thumbUrl(instanceId) { return window.location.pathname.replace(/\/dicom-v2\.html$/, '') + '/api/dicom-v2/thumbnail/' + instanceId; }
-let ctState = null;      // { studyId, patientName, series: [...] } from GET_STUDY_INSTANCES
+// source ("primary"/"backup") must be the exact value the study's LIST row
+// (or its GET_STUDY_INSTANCES response) was tagged with -- a study served
+// from the backup ORTHANCNEW can't have its images fetched from the
+// primary, they're separate Orthanc instances. See ctState.source.
+function thumbUrl(instanceId, source) { return window.location.pathname.replace(/\/dicom-v2\.html$/, '') + '/api/dicom-v2/thumbnail/' + instanceId + '?source=' + encodeURIComponent(source || 'primary'); }
+let ctState = null;      // { studyId, patientName, source, series: [...] } from GET_STUDY_INSTANCES
 let ctSelection = [];    // ordered array of instanceIds -- position in array = order
 
 function setCtStudyDate(daysAgo) {
@@ -208,21 +212,24 @@ function loadCtStudies() {
     .then(res => res.json()).then(data => {
       // LIST returns both CR and CT rows mixed -- this tab only cares about CT.
       const ctRows = data.filter(s => s.studyId && String(s.modality || '').toUpperCase() === 'CT');
-      const rows = ctRows.map(study => `<tr class="data-row" onclick="openCtSelection('${study.studyId}','${(study.patientName || 'Patient').replace(/'/g, "\\'")}')"><td class="reqno">${study.accession || '—'}</td><td>${study.patientName || '—'}</td><td>${study.status || '—'}</td><td>${study.timestamp || '—'}</td></tr>`).join('');
+      const rows = ctRows.map(study => `<tr class="data-row" onclick="openCtSelection('${study.studyId}','${(study.patientName || 'Patient').replace(/'/g, "\\'")}','${study.source || 'primary'}')"><td class="reqno">${study.accession || '—'}</td><td>${study.patientName || '—'}</td><td>${study.status || '—'}</td><td>${study.timestamp || '—'}</td></tr>`).join('');
       document.getElementById('ctResultCount').innerText = `${ctRows.length} studies`;
       document.getElementById('ctTableWrap').innerHTML = rows ? `<table><thead><tr><th>Accession</th><th>Patient</th><th>Status</th><th>Timestamp</th></tr></thead><tbody>${rows}</tbody></table>` : '<div class="empty">No CT studies found for this date.</div>';
     }).catch(err => { document.getElementById('ctTableWrap').innerHTML = '<div class="empty">Unable to load CT study activity.</div>'; console.error(err); })
     .finally(() => { loading.style.display='none'; button.disabled=false; button.innerText='Load CT studies →'; });
 }
 
-function openCtSelection(studyId, patientName) {
+function openCtSelection(studyId, patientName, source) {
   document.getElementById('ctSelectionPanel').style.display = 'block';
   document.getElementById('ctSelectionTitle').innerText = `Select images — ${patientName}`;
   document.getElementById('ctSeriesWrap').innerHTML = '<div class="empty">Loading images…</div>';
   document.getElementById('ctSelectionStatus').innerText = '';
-  fetch(apiBase(), { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({action:'GET_STUDY_INSTANCES', studyId}) })
+  fetch(apiBase(), { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({action:'GET_STUDY_INSTANCES', studyId, source}) })
     .then(res => res.json()).then(data => {
-      ctState = { studyId, patientName, series: data.series || [] };
+      // The backend echoes back whichever source actually served this
+      // study (data.source) -- trust that over what we sent, since it's
+      // the value that was actually used to fetch these instances.
+      ctState = { studyId, patientName, source: data.source || source || 'primary', series: data.series || [] };
       // Seed the working selection from whatever was already saved, in order.
       const already = [];
       ctState.series.forEach(s => s.instances.forEach(i => { if (i.selectedOrder > 0) already.push(i); }));
@@ -275,7 +282,7 @@ function renderCtSeries() {
       // to unselected). Its checked state is always driven by render, never
       // by native checkbox click behavior, so there's one source of truth.
       const checkbox = `<input type="checkbox" class="ct-thumb-check" ${selected ? 'checked' : ''} onclick="event.stopPropagation(); toggleCtThumb('${inst.instanceId}')" aria-label="Select image">`;
-      return `<div class="ct-thumb${selected ? ' selected' : ''}" onclick="toggleCtThumb('${inst.instanceId}')">${checkbox}<img src="${thumbUrl(inst.instanceId)}" loading="lazy" alt="">${badge}${moveButtons}</div>`;
+      return `<div class="ct-thumb${selected ? ' selected' : ''}" onclick="toggleCtThumb('${inst.instanceId}')">${checkbox}<img src="${thumbUrl(inst.instanceId, ctState.source)}" loading="lazy" alt="">${badge}${moveButtons}</div>`;
     }).join('');
     // Series-level "select all" checkbox: Pavan's ask -- much faster to
     // grab a whole series in one click and uncheck the one bad instance
@@ -350,7 +357,7 @@ function saveCtSelection() {
   if (!ctState) return;
   const status = document.getElementById('ctSelectionStatus');
   status.className = 'status'; status.innerText = 'Queueing for send…';
-  fetch(apiBase(), { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({action:'SAVE_SELECTION', studyId: ctState.studyId, selectedInstanceIds: ctSelection}) })
+  fetch(apiBase(), { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({action:'SAVE_SELECTION', studyId: ctState.studyId, source: ctState.source, selectedInstanceIds: ctSelection}) })
     .then(res => { if (!res.ok) throw new Error('Request failed'); return res.json(); })
     .then(() => { status.className = 'status success'; status.innerText = `Queued for send -- ${ctSelection.length} image(s). Will be sent on the next cycle.`; })
     .catch(err => { status.className = 'status error'; status.innerText = 'Could not save selection.'; console.error(err); });
