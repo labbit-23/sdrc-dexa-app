@@ -59,7 +59,7 @@
     table { width:100%; border-collapse:collapse; font-size:14px; }
     th { padding:14px 18px; color:#8095a0; background:#f8fbfc; text-align:left; text-transform:uppercase; letter-spacing:.08em; font-size:11px; font-weight:850; }
     td { padding:16px 18px; border-top:1px solid #edf3f5; color:#547080; }
-    tr.data-row { transition:background .15s ease; } tr.data-row:hover { background:#f5fbfa; }
+    tr.data-row { transition:background .15s ease; cursor:pointer; } tr.data-row:hover { background:#f5fbfa; }
     .reqno { user-select:text; cursor:text; }
     td:first-child { color:#204a60; font-weight:800; } td:nth-child(3) { color:#2c8b76; font-weight:750; }
     .modality { display:inline-grid; place-items:center; width:34px; height:30px; border-radius:9px; color:#536bda; background:#f0efff; font-size:17px; font-weight:850; text-decoration:none; }
@@ -139,10 +139,16 @@ function loadStudies() {
       const rows = data.filter(study => study.studyId).map(study => {
         const modality = modalityLabel(study);
         const pdfUrl = study.pdfUrl || '';
+        // Row click opens the real PDF when we have one (studies sent by
+        // this worker); falls back to the old guessed-folder link for
+        // studies this worker never touched (e.g. sent by Mirth before
+        // cutover, which never wrote pdfUrl) so nothing regresses.
+        const folderUrl = `https://files.sdrc.in/${study.studyId}/`;
+        const rowUrl = pdfUrl || folderUrl;
         const viewCell = pdfUrl
-          ? `<a href="${pdfUrl}" target="_blank" rel="noopener" aria-label="Open PDF report" title="Open PDF report"><span class="modality ${modality.cls}">${modalityGlyph(modality)}</span></a>`
-          : `<span class="modality disabled" aria-label="No PDF yet" title="No PDF generated yet">${modalityGlyph(modality)}</span>`;
-        return `<tr class="data-row"><td class="reqno">${study.accession || '—'}</td><td>${study.patientName || '—'}</td><td style="font-weight:700;color:#426d7f">${study.phone || '—'}</td><td>${study.status || '—'}</td><td>${study.attempts ?? '—'}</td><td>${study.timestamp || '—'}</td><td style="text-align:right">${viewCell}</td></tr>`;
+          ? `<a href="${pdfUrl}" target="_blank" rel="noopener" aria-label="Open PDF report" title="Open PDF report" onclick="event.stopPropagation()"><span class="modality ${modality.cls}">${modalityGlyph(modality)}</span></a>`
+          : `<a href="${folderUrl}" target="_blank" rel="noopener" aria-label="Open study folder" title="No PDF logged yet -- open raw study folder" onclick="event.stopPropagation()"><span class="modality disabled">${modalityGlyph(modality)}</span></a>`;
+        return `<tr class="data-row" onclick="window.open('${rowUrl}','_blank')"><td class="reqno" onclick="event.stopPropagation()">${study.accession || '—'}</td><td>${study.patientName || '—'}</td><td style="font-weight:700;color:#426d7f">${study.phone || '—'}</td><td>${study.status || '—'}</td><td>${study.attempts ?? '—'}</td><td>${study.timestamp || '—'}</td><td style="text-align:right">${viewCell}</td></tr>`;
       }).join('');
       document.getElementById('resultCount').innerText = `${data.filter(s => s.studyId).length} studies`;
       document.getElementById('tableWrap').innerHTML = rows ? `<table><thead><tr><th>Accession</th><th>Patient</th><th>Phone</th><th>Status</th><th>Attempts</th><th>Timestamp</th><th style="text-align:right">PDF</th></tr></thead><tbody id="studyTable">${rows}</tbody></table>` : '<div class="empty">No studies found for this date.</div>';
