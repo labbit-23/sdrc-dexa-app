@@ -80,6 +80,7 @@
     .ct-thumb.selected { border-color:var(--purple); box-shadow:0 0 0 3px #ece9ff; }
     .ct-thumb-check { position:absolute; top:5px; right:5px; width:18px; height:18px; accent-color:var(--purple); cursor:pointer; z-index:1; }
     .ct-thumb-badge { position:absolute; top:5px; left:5px; min-width:21px; height:21px; padding:0 5px; border-radius:7px; background:var(--purple); color:#fff; font-size:11px; font-weight:850; display:grid; place-items:center; }
+    .ct-thumb-instance { position:absolute; left:5px; bottom:5px; padding:3px 5px; border-radius:5px; background:rgba(0,0,0,.72); color:#dce8ef; font-size:10px; font-weight:800; }
     .ct-thumb-move { position:absolute; bottom:4px; right:4px; display:flex; gap:3px; }
     .ct-thumb-move button { width:21px; height:21px; border:0; border-radius:6px; background:rgba(10,15,25,.72); color:#fff; font-size:11px; cursor:pointer; line-height:1; }
     .ct-thumb-move button:hover { background:rgba(10,15,25,.92); }
@@ -110,7 +111,7 @@
       </section>
       <section class="results" id="ctStudyResults"><div class="results-head"><div class="results-title">CT studies <span class="count" id="ctResultCount"></span></div></div><div id="ctTableWrap"><div class="empty">Choose a date above to load CT studies.</div></div></section>
       <section class="results" id="ctSelectionPanel" style="display:none;margin-top:20px;">
-        <div class="results-head"><div class="results-title" id="ctSelectionTitle">Select images</div><div style="display:flex;align-items:center;gap:16px;"><span class="count" id="ctSelectionCount"></span><button class="button primary" style="margin:0;height:36px;" onclick="saveCtSelection()">Queueing for send →</button></div></div>
+        <div class="results-head"><div class="results-title" id="ctSelectionTitle">Film composer</div><div style="display:flex;align-items:center;gap:10px;"><span class="count" id="ctSelectionCount"></span><select id="ctFilmLayout" aria-label="Film layout" style="height:36px;width:92px;padding:0 8px;font-size:12px;"><option value="6x4">6 × 4</option><option value="7x5">7 × 5</option><option value="5x6">5 × 6</option><option value="5x5">5 × 5</option><option value="4x4">4 × 4</option><option value="6x6">6 × 6</option></select><button class="button secondary" style="margin:0;height:36px;" onclick="previewCtFilm()">Preview PDF</button><button class="button primary" style="margin:0;height:36px;" onclick="saveCtSelection()">Save selection →</button></div></div>
         <div class="status" id="ctSelectionStatus" style="padding:0 23px;"></div>
         <div id="ctSeriesWrap" style="padding:20px 23px;"></div>
         <div style="padding:0 23px 23px;display:flex;justify-content:flex-end;"><button class="button primary" style="margin:0;height:36px;" onclick="saveCtSelection()">Queueing for send →</button></div>
@@ -272,7 +273,8 @@ function renderCtSeries() {
     const thumbs = s.instances.map(inst => {
       const pos = localOrder.indexOf(inst.instanceId);
       const selected = pos !== -1;
-      const badge = selected ? `<span class="ct-thumb-badge">${pos + 1}</span>` : '';
+      const badge = selected ? `<span class="ct-thumb-badge">Film ${pos + 1}</span>` : '';
+      const instanceLabel = inst.instanceNumber ? `<span class="ct-thumb-instance">Inst ${inst.instanceNumber}</span>` : '';
       const moveButtons = selected
         ? `<span class="ct-thumb-move" onclick="event.stopPropagation()"><button onclick="moveCtThumb('${inst.instanceId}',-1)" ${pos===0?'disabled':''} aria-label="Move earlier">‹</button><button onclick="moveCtThumb('${inst.instanceId}',1)" ${pos===localOrder.length-1?'disabled':''} aria-label="Move later">›</button></span>`
         : '';
@@ -282,7 +284,7 @@ function renderCtSeries() {
       // to unselected). Its checked state is always driven by render, never
       // by native checkbox click behavior, so there's one source of truth.
       const checkbox = `<input type="checkbox" class="ct-thumb-check" ${selected ? 'checked' : ''} onclick="event.stopPropagation(); toggleCtThumb('${inst.instanceId}')" aria-label="Select image">`;
-      return `<div class="ct-thumb${selected ? ' selected' : ''}" onclick="toggleCtThumb('${inst.instanceId}')">${checkbox}<img src="${thumbUrl(inst.instanceId, ctState.source)}" loading="lazy" alt="">${badge}${moveButtons}</div>`;
+      return `<div class="ct-thumb${selected ? ' selected' : ''}" onclick="toggleCtThumb('${inst.instanceId}')">${checkbox}<img src="${thumbUrl(inst.instanceId, ctState.source)}" loading="lazy" alt="">${badge}${instanceLabel}${moveButtons}</div>`;
     }).join('');
     // Series-level "select all" checkbox: Pavan's ask -- much faster to
     // grab a whole series in one click and uncheck the one bad instance
@@ -351,6 +353,26 @@ function updateCtCount() {
   const seriesWithSelection = new Set();
   ctState.series.forEach(s => { if (s.instances.some(i => selectedSet.has(i.instanceId))) seriesWithSelection.add(s.seriesId); });
   document.getElementById('ctSelectionCount').innerText = `${seriesWithSelection.size} page${seriesWithSelection.size===1?'':'s'}, ${ctSelection.length} image${ctSelection.length===1?'':'s'} selected`;
+}
+
+function previewCtFilm() {
+  if (!ctState || !ctSelection.length) {
+    const status = document.getElementById('ctSelectionStatus');
+    status.className = 'status error'; status.innerText = 'Select at least one image first.';
+    return;
+  }
+  const status = document.getElementById('ctSelectionStatus');
+  const layout = document.getElementById('ctFilmLayout').value;
+  status.className = 'status'; status.innerText = `Rendering ${layout} film preview…`;
+  fetch(apiBase(), { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({action:'PREVIEW_SELECTION', studyId:ctState.studyId, source:ctState.source, selectedInstanceIds:ctSelection, layout}) })
+    .then(res => { if (!res.ok) return res.json().then(x => { throw new Error(x.error || 'Preview failed'); }); return res.blob(); })
+    .then(blob => {
+      const url = URL.createObjectURL(blob);
+      window.open(url, '_blank', 'noopener');
+      setTimeout(() => URL.revokeObjectURL(url), 60000);
+      status.className = 'status success'; status.innerText = `Preview ready — ${ctSelection.length} image(s), ${layout} layout.`;
+    })
+    .catch(err => { status.className = 'status error'; status.innerText = err.message || 'Could not render preview.'; });
 }
 
 function saveCtSelection() {
