@@ -85,6 +85,12 @@
     .ct-thumb-move button { width:21px; height:21px; border:0; border-radius:6px; background:rgba(10,15,25,.72); color:#fff; font-size:11px; cursor:pointer; line-height:1; }
     .ct-thumb-move button:hover { background:rgba(10,15,25,.92); }
     @media(max-width:760px) { .heading { display:block; } .live { display:inline-flex; margin-top:20px; } .actions { display:block; } .panel { margin-bottom:15px; } .fields { grid-template-columns:1fr; } .results { overflow-x:auto; } table { min-width:760px; } .brand-label { display:none; } }
+    .pdf-modal-backdrop { position:fixed; inset:0; z-index:1000; display:grid; place-items:center; background:rgba(10,24,36,.72); }
+    .pdf-modal { width:min(430px,calc(100vw - 32px)); max-height:80vh; overflow:auto; background:#fff; border-radius:16px; padding:20px; box-shadow:0 20px 70px rgba(0,0,0,.35); }
+    .pdf-modal h3 { margin:0 0 5px; color:var(--ink); font-size:16px; }
+    .pdf-choice { display:flex; align-items:center; justify-content:space-between; width:100%; margin-top:9px; padding:11px 13px; border:1px solid var(--line); border-radius:9px; background:#f8fbfc; color:var(--ink); cursor:pointer; font-weight:750; text-align:left; }
+    .pdf-choice:hover { border-color:var(--teal); background:#effaf6; }
+    .pdf-close { margin-top:14px; width:100%; padding:9px; border:0; border-radius:8px; background:#e9eff2; color:#45616f; cursor:pointer; font-weight:750; }
   </style>
 </head>
 <body>
@@ -143,6 +149,30 @@ function modalityLabel(study) {
   const raw = String(study.modality || study.studyModality || study.Modality || '').toUpperCase();
   return raw === 'CT' ? { label:'CT', cls:'ct' } : { label:'X-Ray / image study', cls:'' };
 }
+function pdfUrlsForStudy(study) {
+  const urls = Array.isArray(study.pdfUrls) ? study.pdfUrls.filter(Boolean) : [];
+  if (!urls.length && study.pdfUrl) urls.push(study.pdfUrl);
+  return urls;
+}
+function openPdfChooser(urls, label) {
+  const old=document.getElementById('pdfChooser'); if(old) old.remove();
+  const backdrop=document.createElement('div'); backdrop.id='pdfChooser'; backdrop.className='pdf-modal-backdrop';
+  const modal=document.createElement('div'); modal.className='pdf-modal';
+  const title=document.createElement('h3'); title.textContent=`${label || 'Study'} — choose PDF`; modal.appendChild(title);
+  const note=document.createElement('div'); note.style.cssText='color:#718798;font-size:11px;margin-bottom:5px'; note.textContent=`${urls.length} sent files`; modal.appendChild(note);
+  urls.forEach((url,index)=>{ const button=document.createElement('button'); button.className='pdf-choice'; button.innerHTML=`<span>PDF ${index+1}</span><span>Open ↗</span>`; button.onclick=()=>window.open(url,'_blank','noopener'); modal.appendChild(button); });
+  const close=document.createElement('button'); close.className='pdf-close'; close.textContent='Cancel'; close.onclick=()=>backdrop.remove(); modal.appendChild(close);
+  backdrop.onclick=event=>{if(event.target===backdrop) backdrop.remove()}; backdrop.appendChild(modal); document.body.appendChild(backdrop);
+}
+function pdfViewCell(study, modality) {
+  const urls=pdfUrlsForStudy(study);
+  if(!urls.length) return `<span class="modality disabled" aria-label="No PDF known yet" title="No PDF known yet">${modalityGlyph(modality,false)}</span>`;
+  const label=modality.label || 'Study';
+  if(urls.length===1) return `<a href="${urls[0]}" target="_blank" rel="noopener" aria-label="Open PDF report" title="Open PDF report" onclick="event.stopPropagation()"><span class="modality pdf-action ${modality.cls}">${modalityGlyph(modality,true)}</span></a>`;
+  const encoded=JSON.stringify(urls).replace(/</g,'\u003c');
+  return `<button class="modality pdf-action ${modality.cls}" title="Choose one of ${urls.length} PDFs" aria-label="Choose one of ${urls.length} PDFs" onclick="event.stopPropagation();openPdfChooser(${encoded},${JSON.stringify(label)})">${modalityGlyph(modality,true)}<small style="font-size:9px;margin-left:3px">${urls.length}</small></button>`;
+}
+
 function modalityGlyph(modality, active) {
   if (modality.cls === 'ct') return '<span class="ct-glyph"></span>';
   // Emoji glyphs render in their own fixed colors and ignore CSS
@@ -162,22 +192,13 @@ function loadStudies() {
   // IST calendar string so today's study is never rejected near midnight.
   if (dateInput > localCalendarDate()) { alert('Future dates are not allowed.'); return; }
   loading.style.display = 'block'; button.disabled = true; button.innerText = 'Loading…';
-  fetch(apiBase(), { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({action:'LIST', date:formatDateToYYYYMMDD(dateInput)}) })
+  fetch(apiBase(), { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({action:'LIST', date:formatDateToYYYYMMDD(dateInput), modality:'CR'}) })
     .then(res => res.json()).then(data => {
       const rows = data.filter(study => study.studyId).map(study => {
         const modality = modalityLabel(study);
-        const pdfUrl = study.pdfUrl || '';
-        // The FTP folder is shared per patient/day and can genuinely hold
-        // more than one PDF (e.g. an auto-send plus a later manual resend
-        // use different filenames, so neither overwrites the other) --
-        // WhatsappPdfUrl metadata only ever tracks the single latest one.
-        // Row click -> browse the whole folder. Icon click -> the one PDF
-        // we currently believe is current, when we know it.
         const folderUrl = `https://files.sdrc.in/${study.studyId}/`;
         const rowUrl = folderUrl;
-        const viewCell = pdfUrl
-          ? `<a href="${pdfUrl}" target="_blank" rel="noopener" aria-label="Open PDF report" title="Open PDF report" onclick="event.stopPropagation()"><span class="modality ${modality.cls}">${modalityGlyph(modality, true)}</span></a>`
-          : `<span class="modality disabled" aria-label="No PDF known yet" title="No PDF known yet -- click the row to browse the study folder">${modalityGlyph(modality, false)}</span>`;
+        const viewCell = pdfViewCell(study, modality);
         return `<tr class="data-row" onclick="window.open('${rowUrl}','_blank')"><td class="reqno" onclick="event.stopPropagation()">${study.accession || '—'}</td><td>${study.patientName || '—'}</td><td>${modality.label}</td><td style="font-weight:700;color:#426d7f">${study.phone || '—'}</td><td>${study.status || '—'}</td><td>${study.attempts ?? '—'}</td><td>${study.timestamp || '—'}</td><td style="text-align:right">${viewCell}</td></tr>`;
       }).join('');
       document.getElementById('resultCount').innerText = `${data.filter(s => s.studyId).length} studies`;
@@ -209,15 +230,54 @@ function loadCtStudies() {
   if (!dateInput) { alert('Please select a date.'); return; }
   if (dateInput > localCalendarDate()) { alert('Future dates are not allowed.'); return; }
   loading.style.display = 'block'; button.disabled = true; button.innerText = 'Loading…';
-  fetch(apiBase(), { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({action:'LIST', date:formatDateToYYYYMMDD(dateInput)}) })
+  fetch(apiBase(), { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({action:'LIST', date:formatDateToYYYYMMDD(dateInput), modality:'CT'}) })
     .then(res => res.json()).then(data => {
       // LIST returns both CR and CT rows mixed -- this tab only cares about CT.
       const ctRows = data.filter(s => s.studyId && String(s.modality || '').toUpperCase() === 'CT');
-      const rows = ctRows.map(study => `<tr class="data-row" onclick="openCtSelection('${study.studyId}','${(study.patientName || 'Patient').replace(/'/g, "\\'")}','${study.source || 'primary'}')"><td class="reqno">${study.accession || '—'}</td><td>${study.patientName || '—'}</td><td>${study.status || '—'}</td><td>${study.timestamp || '—'}</td></tr>`).join('');
+      const rows = ctRows.map(study => {
+        const modality = {label:'CT', cls:'ct'};
+        const viewCell = pdfViewCell(study, modality);
+        // Pass only the lightweight LIST row into the confirmation modal.
+        // GET_STUDY_INSTANCES (and therefore thumbnails) starts only after
+        // the operator explicitly confirms.
+        const rowData = JSON.stringify({
+          studyId: study.studyId,
+          accession: study.accession || '',
+          patientName: study.patientName || 'Patient',
+          source: study.source || 'primary',
+          status: study.status || '',
+          pdfUrls: pdfUrlsForStudy(study),
+        }).replace(/</g, '\\u003c');
+        return `<tr class="data-row" onclick="if(event.target.closest('.pdf-action')) return; openCtConfirm(${rowData})"><td class="reqno">${study.accession || '—'}</td><td>${study.patientName || '—'}</td><td>${study.status || '—'}</td><td>${study.timestamp || '—'}</td><td style="text-align:right">${viewCell}</td></tr>`;
+      }).join('');
       document.getElementById('ctResultCount').innerText = `${ctRows.length} studies`;
-      document.getElementById('ctTableWrap').innerHTML = rows ? `<table><thead><tr><th>Accession</th><th>Patient</th><th>Status</th><th>Timestamp</th></tr></thead><tbody>${rows}</tbody></table>` : '<div class="empty">No CT studies found for this date.</div>';
+      document.getElementById('ctTableWrap').innerHTML = rows ? `<table><thead><tr><th>Accession</th><th>Patient</th><th>Status</th><th>Timestamp</th><th style="text-align:right">PDF</th></tr></thead><tbody>${rows}</tbody></table>` : '<div class="empty">No CT studies found for this date.</div>';
     }).catch(err => { document.getElementById('ctTableWrap').innerHTML = '<div class="empty">Unable to load CT study activity.</div>'; console.error(err); })
     .finally(() => { loading.style.display='none'; button.disabled=false; button.innerText='Load CT studies →'; });
+}
+
+function openCtConfirm(study) {
+  const old=document.getElementById('ctOpenConfirm'); if(old) old.remove();
+  const backdrop=document.createElement('div'); backdrop.id='ctOpenConfirm'; backdrop.className='pdf-modal-backdrop';
+  const modal=document.createElement('div'); modal.className='pdf-modal';
+  const sent=String(study.status || '').toUpperCase() === 'SENT';
+  const urls=Array.isArray(study.pdfUrls) ? study.pdfUrls.filter(Boolean) : [];
+  const title=document.createElement('h3'); title.textContent=study.accession || 'CT study'; modal.appendChild(title);
+  const note=document.createElement('div'); note.style.cssText='color:#718798;font-size:12px;line-height:1.5;margin-bottom:12px';
+  note.textContent=sent
+    ? `Already sent${urls.length ? ` — ${urls.length} PDF${urls.length===1?'':'s'} available.` : '.'} Loading images will query Orthanc again. Open selector anyway?`
+    : 'Opening the image selector will fetch the study structure and thumbnails from Orthanc. Continue?';
+  modal.appendChild(note);
+  if (urls.length) {
+    const pdfButton=document.createElement('button'); pdfButton.className='button secondary'; pdfButton.style.cssText='width:100%;margin:0 0 8px'; pdfButton.textContent=urls.length===1 ? 'Open sent PDF' : `Choose from ${urls.length} sent PDFs`;
+    pdfButton.onclick=()=>{ backdrop.remove(); openPdfChooser(urls, `${study.accession || 'CT study'} — sent reports`); };
+    modal.appendChild(pdfButton);
+  }
+  const open=document.createElement('button'); open.className='button primary'; open.style.cssText='width:100%;margin:0 0 8px'; open.textContent=sent ? 'Open images anyway' : 'Load image selector';
+  open.onclick=()=>{ backdrop.remove(); openCtSelection(study.studyId, study.patientName, study.source); };
+  modal.appendChild(open);
+  const close=document.createElement('button'); close.className='pdf-close'; close.textContent='Cancel'; close.onclick=()=>backdrop.remove(); modal.appendChild(close);
+  backdrop.onclick=event=>{if(event.target===backdrop) backdrop.remove()}; backdrop.appendChild(modal); document.body.appendChild(backdrop);
 }
 
 function openCtSelection(studyId, patientName, source) {
