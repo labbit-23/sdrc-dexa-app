@@ -199,10 +199,10 @@ function loadStudies() {
         const folderUrl = `https://files.sdrc.in/${study.studyId}/`;
         const rowUrl = folderUrl;
         const viewCell = pdfViewCell(study, modality);
-        return `<tr class="data-row" onclick="window.open('${rowUrl}','_blank')"><td class="reqno" onclick="event.stopPropagation()">${study.accession || '—'}</td><td>${study.patientName || '—'}</td><td>${modality.label}</td><td style="font-weight:700;color:#426d7f">${study.phone || '—'}</td><td>${study.status || '—'}</td><td>${study.attempts ?? '—'}</td><td>${study.timestamp || '—'}</td><td style="text-align:right">${viewCell}</td></tr>`;
+        return `<tr class="data-row" onclick="window.open('${rowUrl}','_blank')"><td class="reqno" onclick="event.stopPropagation()">${study.accession || '—'}</td><td>${study.patientName || '—'}</td><td>${study.studyDescription || '—'}</td><td>${modality.label}</td><td style="font-weight:700;color:#426d7f">${study.phone || '—'}</td><td>${study.status || '—'}</td><td>${study.attempts ?? '—'}</td><td>${study.timestamp || '—'}</td><td style="text-align:right">${viewCell}</td></tr>`;
       }).join('');
       document.getElementById('resultCount').innerText = `${data.filter(s => s.studyId).length} studies`;
-      document.getElementById('tableWrap').innerHTML = rows ? `<table><thead><tr><th>Accession</th><th>Patient</th><th>Modality</th><th>Phone</th><th>Status</th><th>Attempts</th><th>Timestamp</th><th style="text-align:right">PDF</th></tr></thead><tbody id="studyTable">${rows}</tbody></table>` : '<div class="empty">No studies found for this date.</div>';
+      document.getElementById('tableWrap').innerHTML = rows ? `<table><thead><tr><th>Accession</th><th>Patient</th><th>Study / exam</th><th>Modality</th><th>Phone</th><th>Status</th><th>Attempts</th><th>Timestamp</th><th style="text-align:right">PDF</th></tr></thead><tbody id="studyTable">${rows}</tbody></table>` : '<div class="empty">No studies found for this date.</div>';
       document.getElementById('studyResults').scrollIntoView({ behavior: 'smooth', block: 'start' });
     }).catch(err => { document.getElementById('tableWrap').innerHTML = '<div class="empty">Unable to load study activity.</div>'; console.error(err); })
     .finally(() => { loading.style.display='none'; button.disabled=false; button.innerText='Load study activity →'; });
@@ -244,14 +244,15 @@ function loadCtStudies() {
           studyId: study.studyId,
           accession: study.accession || '',
           patientName: study.patientName || 'Patient',
+          studyDescription: study.studyDescription || '',
           source: study.source || 'primary',
           status: study.status || '',
           pdfUrls: pdfUrlsForStudy(study),
         }).replace(/</g, '\\u003c');
-        return `<tr class="data-row" onclick="if(event.target.closest('.pdf-action')) return; openCtConfirm(${rowData})"><td class="reqno">${study.accession || '—'}</td><td>${study.patientName || '—'}</td><td>${study.status || '—'}</td><td>${study.timestamp || '—'}</td><td style="text-align:right">${viewCell}</td></tr>`;
+        return `<tr class="data-row" onclick="if(event.target.closest('.pdf-action')) return; openCtConfirm(${rowData})"><td class="reqno">${study.accession || '—'}</td><td>${study.patientName || '—'}</td><td>${study.studyDescription || '—'}</td><td>${study.status || '—'}</td><td>${study.timestamp || '—'}</td><td style="text-align:right">${viewCell}</td></tr>`;
       }).join('');
       document.getElementById('ctResultCount').innerText = `${ctRows.length} studies`;
-      document.getElementById('ctTableWrap').innerHTML = rows ? `<table><thead><tr><th>Accession</th><th>Patient</th><th>Status</th><th>Timestamp</th><th style="text-align:right">PDF</th></tr></thead><tbody>${rows}</tbody></table>` : '<div class="empty">No CT studies found for this date.</div>';
+      document.getElementById('ctTableWrap').innerHTML = rows ? `<table><thead><tr><th>Accession</th><th>Patient</th><th>Study / exam</th><th>Status</th><th>Timestamp</th><th style="text-align:right">PDF</th></tr></thead><tbody>${rows}</tbody></table>` : '<div class="empty">No CT studies found for this date.</div>';
     }).catch(err => { document.getElementById('ctTableWrap').innerHTML = '<div class="empty">Unable to load CT study activity.</div>'; console.error(err); })
     .finally(() => { loading.style.display='none'; button.disabled=false; button.innerText='Load CT studies →'; });
 }
@@ -262,7 +263,7 @@ function openCtConfirm(study) {
   const modal=document.createElement('div'); modal.className='pdf-modal';
   const sent=String(study.status || '').toUpperCase() === 'SENT';
   const urls=Array.isArray(study.pdfUrls) ? study.pdfUrls.filter(Boolean) : [];
-  const title=document.createElement('h3'); title.textContent=study.accession || 'CT study'; modal.appendChild(title);
+  const title=document.createElement('h3'); title.textContent=[study.accession, study.studyDescription].filter(Boolean).join(' — ') || 'CT study'; modal.appendChild(title);
   const note=document.createElement('div'); note.style.cssText='color:#718798;font-size:12px;line-height:1.5;margin-bottom:12px';
   note.textContent=sent
     ? `Already sent${urls.length ? ` — ${urls.length} PDF${urls.length===1?'':'s'} available.` : '.'} Loading images will query Orthanc again. Open selector anyway?`
@@ -270,7 +271,7 @@ function openCtConfirm(study) {
   modal.appendChild(note);
   if (urls.length) {
     const pdfButton=document.createElement('button'); pdfButton.className='button secondary'; pdfButton.style.cssText='width:100%;margin:0 0 8px'; pdfButton.textContent=urls.length===1 ? 'Open sent PDF' : `Choose from ${urls.length} sent PDFs`;
-    pdfButton.onclick=()=>{ backdrop.remove(); openPdfChooser(urls, `${study.accession || 'CT study'} — sent reports`); };
+    pdfButton.onclick=()=>{ backdrop.remove(); openPdfChooser(urls, `${study.accession || 'CT study'}${study.studyDescription ? ' — ' + study.studyDescription : ''} — sent reports`); };
     modal.appendChild(pdfButton);
   }
   const open=document.createElement('button'); open.className='button primary'; open.style.cssText='width:100%;margin:0 0 8px'; open.textContent=sent ? 'Open images anyway' : 'Load image selector';
