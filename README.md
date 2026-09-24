@@ -1,8 +1,12 @@
 # sdrc-dexa-app
 
-Standalone Next.js DEXA reporting app — runs on the SDRC Ubuntu server.
+Standalone Next.js radiology dashboard — runs on the SDRC Ubuntu server. Started as
+a DEXA (bone density) reporting app; also serves DICOM/CT viewing (`/dicom`,
+`/dicom-v2`) against Orthanc, an ECG viewer (`/ecg`), and scan archive linking
+(`/archive-linker`). Name kept as-is to avoid touching the live repo/PM2/deploy
+config for a cosmetic rename.
 
-Reads scan data from Supabase (uploaded by the Windows collector on the GE Lunar workstation)
+Reads DEXA scan data from Supabase (uploaded by the Windows collector on the GE Lunar workstation)
 and generates bone density (osteo) PDF reports on demand.
 
 ## Ports
