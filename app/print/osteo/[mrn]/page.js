@@ -9,10 +9,7 @@ function PdfBtn({ href, label, bg, faint }) {
   const [busy, setBusy] = useState(false)
   const download = () => {
     setBusy(true)
-    // Mobile browsers render an inline PDF in the current tab when assigned
-    // to location.href, replacing this page and hiding the Labit button.
-    // Keep the report controls alive by opening the generated PDF separately.
-    window.open(href, '_blank', 'noopener,noreferrer')
+    window.location.href = href
     setTimeout(() => setBusy(false), 8000)
   }
   return (
@@ -97,6 +94,7 @@ export default function PrintPreviewOsteo({ params: paramsPromise, searchParams:
             height: auto;
             gap: 6px;
             padding: 8px;
+            align-content: center;
           }
           [data-toolbar="true"] img {
             display: none;
@@ -105,6 +103,9 @@ export default function PrintPreviewOsteo({ params: paramsPromise, searchParams:
             font-size: 10px !important;
             flex-basis: 100%;
             order: -1;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
           }
           [data-toolbar="true"] > div[style*="flex: 1"] {
             display: none;
@@ -120,7 +121,10 @@ export default function PrintPreviewOsteo({ params: paramsPromise, searchParams:
           [data-toolbar="true"] button {
             font-size: 10px !important;
             padding: 3px 8px !important;
+            flex: 0 0 auto;
           }
+          [data-toolbar="true"] label,
+          [data-toolbar="true"] select { flex: 0 0 auto; }
           [data-toolbar="true"] div[style*="flex-direction: column"] {
             flex-direction: row !important;
             gap: 0 !important;

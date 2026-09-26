@@ -9,9 +9,7 @@ function PdfBtn({ href, label, bg, faint }) {
   const [busy, setBusy] = useState(false)
   const download = () => {
     setBusy(true)
-    // Keep this DEXA page open on mobile; assigning location.href causes the
-    // browser's PDF viewer to replace the toolbar and hide Push to Labit.
-    window.open(href, '_blank', 'noopener,noreferrer')
+    window.location.href = href
     setTimeout(() => setBusy(false), 8000)
   }
   return (
@@ -124,6 +122,7 @@ export default function PrintPreviewTotalbody({ params: paramsPromise, searchPar
             height: auto;
             gap: 6px;
             padding: 8px;
+            align-content: center;
           }
           [data-toolbar="true"] img {
             display: none;
@@ -132,6 +131,9 @@ export default function PrintPreviewTotalbody({ params: paramsPromise, searchPar
             font-size: 10px !important;
             flex-basis: 100%;
             order: -1;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
           }
           [data-toolbar="true"] > div[style*="flex: 1"] {
             display: none;
@@ -147,7 +149,10 @@ export default function PrintPreviewTotalbody({ params: paramsPromise, searchPar
           [data-toolbar="true"] button {
             font-size: 10px !important;
             padding: 3px 8px !important;
+            flex: 0 0 auto;
           }
+          [data-toolbar="true"] label,
+          [data-toolbar="true"] select { flex: 0 0 auto; }
           [data-toolbar="true"] div[style*="flex-direction: column"] {
             flex-direction: row !important;
             gap: 0 !important;
