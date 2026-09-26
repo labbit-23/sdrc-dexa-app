@@ -9,7 +9,9 @@ function PdfBtn({ href, label, bg, faint }) {
   const [busy, setBusy] = useState(false)
   const download = () => {
     setBusy(true)
-    window.location.href = href
+    // Keep this DEXA page open on mobile; assigning location.href causes the
+    // browser's PDF viewer to replace the toolbar and hide Push to Labit.
+    window.open(href, '_blank', 'noopener,noreferrer')
     setTimeout(() => setBusy(false), 8000)
   }
   return (

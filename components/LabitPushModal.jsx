@@ -45,10 +45,13 @@ export default function LabitPushModal({ mrn, scanType = 'osteo', patientName = 
   const overlay = {
     position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.65)',
     display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 999,
+    padding: 12, boxSizing: 'border-box', overflowY: 'auto',
   }
   const card = {
     background: '#0D1B2A', border: '1px solid #1e3a5a', borderRadius: 10,
-    width: 420, padding: 28, fontFamily: 'system-ui, sans-serif', color: '#fff',
+    width: 'min(420px, 100%)', maxHeight: 'calc(100vh - 24px)', overflowY: 'auto',
+    boxSizing: 'border-box', padding: 'clamp(18px, 5vw, 28px)',
+    fontFamily: 'system-ui, sans-serif', color: '#fff',
   }
   const lbl = {
     display: 'block', color: '#9E9E9E', fontSize: 11,

@@ -9,7 +9,10 @@ function PdfBtn({ href, label, bg, faint }) {
   const [busy, setBusy] = useState(false)
   const download = () => {
     setBusy(true)
-    window.location.href = href
+    // Mobile browsers render an inline PDF in the current tab when assigned
+    // to location.href, replacing this page and hiding the Labit button.
+    // Keep the report controls alive by opening the generated PDF separately.
+    window.open(href, '_blank', 'noopener,noreferrer')
     setTimeout(() => setBusy(false), 8000)
   }
   return (
@@ -87,7 +90,48 @@ export default function PrintPreviewOsteo({ params: paramsPromise, searchParams:
   return (
     <div style={darkPage}>
 
-      <div style={darkToolbar}>
+      <style>{`
+        @media (max-width: 768px) {
+          [data-toolbar="true"] {
+            flex-wrap: wrap;
+            height: auto;
+            gap: 6px;
+            padding: 8px;
+          }
+          [data-toolbar="true"] img {
+            display: none;
+          }
+          [data-toolbar="true"] span {
+            font-size: 10px !important;
+            flex-basis: 100%;
+            order: -1;
+          }
+          [data-toolbar="true"] > div[style*="flex: 1"] {
+            display: none;
+          }
+          [data-toolbar="true"] label {
+            font-size: 9px !important;
+            margin-right: 4px !important;
+          }
+          [data-toolbar="true"] select {
+            font-size: 10px !important;
+            padding: 4px 6px !important;
+          }
+          [data-toolbar="true"] button {
+            font-size: 10px !important;
+            padding: 3px 8px !important;
+          }
+          [data-toolbar="true"] div[style*="flex-direction: column"] {
+            flex-direction: row !important;
+            gap: 0 !important;
+          }
+          [data-toolbar="true"] div[style*="flex-direction: column"] > span {
+            display: none;
+          }
+        }
+      `}</style>
+
+      <div data-toolbar="true" style={darkToolbar}>
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src={`${BASE}/sdrc-logo.png`} alt="SDRC" style={sdrcLogoStyle} />
         {/* eslint-disable-next-line @next/next/no-img-element */}
