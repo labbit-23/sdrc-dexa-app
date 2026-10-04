@@ -33,10 +33,10 @@ function isAdminAuthorized(req) {
   }
 }
 
-function runLocalEcgRepair(row, sendWhatsapp) {
+function runLocalEcgManualSend(row, sendWhatsapp, testPhone) {
   return new Promise((resolve, reject) => {
     const child = spawn('/opt/labbit-utils/workers/dicom_export/.venv/bin/python', [
-      '/opt/labbit-utils/workers/ecg_delivery/repair.py', '--config',
+      '/opt/labbit-utils/workers/ecg_delivery/manual_send.py', '--config',
       '/opt/labbit-utils/workers/dicom_export/config/dicom_export.json',
     ], { stdio: ['pipe', 'pipe', 'pipe'] })
     let stdout = ''
@@ -52,7 +52,7 @@ function runLocalEcgRepair(row, sendWhatsapp) {
         reject(new Error(stderr.trim() || 'ECG worker returned invalid JSON'))
       }
     })
-    child.stdin.end(JSON.stringify({ row, send_whatsapp: Boolean(sendWhatsapp) }) + '\n')
+    child.stdin.end(JSON.stringify({ row, send_whatsapp: Boolean(sendWhatsapp), test_phone: testPhone || null }) + '\n')
   })
 }
 
@@ -92,6 +92,17 @@ export async function POST(req) {
     if (!body.tricog_ecg_id || typeof body.send_whatsapp !== 'boolean') {
       return Response.json({ error: 'Expected tricog_ecg_id and send_whatsapp' }, { status: 400 })
     }
+    let testPhone = null
+    if (body.test_phone != null && String(body.test_phone).trim()) {
+      const digits = String(body.test_phone).replace(/\D/g, "")
+      if (!/^\d{10}$/.test(digits) && !/^91\d{10}$/.test(digits)) {
+        return Response.json({ error: "Custom WhatsApp number must be a 10-digit Indian number" }, { status: 400 })
+      }
+      if (!body.send_whatsapp) {
+        return Response.json({ error: "Custom WhatsApp number requires send_whatsapp=true" }, { status: 400 })
+      }
+      testPhone = digits
+    }
     const { data: row, error } = await sb
       .from('ecg_studies')
       .select('accession_no, tricog_ecg_id, patient_name, age, sex, branch_center_id, branch_center_name, diagnosis, final_classification, status, acquired_at, pdf_url, pdf_url_plain, whatsapp_sent_at, whatsapp_message_id, raw_json')
@@ -102,7 +113,7 @@ export async function POST(req) {
     if (!row.diagnosis || !String(row.diagnosis).trim()) return Response.json({ error: 'ECG has no diagnosis; delivery is gated' }, { status: 409 })
 
     try {
-      const result = await runLocalEcgRepair(row, body.send_whatsapp)
+      const result = await runLocalEcgManualSend(row, body.send_whatsapp, testPhone)
       const stages = { ...(result.stages || {}) }
       const raw = { ...(row.raw_json || {}), manualDelivery: { at: new Date().toISOString(), links: result.links || [], stages } }
       const update = {
@@ -119,7 +130,7 @@ export async function POST(req) {
       stages.ledger = { status: 'ok' }
       return Response.json({ ...result, stages })
     } catch (err) {
-      return Response.json({ error: err.message || 'ECG repair failed' }, { status: 502 })
+      return Response.json({ error: err.message || 'ECG manual send failed' }, { status: 502 })
     }
   }
 
