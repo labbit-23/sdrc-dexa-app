@@ -58,12 +58,13 @@ function runLocalEcgManualSend(row, sendWhatsapp, testPhone, mode = null, phone 
 
 function deliveryStages(row) {
   const stored = row.raw_json?.manualDelivery?.stages
-  if (stored) return stored
+  const storedStage = (name, fallback) => ({ ...(stored?.[name] || {}), status: stored?.[name]?.status || fallback })
+  // Durable URLs and sent timestamps are authoritative for legacy Mirth rows.
   return {
-    core: { status: row.pdf_url_plain ? 'linked' : 'unknown' },
-    ftp: { status: row.pdf_url ? 'ok' : 'missing' },
-    ledger: { status: 'ok' },
-    whatsapp: { status: row.whatsapp_sent_at ? 'ok' : 'pending' },
+    core: row.pdf_url_plain ? { ...storedStage("core", "linked"), status: "linked" } : storedStage("core", "unknown"),
+    ftp: row.pdf_url ? { ...storedStage("ftp", "missing"), status: "ok" } : storedStage("ftp", "missing"),
+    ledger: stored?.ledger?.status === "error" ? stored.ledger : { ...storedStage("ledger", "ok"), status: "ok" },
+    whatsapp: row.whatsapp_sent_at ? { ...storedStage("whatsapp", "ok"), status: "ok" } : storedStage("whatsapp", "pending"),
   }
 }
 

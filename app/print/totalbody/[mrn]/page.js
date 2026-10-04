@@ -119,7 +119,9 @@ export default function PrintPreviewTotalbody({ params: paramsPromise, searchPar
         @media (max-width: 768px) {
           [data-toolbar="true"] {
             flex-wrap: wrap;
-            height: auto;
+            height: auto !important;
+            min-height: 48px;
+            overflow: visible;
             gap: 6px;
             padding: 8px;
             align-content: center;

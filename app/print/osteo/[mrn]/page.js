@@ -91,7 +91,9 @@ export default function PrintPreviewOsteo({ params: paramsPromise, searchParams:
         @media (max-width: 768px) {
           [data-toolbar="true"] {
             flex-wrap: wrap;
-            height: auto;
+            height: auto !important;
+            min-height: 48px;
+            overflow: visible;
             gap: 6px;
             padding: 8px;
             align-content: center;
