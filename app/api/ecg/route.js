@@ -33,7 +33,7 @@ function isAdminAuthorized(req) {
   }
 }
 
-function runLocalEcgManualSend(row, sendWhatsapp, testPhone) {
+function runLocalEcgManualSend(row, sendWhatsapp, testPhone, mode = null, phone = null) {
   return new Promise((resolve, reject) => {
     const child = spawn('/opt/labbit-utils/workers/dicom_export/.venv/bin/python', [
       '/opt/labbit-utils/workers/ecg_delivery/manual_send.py', '--config',
@@ -52,7 +52,7 @@ function runLocalEcgManualSend(row, sendWhatsapp, testPhone) {
         reject(new Error(stderr.trim() || 'ECG worker returned invalid JSON'))
       }
     })
-    child.stdin.end(JSON.stringify({ row, send_whatsapp: Boolean(sendWhatsapp), test_phone: testPhone || null }) + '\n')
+    child.stdin.end(JSON.stringify({ row, send_whatsapp: Boolean(sendWhatsapp), test_phone: testPhone || null, mode, phone }) + '\n')
   })
 }
 
@@ -81,6 +81,36 @@ export async function POST(req) {
   }
 
   const sb = getServiceClient()
+
+  if (body.action === "SEND_EXISTING") {
+    if (!isAdminAuthorized(req)) {
+      return new Response(JSON.stringify({ error: "ECG admin authentication required" }), {
+        status: 401,
+        headers: { "Content-Type": "application/json", "WWW-Authenticate": "Basic realm=ECG administration" },
+      })
+    }
+    if (!body.tricog_ecg_id || !body.phone) {
+      return Response.json({ error: "Expected tricog_ecg_id and phone" }, { status: 400 })
+    }
+    const digits = String(body.phone).replace(/\D/g, "")
+    if (!/^\d{10}$/.test(digits) && !/^91\d{10}$/.test(digits)) {
+      return Response.json({ error: "Recipient must be a 10-digit Indian number" }, { status: 400 })
+    }
+    const { data: row, error } = await sb
+      .from("ecg_studies")
+      .select("accession_no, tricog_ecg_id, patient_name, diagnosis, pdf_url, pdf_url_plain, raw_json")
+      .eq("tricog_ecg_id", body.tricog_ecg_id)
+      .maybeSingle()
+    if (error) return Response.json({ error: error.message }, { status: 502 })
+    if (!row) return Response.json({ error: "ECG study not found" }, { status: 404 })
+    if (!row.diagnosis || !String(row.diagnosis).trim()) return Response.json({ error: "ECG has no diagnosis; delivery is gated" }, { status: 409 })
+    try {
+      const result = await runLocalEcgManualSend(row, false, null, "existing_copy", digits)
+      return Response.json(result)
+    } catch (err) {
+      return Response.json({ error: err.message || "ECG manual send failed" }, { status: 502 })
+    }
+  }
 
   if (body.action === 'REATTACH') {
     if (!isAdminAuthorized(req)) {

@@ -88,7 +88,7 @@
       <div class="repair-card">
         <h3 id="repairTitle">Send to...</h3>
         <p id="repairDescription"></p>
-        <label for="whatsappPhone">Additional WhatsApp number (optional)</label><input id="whatsappPhone" type="tel" inputmode="numeric" placeholder="9949099249"><small style="display:block;color:#8a9ca7;font-size:11px;line-height:1.4;margin-top:6px">Leave blank to keep the existing behavior. If entered, the patient copy is sent normally and a second copy is sent to this number. It is not saved as patient contact data.</small><label><input id="sendWhatsapp" type="checkbox"><span>Enable WhatsApp send. This is a separate explicit action and may deliver a duplicate patient message.</span></label>
+        <label for="whatsappPhone">Send existing PDF to number</label><input id="whatsappPhone" type="tel" inputmode="numeric" placeholder="9949099249"><small style="display:block;color:#8a9ca7;font-size:11px;line-height:1.4;margin-top:6px">This sends the already-generated FTP PDF only to this number. It does not rebuild, overwrite FTP, or resend to the patient.</small>
         <div class="repair-actions"><button class="quick" onclick="closeRepair()">Cancel</button><button class="button primary" id="repairConfirm" onclick="confirmRepair()">Send to...</button></div>
       </div>
     </div>
@@ -133,35 +133,35 @@ function openStudy(index) {
 }
 function openRepair(index) {
   const study = window.ecgStudies?.[index];
-  if (!study) return;
+  if (study == null) return;
   window.repairStudy = study;
-  document.getElementById('repairTitle').innerText = `Rebuild ${study.accession_no || 'ECG'}`;
-  document.getElementById('repairDescription').innerText = `${study.patient_name || 'Patient'} · The default action rebuilds the graph PDF, reattaches the plain report to Core, refreshes FTP and updates the ledger. WhatsApp remains off unless you check it.`;
-  document.getElementById('sendWhatsapp').checked = false;
-  document.getElementById('whatsappPhone').value = '';
-  document.getElementById('repairModal').classList.add('open');
+  document.getElementById("repairTitle").innerText = "Send to " + (study.accession_no || "ECG");
+  document.getElementById("repairDescription").innerText = (study.patient_name || "Patient") + " · Send the existing generated PDF to the entered number. This does not rebuild or change FTP, Core, or ledger.";
+  document.getElementById("whatsappPhone").value = "";
+  document.getElementById("repairModal").classList.add("open");
 }
-function closeRepair() { document.getElementById('repairModal').classList.remove('open'); window.repairStudy = null; }
+function closeRepair() { document.getElementById("repairModal").classList.remove("open"); window.repairStudy = null; }
 async function confirmRepair() {
   const study = window.repairStudy;
-  if (!study) return;
-  const sendWhatsapp = document.getElementById('sendWhatsapp').checked;
-  const testPhone = document.getElementById('whatsappPhone').value.trim();
-  const digits = testPhone.replace(/[^0-9]/g, '');
-  if (testPhone && !sendWhatsapp) { alert('Enable WhatsApp before adding an additional number.'); return; }
-  if (sendWhatsapp && testPhone && !(digits.length === 10 || (digits.length === 12 && digits.startsWith('91')))) { alert('Enter a valid 10-digit Indian number.'); return; }
-  if (sendWhatsapp && !confirm(testPhone ? 'Send the normal patient copy and a second copy to ' + digits + '?' : 'Send this ECG to WhatsApp again?')) return;
-  const button = document.getElementById('repairConfirm');
-  button.disabled = true; button.innerText = 'Working…';
+  if (study == null) return;
+  const phone = document.getElementById("whatsappPhone").value.trim();
+  const digits = phone.replace(/[^0-9]/g, "");
+  if (digits.length === 0) { alert("Enter a recipient number."); return; }
+  const valid = digits.length === 10 || (digits.length === 12 && digits.startsWith("91"));
+  if (valid === false) { alert("Enter a valid 10-digit Indian number."); return; }
+  const approved = window.confirm("Send the existing ECG PDF to " + digits + "?");
+  if (approved === false) return;
+  const button = document.getElementById("repairConfirm");
+  button.disabled = true; button.innerText = "Working…";
   try {
-    const response = await fetch(window.location.pathname.replace(/\/ecg\.html$/, '') + '/api/ecg', { method:'POST', credentials:'same-origin', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ action:'REATTACH', tricog_ecg_id:study.tricog_ecg_id, send_whatsapp:sendWhatsapp, test_phone:testPhone || null }) });
+    const response = await fetch(window.location.pathname.replace(/\/ecg\.html$/, "") + "/api/ecg", { method:"POST", credentials:"same-origin", headers:{"Content-Type":"application/json"}, body:JSON.stringify({ action:"SEND_EXISTING", tricog_ecg_id:study.tricog_ecg_id, phone:digits }) });
     const result = await response.json();
-    if (!response.ok) throw new Error(result.error || 'ECG repair failed');
+    if (response.ok === false) throw new Error(result.error || "ECG manual send failed");
     closeRepair();
-    alert(`Completed ${study.accession_no}.\nCore: ${result.stages?.core?.status || '—'}\nFTP: ${result.stages?.ftp?.status || '—'}\nLedger: ${result.stages?.ledger?.status || '—'}\nWhatsApp: ${result.stages?.whatsapp?.status || '—'}`);
+    alert("Sent " + study.accession_no + " to " + digits + ".");
     loadStudies();
-  } catch (error) { alert(error.message || 'ECG repair failed'); }
-  finally { button.disabled = false; button.innerText = 'Send to...'; }
+  } catch (error) { alert(error.message || "ECG manual send failed"); }
+  finally { button.disabled = false; button.innerText = "Send to..."; }
 }
 function filterStudyRows() {
   const query = document.getElementById('studySearch').value.trim().toLowerCase();
