@@ -57,6 +57,10 @@
     .badge.unknown { color:#8095a0; background:#eef2f4; }
     .sent { color:#168468; font-weight:800; }
     .sent-pending { color:#b98a1a; font-weight:750; }
+    .stage { display:inline-block; min-width:58px; padding:4px 7px; border-radius:7px; text-align:center; font-size:10px; font-weight:850; text-transform:uppercase; letter-spacing:.04em; }
+    .stage.ok { color:#168468; background:#e5f7ef; } .stage.pending,.stage.linked { color:#98751a; background:#fff6d9; } .stage.error,.stage.missing { color:#bd4457; background:#fdecee; } .stage.unknown { color:#8095a0; background:#eef2f4; } .stage.skipped { color:#6f7f89; background:#eef2f4; }
+    .repair-button { height:30px; padding:0 9px; border:1px solid #d9e7ed; border-radius:8px; color:#527182; background:#fff; font:inherit; font-size:11px; font-weight:850; cursor:pointer; white-space:nowrap; } .repair-button:hover { border-color:#e0507b; color:#e0507b; background:#fff5f7; }
+    .repair-modal { position:fixed; inset:0; display:none; place-items:center; padding:20px; background:rgba(23,59,82,.34); z-index:10; } .repair-modal.open { display:grid; } .repair-card { width:min(470px,100%); padding:25px; border-radius:18px; background:#fff; box-shadow:0 24px 80px rgba(23,59,82,.24); } .repair-card h3 { margin:0 0 8px; color:var(--ink); } .repair-card p { color:#68808e; font-size:13px; line-height:1.5; } .repair-card label { display:flex; gap:9px; align-items:flex-start; margin:18px 0; color:#496b7c; font-size:13px; } .repair-card input[type=checkbox] { width:17px; height:17px; margin:0; } .repair-actions { display:flex; justify-content:flex-end; gap:8px; }
     .pdf-link { display:inline-grid; place-items:center; width:34px; height:30px; border-radius:9px; color:#e0507b; background:#ffeef2; font-size:16px; text-decoration:none; }
     .report-links { display:inline-flex; gap:6px; }
     .print-link { display:inline-grid; place-items:center; width:34px; height:30px; border-radius:9px; color:#527182; background:#eef2f4; font-size:16px; text-decoration:none; }
@@ -79,7 +83,15 @@
       </div>
       <div class="loading-msg" id="loadingMsg" style="display:none">Loading activity…</div>
     </section>
-    <section class="results" id="studyResults"><div class="results-head"><div class="results-title">Study activity <span class="count" id="resultCount"></span></div><input class="study-search" id="studySearch" type="search" placeholder="Search accession, patient…" oninput="filterStudyRows()"></div><div id="tableWrap"><div class="empty">Choose a date above to load ECG studies.</div></div></section>
+    <section class="results" id="studyResults"><div class="results-head"><div class="results-title">Study activity <span class="count" id="resultCount"></span></div><div style="display:flex;gap:8px;align-items:center"><select class="study-search" id="stageFilter" onchange="filterStudyRows()" style="width:150px"><option value="all">All stages</option><option value="attention">Incomplete / failed</option><option value="whatsapp">WhatsApp pending</option></select><input class="study-search" id="studySearch" type="search" placeholder="Search accession, patient…" oninput="filterStudyRows()"></div></div><div id="tableWrap"><div class="empty">Choose a date above to load ECG studies.</div></div></section>
+    <div class="repair-modal" id="repairModal" role="dialog" aria-modal="true" aria-labelledby="repairTitle">
+      <div class="repair-card">
+        <h3 id="repairTitle">Rebuild ECG delivery</h3>
+        <p id="repairDescription"></p>
+        <label><input id="sendWhatsapp" type="checkbox"><span>Send WhatsApp again. This is a separate explicit action and may deliver a duplicate patient message.</span></label>
+        <div class="repair-actions"><button class="quick" onclick="closeRepair()">Cancel</button><button class="button primary" id="repairConfirm" onclick="confirmRepair()">Rebuild and reattach</button></div>
+      </div>
+    </div>
   </main>
 <script>
 function localCalendarDate() {
@@ -100,43 +112,93 @@ function statusBadge(status) {
   if (s === 'abnormal') return '<span class="badge abnormal">Abnormal</span>';
   return `<span class="badge unknown">${status || '—'}</span>`;
 }
+function stageCell(stage) {
+  const status = String(stage?.status || 'unknown').toLowerCase();
+  const labels = { ok:'OK', linked:'Linked', pending:'Pending', skipped:'Skipped', error:'Error', missing:'Missing', unknown:'—', deferred:'Queued' };
+  return `<span class="stage ${status}">${labels[status] || status}</span>`;
+}
 function sentCell(study) {
   if (!study.whatsapp_sent_at) return '<span class="sent-pending">Pending</span>';
   const t = new Date(study.whatsapp_sent_at);
   const timeStr = t.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
   return `<span class="sent">✓ Sent</span> <span style="color:#9aacb5;font-size:11px">${timeStr}</span>`;
 }
+function needsAttention(study) {
+  const stages = study.delivery_stages || {};
+  return ['core','ftp','ledger','whatsapp'].some(name => !['ok','skipped','linked'].includes(String(stages[name]?.status || 'unknown').toLowerCase()));
+}
+function openStudy(index) {
+  const study = window.ecgStudies?.[index];
+  if (study?.pdf_url) window.open(study.pdf_url, '_blank', 'noopener');
+}
+function openRepair(index) {
+  const study = window.ecgStudies?.[index];
+  if (!study) return;
+  window.repairStudy = study;
+  document.getElementById('repairTitle').innerText = `Rebuild ${study.accession_no || 'ECG'}`;
+  document.getElementById('repairDescription').innerText = `${study.patient_name || 'Patient'} · The default action rebuilds the graph PDF, reattaches the plain report to Core, refreshes FTP and updates the ledger. WhatsApp remains off unless you check it.`;
+  document.getElementById('sendWhatsapp').checked = false;
+  document.getElementById('repairModal').classList.add('open');
+}
+function closeRepair() { document.getElementById('repairModal').classList.remove('open'); window.repairStudy = null; }
+async function confirmRepair() {
+  const study = window.repairStudy;
+  if (!study) return;
+  const sendWhatsapp = document.getElementById('sendWhatsapp').checked;
+  if (sendWhatsapp && !confirm('Send this ECG to WhatsApp again? This may create a duplicate patient message.')) return;
+  const button = document.getElementById('repairConfirm');
+  button.disabled = true; button.innerText = 'Working…';
+  try {
+    const response = await fetch(window.location.pathname.replace(/\/ecg\.html$/, '') + '/api/ecg', { method:'POST', credentials:'same-origin', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ action:'REATTACH', tricog_ecg_id:study.tricog_ecg_id, send_whatsapp:sendWhatsapp }) });
+    const result = await response.json();
+    if (!response.ok) throw new Error(result.error || 'ECG repair failed');
+    closeRepair();
+    alert(`Completed ${study.accession_no}.\nCore: ${result.stages?.core?.status || '—'}\nFTP: ${result.stages?.ftp?.status || '—'}\nLedger: ${result.stages?.ledger?.status || '—'}\nWhatsApp: ${result.stages?.whatsapp?.status || '—'}`);
+    loadStudies();
+  } catch (error) { alert(error.message || 'ECG repair failed'); }
+  finally { button.disabled = false; button.innerText = 'Rebuild and reattach'; }
+}
 function filterStudyRows() {
   const query = document.getElementById('studySearch').value.trim().toLowerCase();
-  document.querySelectorAll('#studyTable tr').forEach(row => { row.style.display = !query || row.innerText.toLowerCase().includes(query) ? '' : 'none'; });
+  const filter = document.getElementById('stageFilter')?.value || 'all';
+  document.querySelectorAll('#studyTable tr').forEach(row => {
+    const matchText = !query || row.innerText.toLowerCase().includes(query);
+    const matchStage = filter === 'all' || (filter === 'attention' && row.dataset.attention === 'true') || (filter === 'whatsapp' && row.dataset.whatsapp === 'pending');
+    row.style.display = matchText && matchStage ? '' : 'none';
+  });
 }
 function loadStudies() {
   const dateInput = document.getElementById('studyDate').value, loading = document.getElementById('loadingMsg'), button = document.querySelector('.button.primary');
   if (!dateInput) { alert('Please select a date.'); return; }
   if (dateInput > localCalendarDate()) { alert('Future dates are not allowed.'); return; }
   loading.style.display = 'block'; button.disabled = true; button.innerText = 'Loading…';
-  fetch(window.location.pathname.replace(/\/ecg\.html$/, '') + '/api/ecg', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ action:'LIST', date: dateInput.replaceAll('-', '') }) })
+  fetch(window.location.pathname.replace(/\/ecg\.html$/, '') + '/api/ecg', { method:'POST', credentials:'same-origin', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ action:'LIST', date: dateInput.replaceAll('-', '') }) })
     .then(res => { if (!res.ok) throw new Error('Request failed'); return res.json(); })
     .then(data => {
-      const rows = data.map(study => {
+      window.ecgStudies = data;
+      const rows = data.map((study, index) => {
         const time = study.acquired_at ? new Date(study.acquired_at).toLocaleTimeString('en-IN', { hour:'2-digit', minute:'2-digit' }) : '—';
-        return `<tr class="data-row" ${study.pdf_url ? `onclick="window.open('${study.pdf_url}','_blank')"` : ''}>
+        const stages = study.delivery_stages || {};
+        const whatsapp = stages.whatsapp?.status || (study.whatsapp_sent_at ? 'ok' : 'pending');
+        return `<tr class="data-row" data-attention="${needsAttention(study)}" data-whatsapp="${whatsapp}" onclick="openStudy(${index})">
           <td class="reqno" onclick="event.stopPropagation()">${study.accession_no || '—'}</td>
           <td>${study.patient_name || '—'}${study.age ? ` <span style="color:#9aacb5">· ${study.age}${study.sex ? study.sex : ''}</span>` : ''}</td>
           <td class="diagnosis-cell" title="${(study.diagnosis || '').replace(/"/g, '&quot;')}">${study.diagnosis || '—'}</td>
           <td>${statusBadge(study.status)}</td>
-          <td>${sentCell(study)}</td>
+          <td>${stageCell(stages.core)}</td><td>${stageCell(stages.ftp)}</td><td>${stageCell(stages.ledger)}</td><td>${stageCell(stages.whatsapp)}</td>
           <td>${time}</td>
-          <td style="text-align:right"><span class="report-links">${study.pdf_url ? `<a class="pdf-link" href="${study.pdf_url}" target="_blank" rel="noopener" onclick="event.stopPropagation()" title="Open ECG report">📄</a>` : '—'}${study.pdf_url_plain ? `<a class="print-link" href="${study.pdf_url_plain}" target="_blank" rel="noopener" onclick="event.stopPropagation()" title="Print plain ECG (no letterhead)">🖨️</a>` : `<span class="print-link disabled" title="Plain PDF not available for this ECG">🖨️</span>`}</span></td>
+          <td style="text-align:right"><span class="report-links">${study.pdf_url ? `<a class="pdf-link" href="${study.pdf_url}" target="_blank" rel="noopener" onclick="event.stopPropagation()" title="Open ECG report">📄</a>` : '—'}${study.pdf_url_plain ? `<a class="print-link" href="${study.pdf_url_plain}" target="_blank" rel="noopener" onclick="event.stopPropagation()" title="Print plain ECG">🖨️</a>` : ''}<button class="repair-button" onclick="event.stopPropagation();openRepair(${index})" title="Rebuild and reattach">↻ Repair</button></span></td>
         </tr>`;
       }).join('');
       document.getElementById('resultCount').innerText = `${data.length} ${data.length === 1 ? 'study' : 'studies'}`;
-      document.getElementById('tableWrap').innerHTML = rows ? `<table><thead><tr><th>Accession</th><th>Patient</th><th>Diagnosis</th><th>Status</th><th>Sent</th><th>Time</th><th style="text-align:right">Report / Print</th></tr></thead><tbody id="studyTable">${rows}</tbody></table>` : '<div class="empty">No ECG studies found for this date.</div>';
+      document.getElementById('tableWrap').innerHTML = rows ? `<table><thead><tr><th>Accession</th><th>Patient</th><th>Diagnosis</th><th>Status</th><th>Core</th><th>FTP</th><th>Ledger</th><th>WhatsApp</th><th>Time</th><th style="text-align:right">Report / Repair</th></tr></thead><tbody id="studyTable">${rows}</tbody></table>` : '<div class="empty">No ECG studies found for this date.</div>';
+      filterStudyRows();
       document.getElementById('studyResults').scrollIntoView({ behavior: 'smooth', block: 'start' });
     })
-    .catch(err => { document.getElementById('tableWrap').innerHTML = '<div class="empty">Unable to load study activity.</div>'; console.error(err); })
+    .catch(err => { document.getElementById('tableWrap').innerHTML = `<div class="empty">${err.message || 'Unable to load study activity.'}</div>`; console.error(err); })
     .finally(() => { loading.style.display='none'; button.disabled=false; button.innerText='Load study activity →'; });
 }
+
 (function(){ const local=localCalendarDate(); document.getElementById('studyDate').value=local; document.getElementById('studyDate').max=local; loadStudies(); })();
 </script>
 </body>
