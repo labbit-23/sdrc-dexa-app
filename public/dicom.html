@@ -61,6 +61,12 @@
     .ct-glyph { position:relative; display:block; width:23px; height:21px; border:3px solid currentColor; border-radius:50%; }
     .ct-glyph:after { content:""; position:absolute; left:4px; top:4px; width:9px; height:9px; border-radius:50%; background:currentColor; opacity:.28; }
     .empty { padding:45px 20px; color:#90a2ac; text-align:center; font-size:13px; }
+    .pdf-modal-backdrop { position:fixed; inset:0; z-index:1000; display:grid; place-items:center; background:rgba(10,24,36,.72); }
+    .pdf-modal { width:min(430px,calc(100vw - 32px)); max-height:80vh; overflow:auto; background:#fff; border-radius:16px; padding:20px; box-shadow:0 20px 70px rgba(0,0,0,.35); }
+    .pdf-modal h3 { margin:0 0 5px; color:var(--ink); font-size:16px; }
+    .pdf-choice { display:flex; align-items:center; justify-content:space-between; width:100%; margin-top:9px; padding:11px 13px; border:1px solid var(--line); border-radius:9px; background:#f8fbfc; color:var(--ink); cursor:pointer; font-weight:750; text-align:left; text-decoration:none; }
+    .pdf-choice:hover { border-color:var(--teal); background:#effaf6; }
+    .pdf-close { margin-top:14px; width:100%; padding:9px; border:0; border-radius:8px; background:#e9eff2; color:#45616f; cursor:pointer; font-weight:750; }
     @media(max-width:760px) { .heading { display:block; } .live { display:inline-flex; margin-top:20px; } .actions { display:block; } .panel { margin-bottom:15px; } .fields { grid-template-columns:1fr; } .results { overflow-x:auto; } table { min-width:720px; } .brand-label { display:none; } }
   </style>
 </head>
@@ -93,6 +99,19 @@ function modalityLabel(study) {
   return raw === 'CT' ? { label:'CT', cls:'ct' } : { label:'X-Ray / image study', cls:'' };
 }
 function modalityGlyph(modality) { return modality.cls === 'ct' ? '<span class="ct-glyph"></span>' : '<span class="xray-glyph">✦</span>'; }
+function openStudyDetails(study, modality) {
+  if (!study) return;
+  const old=document.getElementById('studyDetails'); if(old) old.remove();
+  const backdrop=document.createElement('div'); backdrop.id='studyDetails'; backdrop.className='pdf-modal-backdrop';
+  const modal=document.createElement('div'); modal.className='pdf-modal';
+  const title=document.createElement('h3'); title.textContent=[study.accession, study.studyDescription].filter(Boolean).join(' — ') || 'Study details'; modal.appendChild(title);
+  const fields=[['Patient',study.patientName],['Modality',modality?.label || study.modality],['Phone',study.phone],['Status',study.status],['Attempts',study.attempts],['Timestamp',study.timestamp],['Series',study.seriesCount],['Study ID',study.studyId]];
+  fields.forEach(([label,value])=>{ const cell=document.createElement('div'); cell.style.cssText='margin-top:11px'; const name=document.createElement('div'); name.style.cssText='color:#8095a0;font-size:10px;text-transform:uppercase;letter-spacing:.07em;font-weight:850'; name.textContent=label; const val=document.createElement('div'); val.style.cssText='color:#45616f;font-size:12px;font-weight:700;overflow-wrap:anywhere;margin-top:3px'; val.textContent=value === undefined || value === null || value === '' ? '—' : String(value); cell.append(name,val); modal.appendChild(cell); });
+  const urls=Array.isArray(study.pdfUrls) ? study.pdfUrls.filter(Boolean) : (study.pdfUrl ? [study.pdfUrl] : []);
+  urls.forEach((url,index)=>{ const link=document.createElement('a'); link.className='pdf-choice'; link.href=url; link.target='_blank'; link.rel='noopener'; link.textContent=`${modality?.label || 'Report'} ${index+1} · ${url.split('/').pop() || 'Open file'}`; modal.appendChild(link); });
+  const close=document.createElement('button'); close.className='pdf-close'; close.textContent='Close'; close.onclick=()=>backdrop.remove(); modal.appendChild(close);
+  backdrop.onclick=event=>{if(event.target===backdrop) backdrop.remove()}; backdrop.appendChild(modal); document.body.appendChild(backdrop);
+}
 function filterStudyRows() {
   const query = document.getElementById('studySearch').value.trim().toLowerCase();
   document.querySelectorAll('#studyTable tr').forEach(row => { row.style.display = !query || row.innerText.toLowerCase().includes(query) ? '' : 'none'; });
@@ -106,7 +125,8 @@ function loadStudies() {
   loading.style.display = 'block'; button.disabled = true; button.innerText = 'Loading…';
   fetch(window.location.pathname.replace(/\/dicom\.html$/, '') + '/api/dicom', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({action:'LIST', date:formatDateToYYYYMMDD(dateInput)}) })
     .then(res => res.json()).then(data => {
-      const rows = data.filter(study => study.studyId).map(study => { const modality = modalityLabel(study); const studyUrl = `https://files.sdrc.in/${study.studyId}/`; return `<tr class="data-row" onclick="window.open('${studyUrl}','_blank')"><td class="reqno" onclick="event.stopPropagation()">${study.accession || '—'}</td><td>${study.patientName || '—'}</td><td style="font-weight:700;color:#426d7f">${study.phone || '—'}</td><td>${study.status || '—'}</td><td>${study.attempts ?? '—'}</td><td>${study.timestamp || '—'}</td><td style="text-align:right"><a href="${studyUrl}" target="_blank" rel="noopener" onclick="event.stopPropagation()" aria-label="Open ${modality.label} study" title="Open ${modality.label} study"><span class="modality ${modality.cls}">${modalityGlyph(modality)}</span></a></td></tr>`; }).join('');
+      window.studyDetails = Object.fromEntries(data.filter(study => study.studyId).map(study => [study.studyId, study]));
+      const rows = data.filter(study => study.studyId).map(study => { const modality = modalityLabel(study); const studyKey = JSON.stringify(study.studyId).replace(/</g, '\u003c'); const pdfUrl = study.pdfUrl || (Array.isArray(study.pdfUrls) ? study.pdfUrls[0] : ''); const viewCell = pdfUrl ? `<a href="${pdfUrl}" target="_blank" rel="noopener" onclick="event.stopPropagation()" aria-label="Open ${modality.label} report" title="Open ${modality.label} report"><span class="modality ${modality.cls}">${modalityGlyph(modality)}</span></a>` : `<span class="modality disabled" title="No report file known yet">${modalityGlyph(modality)}</span>`; return `<tr class="data-row" onclick="openStudyDetails(window.studyDetails[${studyKey}], ${JSON.stringify(modality)})"><td class="reqno" onclick="event.stopPropagation()">${study.accession || '—'}</td><td>${study.patientName || '—'}</td><td style="font-weight:700;color:#426d7f">${study.phone || '—'}</td><td>${study.status || '—'}</td><td>${study.attempts ?? '—'}</td><td>${study.timestamp || '—'}</td><td style="text-align:right">${viewCell}</td></tr>`; }).join('');
       document.getElementById('resultCount').innerText = `${data.filter(s => s.studyId).length} studies`;
       document.getElementById('tableWrap').innerHTML = rows ? `<table><thead><tr><th>Accession</th><th>Patient</th><th>Phone</th><th>Status</th><th>Attempts</th><th>Timestamp</th><th style="text-align:right">View study</th></tr></thead><tbody id="studyTable">${rows}</tbody></table>` : '<div class="empty">No studies found for this date.</div>';
       document.getElementById('studyResults').scrollIntoView({ behavior: 'smooth', block: 'start' });
