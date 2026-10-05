@@ -54,6 +54,15 @@
     td { padding:16px 18px; border-top:1px solid #edf3f5; color:#547080; }
     tr.data-row { cursor:pointer; transition:background .15s ease; } tr.data-row:hover { background:#f5fbfa; }
     .reqno { user-select:text; cursor:text; }
+    .expand-arrow { display:inline-block; width:16px; color:#7c98a6; font-size:19px; line-height:1; transition:transform .15s ease,color .15s ease; vertical-align:-2px; }
+    .data-row.expanded .expand-arrow { transform:rotate(90deg); color:var(--teal); }
+    .study-detail-row td { padding:0 18px 16px; background:#fbfdfd; }
+    .study-detail-card { display:grid; grid-template-columns:repeat(auto-fit,minmax(140px,1fr)); gap:11px 16px; padding:14px; border-left:3px solid var(--teal); border-radius:0 10px 10px 0; background:#f5fbfa; }
+    .study-detail-label { color:#8095a0; font-size:10px; text-transform:uppercase; letter-spacing:.07em; font-weight:850; }
+    .study-detail-value { margin-top:3px; color:#45616f; font-size:12px; font-weight:700; overflow-wrap:anywhere; }
+    .study-detail-files { grid-column:1 / -1; }
+    .study-detail-file { display:inline-block; margin:7px 8px 0 0; padding:7px 10px; border:1px solid #d6e7e5; border-radius:8px; color:#287b70; background:#fff; font-size:11px; font-weight:750; text-decoration:none; }
+    .study-detail-file:hover { border-color:var(--teal); background:#effaf6; }
     td:first-child { color:#204a60; font-weight:800; } td:nth-child(3) { color:#2c8b76; font-weight:750; }
     .modality { display:inline-grid; place-items:center; width:34px; height:30px; border-radius:9px; color:#536bda; background:#f0efff; font-size:17px; font-weight:850; text-decoration:none; }
     .modality.ct { color:#b25a28; background:#fff3e9; }
@@ -99,18 +108,21 @@ function modalityLabel(study) {
   return raw === 'CT' ? { label:'CT', cls:'ct' } : { label:'X-Ray / image study', cls:'' };
 }
 function modalityGlyph(modality) { return modality.cls === 'ct' ? '<span class="ct-glyph"></span>' : '<span class="xray-glyph">✦</span>'; }
-function openStudyDetails(study, modality) {
-  if (!study) return;
-  const old=document.getElementById('studyDetails'); if(old) old.remove();
-  const backdrop=document.createElement('div'); backdrop.id='studyDetails'; backdrop.className='pdf-modal-backdrop';
-  const modal=document.createElement('div'); modal.className='pdf-modal';
-  const title=document.createElement('h3'); title.textContent=[study.accession, study.studyDescription].filter(Boolean).join(' — ') || 'Study details'; modal.appendChild(title);
-  const fields=[['Patient',study.patientName],['Modality',modality?.label || study.modality],['Phone',study.phone],['Status',study.status],['Attempts',study.attempts],['Timestamp',study.timestamp],['Series',study.seriesCount],['Study ID',study.studyId]];
-  fields.forEach(([label,value])=>{ const cell=document.createElement('div'); cell.style.cssText='margin-top:11px'; const name=document.createElement('div'); name.style.cssText='color:#8095a0;font-size:10px;text-transform:uppercase;letter-spacing:.07em;font-weight:850'; name.textContent=label; const val=document.createElement('div'); val.style.cssText='color:#45616f;font-size:12px;font-weight:700;overflow-wrap:anywhere;margin-top:3px'; val.textContent=value === undefined || value === null || value === '' ? '—' : String(value); cell.append(name,val); modal.appendChild(cell); });
+function toggleStudyDetails(row, studyKey, modality) {
+  const existing=row.nextElementSibling;
+  if(existing && existing.classList.contains('study-detail-row')) { existing.remove(); row.classList.remove('expanded'); return; }
+  document.querySelectorAll('.study-detail-row').forEach(detail=>detail.remove());
+  document.querySelectorAll('tr.data-row.expanded').forEach(open=>open.classList.remove('expanded'));
+  const study=window.studyDetailsById?.[studyKey] || window.crStudyDetails?.[studyKey];
+  if(!study) return;
+  const detail=document.createElement('tr'); detail.className='study-detail-row';
+  const cell=document.createElement('td'); cell.colSpan=row.cells.length;
+  const card=document.createElement('div'); card.className='study-detail-card';
+  const fields=[['Exam',study.studyDescription],['Patient',study.patientName],['Modality',modality?.label || study.modality],['Phone',study.phone],['Status',study.status],['Attempts',study.attempts],['Timestamp',study.timestamp],['Series',study.seriesCount],['Study ID',study.studyId]];
+  fields.forEach(([label,value])=>{ const item=document.createElement('div'); const name=document.createElement('div'); name.className='study-detail-label'; name.textContent=label; const val=document.createElement('div'); val.className='study-detail-value'; val.textContent=value === undefined || value === null || value === '' ? '—' : String(value); item.append(name,val); card.appendChild(item); });
   const urls=Array.isArray(study.pdfUrls) ? study.pdfUrls.filter(Boolean) : (study.pdfUrl ? [study.pdfUrl] : []);
-  urls.forEach((url,index)=>{ const link=document.createElement('a'); link.className='pdf-choice'; link.href=url; link.target='_blank'; link.rel='noopener'; link.textContent=`${modality?.label || 'Report'} ${index+1} · ${url.split('/').pop() || 'Open file'}`; modal.appendChild(link); });
-  const close=document.createElement('button'); close.className='pdf-close'; close.textContent='Close'; close.onclick=()=>backdrop.remove(); modal.appendChild(close);
-  backdrop.onclick=event=>{if(event.target===backdrop) backdrop.remove()}; backdrop.appendChild(modal); document.body.appendChild(backdrop);
+  if(urls.length){ const files=document.createElement('div'); files.className='study-detail-files'; const label=document.createElement('div'); label.className='study-detail-label'; label.textContent='Report files'; files.appendChild(label); urls.forEach((url,index)=>{ const link=document.createElement('a'); link.className='study-detail-file'; link.href=url; link.target='_blank'; link.rel='noopener'; link.textContent=`${modality?.label || 'Report'} ${index+1} · ${url.split('/').pop() || 'Open file'}`; files.appendChild(link); }); card.appendChild(files); }
+  cell.appendChild(card); detail.appendChild(cell); row.after(detail); row.classList.add('expanded');
 }
 function filterStudyRows() {
   const query = document.getElementById('studySearch').value.trim().toLowerCase();
@@ -126,7 +138,8 @@ function loadStudies() {
   fetch(window.location.pathname.replace(/\/dicom\.html$/, '') + '/api/dicom', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({action:'LIST', date:formatDateToYYYYMMDD(dateInput)}) })
     .then(res => res.json()).then(data => {
       window.studyDetails = Object.fromEntries(data.filter(study => study.studyId).map(study => [study.studyId, study]));
-      const rows = data.filter(study => study.studyId).map(study => { const modality = modalityLabel(study); const studyKey = JSON.stringify(study.studyId).replace(/</g, '\u003c'); const pdfUrl = study.pdfUrl || (Array.isArray(study.pdfUrls) ? study.pdfUrls[0] : ''); const viewCell = pdfUrl ? `<a href="${pdfUrl}" target="_blank" rel="noopener" onclick="event.stopPropagation()" aria-label="Open ${modality.label} report" title="Open ${modality.label} report"><span class="modality ${modality.cls}">${modalityGlyph(modality)}</span></a>` : `<span class="modality disabled" title="No report file known yet">${modalityGlyph(modality)}</span>`; return `<tr class="data-row" onclick="openStudyDetails(window.studyDetails[${studyKey}], ${JSON.stringify(modality)})"><td class="reqno" onclick="event.stopPropagation()">${study.accession || '—'}</td><td>${study.patientName || '—'}</td><td style="font-weight:700;color:#426d7f">${study.phone || '—'}</td><td>${study.status || '—'}</td><td>${study.attempts ?? '—'}</td><td>${study.timestamp || '—'}</td><td style="text-align:right">${viewCell}</td></tr>`; }).join('');
+      window.studyDetailsById = window.studyDetails;
+      const rows = data.filter(study => study.studyId).map(study => { const modality = modalityLabel(study); const studyKey = JSON.stringify(study.studyId).replace(/</g, '\u003c'); const pdfUrl = study.pdfUrl || (Array.isArray(study.pdfUrls) ? study.pdfUrls[0] : ''); const viewCell = pdfUrl ? `<a href="${pdfUrl}" target="_blank" rel="noopener" onclick="event.stopPropagation()" aria-label="Open ${modality.label} report" title="Open ${modality.label} report"><span class="modality ${modality.cls}">${modalityGlyph(modality)}</span></a>` : `<span class="modality disabled" title="No report file known yet">${modalityGlyph(modality)}</span>`; return `<tr class="data-row" onclick="toggleStudyDetails(this, ${studyKey}, ${JSON.stringify(modality)})"><td class="reqno" onclick="event.stopPropagation()"><span class="expand-arrow" aria-hidden="true">›</span>${study.accession || '—'}</td><td>${study.patientName || '—'}</td><td style="font-weight:700;color:#426d7f">${study.phone || '—'}</td><td>${study.status || '—'}</td><td>${study.attempts ?? '—'}</td><td>${study.timestamp || '—'}</td><td style="text-align:right">${viewCell}</td></tr>`; }).join('');
       document.getElementById('resultCount').innerText = `${data.filter(s => s.studyId).length} studies`;
       document.getElementById('tableWrap').innerHTML = rows ? `<table><thead><tr><th>Accession</th><th>Patient</th><th>Phone</th><th>Status</th><th>Attempts</th><th>Timestamp</th><th style="text-align:right">View study</th></tr></thead><tbody id="studyTable">${rows}</tbody></table>` : '<div class="empty">No studies found for this date.</div>';
       document.getElementById('studyResults').scrollIntoView({ behavior: 'smooth', block: 'start' });
