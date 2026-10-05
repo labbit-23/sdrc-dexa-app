@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>ECG Management · Labit</title>
+  <title>ECG Management · Radiology Dashboard</title>
   <link rel="icon" type="image/x-icon" href="favicon.ico">
   <style>
     :root { --ink:#173b52; --muted:#718798; --line:#e1edf1; --teal:#0e8c85; --pink:#e0507b; --bg:#f5f8fb; }
@@ -67,7 +67,7 @@
     .print-link { display:inline-grid; place-items:center; width:34px; height:30px; border-radius:9px; color:#527182; background:#eef2f4; font-size:16px; text-decoration:none; }
     .print-link.disabled { opacity:.4; cursor:not-allowed; pointer-events:none; }
     .diagnosis-cell { max-width:220px; overflow:hidden; overflow-wrap:anywhere; word-break:break-word; line-height:1.3; display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:3; }
-    .stage-cell, .time-cell { text-align:center; white-space:nowrap; } .time-cell { color:#8095a0; font-size:11px; }
+    .stage-cell, .time-cell { text-align:center; white-space:nowrap; } .time-cell { color:#8095a0; font-size:11px; } .time-head, .wa-head { text-align:center; } .wa-icon { display:inline-grid; place-items:center; width:18px; height:18px; } .wa-icon svg { display:block; width:18px; height:18px; }
     .empty { padding:45px 20px; color:#90a2ac; text-align:center; font-size:13px; }
     @media(max-width:760px) { .heading { display:block; } .live { display:inline-flex; margin-top:20px; } .panel { margin-bottom:15px; } .date-row { display:block; } .quick-row { margin-top:12px; } .brand-label { display:none; } }
   </style>
@@ -201,7 +201,7 @@ function loadStudies() {
         </tr>`;
       }).join('');
       document.getElementById('resultCount').innerText = `${data.length} ${data.length === 1 ? 'study' : 'studies'}`;
-      document.getElementById('tableWrap').innerHTML = rows ? `<table><thead><tr><th>Accession</th><th>Patient</th><th>Diagnosis</th><th>Status</th><th>Core</th><th>FTP</th><th>Ledger</th><th>WhatsApp</th><th>Time</th><th class="actions-head" style="text-align:right">Report / Send to...</th></tr></thead><tbody id="studyTable">${rows}</tbody></table>` : '<div class="empty">No ECG studies found for this date.</div>';
+      document.getElementById('tableWrap').innerHTML = rows ? `<table><thead><tr><th>Accession</th><th>Patient</th><th>Diagnosis</th><th>Status</th><th>Core</th><th>FTP</th><th>Ledger</th><th class="wa-head" title="WhatsApp" aria-label="WhatsApp"><span class="wa-icon" aria-hidden="true"><svg viewBox="0 0 24 24" role="img"><path fill="#25D366" d="M12 2a10 10 0 0 0-8.66 15L2 22l5.16-1.31A10 10 0 1 0 12 2Z"/><path fill="#fff" d="M16.52 13.65c-.25-.13-1.47-.72-1.7-.8-.23-.08-.4-.13-.57.13-.17.25-.65.8-.8.96-.15.17-.3.19-.55.06-.25-.13-1.04-.38-1.98-1.22-.73-.65-1.22-1.45-1.36-1.7-.14-.25-.02-.38.1-.5.11-.11.25-.3.38-.45.13-.15.17-.25.25-.42.08-.17.04-.32-.02-.45-.06-.13-.57-1.38-.78-1.89-.2-.49-.41-.42-.57-.43h-.49c-.17 0-.45.06-.68.32-.23.25-.89.87-.89 2.12s.91 2.46 1.04 2.63c.13.17 1.78 2.72 4.32 3.82.6.26 1.07.41 1.44.52.61.19 1.16.16 1.6.1.49-.07 1.47-.6 1.68-1.18.21-.58.21-1.08.15-1.18-.06-.11-.23-.17-.48-.3Z"/></svg></span></th><th class="time-head">Time</th><th class="actions-head" style="text-align:right">Report / Send to...</th></tr></thead><tbody id="studyTable">${rows}</tbody></table>` : '<div class="empty">No ECG studies found for this date.</div>';
       filterStudyRows();
       document.getElementById('studyResults').scrollIntoView({ behavior: 'smooth', block: 'start' });
     })

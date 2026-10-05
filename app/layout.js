@@ -1,5 +1,5 @@
 export const metadata = {
-  title: 'SDRC DEXA Reports',
+  title: 'SDRC Radiology Dashboard',
 }
 
 export default function RootLayout({ children }) {
